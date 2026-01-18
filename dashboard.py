@@ -5,7 +5,7 @@ import pandas as pd
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="📊")
 
 # Link da sua planilha Google exportada como CSV
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E/export?format=csv"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E/edit?usp=sharing"
 
 # Função para carregar dados
 @st.cache_data(ttl=600) # Atualiza o cache a cada 10 minutos
@@ -97,3 +97,4 @@ else:
 
 st.markdown("---")
 st.caption("Desenvolvido para NDI - Hapvida NotreDame Intermédica")
+
