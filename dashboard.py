@@ -1,100 +1,92 @@
 import streamlit as st
 import pandas as pd
 
-# Configuração da Página
+# 1. Configuração da Página
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="📊")
 
-# Link da sua planilha Google exportada como CSV
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E/edit?usp=sharing"
+# 2. Link da sua planilha Google (Exportando como CSV)
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E/export?format=csv"
 
-# Função para carregar dados
-@st.cache_data(ttl=600) # Atualiza o cache a cada 10 minutos
+# 3. Função para Carregar Dados
+@st.cache_data(ttl=300) # Atualiza automaticamente a cada 5 minutos
 def carregar_dados():
     try:
         df = pd.read_csv(SHEET_URL)
+        # Limpa espaços nos nomes das colunas
         df.columns = df.columns.str.strip()
+        # Trata a matrícula para ser sempre texto e sem decimais (.0)
         if 'Matrícula' in df.columns:
-            df['Matrícula'] = df['Matrícula'].astype(str).str.replace('.0', '', regex=False)
+            df['Matrícula'] = df['Matrícula'].astype(str).str.split('.').str[0].str.strip()
         return df
     except Exception as e:
-        st.error(f"Erro ao conectar com a Planilha Google: {e}")
+        st.error(f"Erro ao conectar com a base de dados: {e}")
         return None
 
-# Estilização de Cards
-def card_indicador(label, valor, meta, inverso=False):
-    # Lógica de cores: verde se bater a meta, vermelho se não.
-    # 'inverso=True' para indicadores onde menos é melhor (ex: Absenteísmo)
+# 4. Estilização dos Cards
+def exibir_metricas(label, valor, meta, menor_melhor=False):
     try:
-        num_valor = float(str(valor).replace('%', '').replace(',', '.'))
-        if inverso:
-            cor = "green" if num_valor <= meta else "red"
+        # Tenta converter o valor para número para definir a cor
+        limpo = str(valor).replace('%', '').replace(',', '.')
+        valor_num = float(limpo)
+        
+        if menor_melhor:
+            cor = "green" if valor_num <= meta else "red"
         else:
-            cor = "green" if num_valor >= meta else "red"
+            cor = "green" if valor_num >= meta else "red"
     except:
-        cor = "black"
-    
+        cor = "#333" # Cor padrão caso não seja número
+
     st.markdown(f"""
-        <div style="background-color: white; padding: 20px; border-radius: 10px; border-left: 5px solid {cor}; box-shadow: 2px 2px 5px rgba(0,0,0,0.1);">
-            <p style="margin: 0; font-size: 14px; color: #666;">{label}</p>
+        <div style="background-color: white; padding: 20px; border-radius: 10px; border-left: 6px solid {cor}; box-shadow: 2px 2px 8px rgba(0,0,0,0.1); margin-bottom: 15px;">
+            <p style="margin: 0; font-size: 14px; color: #666; font-weight: bold;">{label}</p>
             <h2 style="margin: 0; color: {cor};">{valor}</h2>
         </div>
     """, unsafe_allow_html=True)
 
 # --- INTERFACE ---
-st.markdown("# 📊 Portal de Performance NDI - SP")
+st.title("📊 Portal de Performance NDI - SP")
 st.markdown("---")
 
 df = carregar_dados()
 
 if df is not None:
-    tab1, tab2 = st.tabs(["👤 Área do Operador", "🔐 Área do Gestor"])
+    # Campo de Busca
+    matricula_busca = st.text_input("Olá! Digite sua Matrícula para conferir seus resultados:", placeholder="Ex: 1039456")
 
-    with tab1:
-        st.subheader("Consulta Individual de Performance")
-        matricula_busca = st.text_input("Digite sua Matrícula para ver seus resultados:")
+    if matricula_busca:
+        # Busca exata pela matrícula tratada
+        colaborador = df[df['Matrícula'] == str(matricula_busca).strip()]
 
-        if matricula_busca:
-            colaborador = df[df['Matrícula'] == matricula_busca]
+        if not colaborador.empty:
+            res = colaborador.iloc[0]
+            st.success(f"Resultados localizados para: **{res['Nome']}**")
+            
+            # Linha 1 de Indicadores
+            c1, c2, c3 = st.columns(3)
+            with c1: exibir_metricas("Aderência", f"{res.get('Aderência', 0)}%", 95)
+            with c2: exibir_metricas("Resolutividade", f"{res.get('Resolutividade', 0)}%", 85)
+            with c3: exibir_metricas("Transf", f"{res.get('Transf', 0)}%", 10, menor_melhor=True)
 
-            if not colaborador.empty:
-                row = colaborador.iloc[0]
-                st.success(f"Olá, {row['Nome']}! Veja seus indicadores:")
-
-                # Primeira Linha de Cards
-                c1, c2, c3 = st.columns(3)
-                with c1: card_indicador("Aderência", f"{row['Aderência']}%", 95)
-                with c2: card_indicador("Resolutividade", f"{row['Resolutividade']}%", 85)
-                with c3: card_indicador("Transf", f"{row['Transf']}%", 10, inverso=True)
-
-                st.markdown("<br>", unsafe_allow_html=True)
-
-                # Segunda Linha de Cards
-                c4, c5, c6 = st.columns(3)
-                with c4: card_indicador("Absenteísmo", f"{row['Absenteísmo']}%", 5, inverso=True)
-                with c5: card_indicador("Pausa Total", f"{row['Pausa Total']}%", 10, inverso=True)
-                with c6: 
-                    st.markdown(f"""
-                        <div style="background-color: white; padding: 20px; border-radius: 10px; border-left: 5px solid gold; box-shadow: 2px 2px 5px rgba(0,0,0,0.1);">
-                            <p style="margin: 0; font-size: 14px; color: #666;">Pesquisa (NPS)</p>
-                            <h2 style="margin: 0; color: #444;">⭐ {row['Pesquisa']}</h2>
-                        </div>
-                    """, unsafe_allow_html=True)
-
-                st.info(f"⏱️ **Seu TMA Voz:** {row['TMA']}")
-            else:
-                st.error("Matrícula não localizada na base atual.")
-
-    with tab2:
-        st.subheader("Configurações do Gestor")
-        st.write("✅ **Status:** O portal está conectado diretamente à sua Planilha Google.")
-        st.write("Para atualizar os dados, basta editar sua planilha oficial no Google Drive. O site refletirá as mudanças em instantes.")
-        if st.button("Forçar Atualização de Dados"):
-            st.cache_data.clear()
-            st.rerun()
-
+            # Linha 2 de Indicadores
+            c4, c5, c6 = st.columns(3)
+            with c4: exibir_metricas("Absenteísmo", f"{res.get('Absenteísmo', 0)}%", 5, menor_melhor=True)
+            with c5: exibir_metricas("Pausa Total", f"{res.get('Pausa Total', 0)}%", 10, menor_melhor=True)
+            with c6:
+                # Card Especial para Pesquisa/NPS
+                st.markdown(f"""
+                    <div style="background-color: #fcfcfc; padding: 20px; border-radius: 10px; border-left: 6px solid #FFD700; box-shadow: 2px 2px 8px rgba(0,0,0,0.1);">
+                        <p style="margin: 0; font-size: 14px; color: #666; font-weight: bold;">Pesquisa (NPS)</p>
+                        <h2 style="margin: 0; color: #444;">⭐ {res.get('Pesquisa', 'N/A')}</h2>
+                    </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown(f"### ⏱️ TMA Voz: `{res.get('TMA', '00:00:00')}`")
+        else:
+            st.warning("Matrícula não encontrada. Verifique se o número está correto na sua Planilha Google.")
+    else:
+        st.info("Aguardando digitação da matrícula...")
 else:
-    st.warning("Aguardando carregamento da base de dados...")
+    st.error("Não foi possível carregar a base de dados. Verifique as permissões da planilha.")
 
 st.markdown("---")
-st.caption("Desenvolvido para NDI - Hapvida NotreDame Intermédica")
-
+st.caption("Dados integrados via Google Sheets | Atualização automática")
