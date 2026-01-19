@@ -28,21 +28,22 @@ def converter_tma_minutos(tempo_str):
     except: return 0.0
 
 def definir_cor_kpi(valor, meta, margem, menor_melhor=False):
+    """Lógica de Semáforo: Verde (Meta), Amarelo (Atenção), Vermelho (Fora)"""
     if menor_melhor:
-        if valor <= meta: return "#28a745"
-        if valor <= meta + margem: return "#ffc107"
-        return "#dc3545"
+        if valor <= meta: return "#28a745" # Verde
+        if valor <= meta + margem: return "#ffc107" # Amarelo
+        return "#dc3545" # Vermelho
     else:
-        if valor >= meta: return "#28a745"
-        if valor >= meta - margem: return "#ffc107"
-        return "#dc3545"
+        if valor >= meta: return "#28a745" # Verde
+        if valor >= meta - margem: return "#ffc107" # Amarelo
+        return "#dc3545" # Vermelho
 
 def exibir_card(label, valor, cor="#333", icon=""):
     st.markdown(f"""
-        <div style="background-color: white; padding: 15px; border-radius: 10px; border-left: 8px solid {cor}; 
-             box-shadow: 2px 2px 8px rgba(0,0,0,0.1); margin-bottom: 10px;">
+        <div style="background-color: white; padding: 15px; border-radius: 10px; border-left: 10px solid {cor}; 
+             box-shadow: 2px 2px 8px rgba(0,0,0,0.1); margin-bottom: 12px;">
             <p style="margin: 0; font-size: 12px; color: #666; font-weight: bold; text-transform: uppercase;">{label}</p>
-            <h2 style="margin: 5px 0 0 0; color: {cor}; font-size: 20px;">{icon} {valor}</h2>
+            <h2 style="margin: 5px 0 0 0; color: {cor}; font-size: 22px;">{icon} {valor}</h2>
         </div>
     """, unsafe_allow_html=True)
 
@@ -53,13 +54,16 @@ def carregar_dados(nome_aba):
         df = pd.read_csv(url)
         df.columns = df.columns.str.strip()
         
-        # Mapeamento robusto para evitar KeyError
-        colunas_alvo = [
+        if 'Matricula' in df.columns:
+            df['Matricula'] = df['Matricula'].astype(str).str.split('.').str[0].str.strip()
+
+        # Mapeamento e criação automática de colunas numéricas para as 9 métricas
+        metricas_alvo = [
             'Aderencia', 'Absenteismo', 'Transf', 'TMA Voz', 'Pesquisa', 
             'Resolutividade', 'Pausa Produtiva', 'Pausa Improdutiva', 'Pausa Total'
         ]
         
-        for col in colunas_alvo:
+        for col in metricas_alvo:
             if col in df.columns:
                 if any(x in col for x in ['TMA', 'Pausa']):
                     df[f'{col}_num'] = df[col].apply(converter_tma_minutos)
@@ -68,92 +72,106 @@ def carregar_dados(nome_aba):
             else:
                 df[col] = "0"
                 df[f'{col}_num'] = 0.0
-        
         return df
     except: return None
 
-# --- UI PRINCIPAL ---
+# --- INTERFACE PRINCIPAL ---
 st.title("🚀 Portal de Performance NDI")
 supervisor = st.selectbox("Selecione o seu Supervisor:", SUPERVISORES)
 
 if supervisor != "Selecione...":
     df = carregar_dados(supervisor)
     if df is not None:
-        tabs = st.tabs(["👤 Individual", "👥 Equipe", "🏆 Melhores", "📊 Saúde"])
+        tabs = st.tabs(["👤 Individual", "👥 Equipe", "🏆 Melhores", "📊 Saúde da Operação"])
 
-        # 1. ABA INDIVIDUAL
+        # --- 1. ABA INDIVIDUAL ---
         with tabs[0]:
-            mat = st.text_input("Sua Matrícula:")
+            mat = st.text_input("Digite sua Matrícula para ver seus resultados:")
             if mat:
-                res = df[df['Matricula'].astype(str).str.contains(mat.strip())]
+                res = df[df['Matricula'] == mat.strip()]
                 if not res.empty:
                     r = res.iloc[0]
                     st.subheader(f"Olá, {r['Operador']}")
+                    
                     c1, c2, c3 = st.columns(3)
                     with c1:
                         exibir_card("Aderência", r['Aderencia'], definir_cor_kpi(r['Aderencia_num'], 85, 5))
                         exibir_card("Pausa Produtiva", r['Pausa Produtiva'], "#1f77b4", "⏱️")
                     with c2:
                         exibir_card("Resolutividade", r['Resolutividade'], definir_cor_kpi(r['Resolutividade_num'], 85, 5))
-                        exibir_card("Pausa Improdutiva", r['Pausa Improdutiva'], "#333", "⏱️")
+                        exibir_card("Pausa Improdutiva", r['Pausa Improdutiva'], "#6c757d", "⏱️")
                     with c3:
                         exibir_card("TMA Voz", r['TMA Voz'], definir_cor_kpi(r['TMA Voz_num'], 8, 1, True), "⏱️")
                         exibir_card("Absenteísmo", r['Absenteismo'], definir_cor_kpi(r['Absenteismo_num'], 5, 2, True))
+                    
+                    c4, c5, c6 = st.columns(3)
+                    with c4: exibir_card("NPS (Pesquisa)", r['Pesquisa'], definir_cor_kpi(r['Pesquisa_num'], 4.5, 0.5))
+                    with c5: exibir_card("Transferência", r['Transf'], "#6c757d")
+                    with c6: exibir_card("Pausa Total", r['Pausa Total'], "#333", "⏱️")
+                else: st.warning("Matrícula não encontrada.")
 
-        # 2. ABA EQUIPE (MÉTRICAS GERAIS)
+        # --- 2. ABA EQUIPE (MÉDIA GERAL) ---
         with tabs[1]:
-            st.subheader(f"Média Geral: {supervisor}")
+            st.subheader(f"Visão Consolidada: {supervisor}")
             eq = df[df['Operador'].str.strip() == 'EQUIPE']
             if not eq.empty:
                 e = eq.iloc[0]
                 cols = st.columns(3)
                 met_list = [
-                    ('Aderência', 'Aderencia'), ('Absenteísmo', 'Absenteismo'), ('Transferência', 'Transf'),
-                    ('TMA Voz', 'TMA Voz'), ('NPS (Pesquisa)', 'Pesquisa'), ('Resolutividade', 'Resolutividade'),
+                    ('Aderência Equipe', 'Aderencia'), ('Absenteísmo Equipe', 'Absenteismo'), ('Transferência Equipe', 'Transf'),
+                    ('TMA Médio', 'TMA Voz'), ('NPS Médio', 'Pesquisa'), ('Resolutividade Equipe', 'Resolutividade'),
                     ('Pausa Produtiva', 'Pausa Produtiva'), ('Pausa Improdutiva', 'Pausa Improdutiva'), ('Pausa Total', 'Pausa Total')
                 ]
                 for i, (lab, col) in enumerate(met_list):
                     with cols[i % 3]: exibir_card(lab, e[col], "#007bff")
+            else: st.info("Linha 'EQUIPE' não encontrada nesta aba.")
 
-        # 3. ABA MELHORES (RANKINGS TOP 3)
+        # --- 3. ABA MELHORES (RANKING TOP 3) ---
         with tabs[2]:
-            st.subheader(f"🏆 Top 3 por Categoria - {supervisor}")
+            st.subheader("🏆 Melhores Resultados")
             df_ops = df[df['Operador'].str.strip() != 'EQUIPE'].copy()
             
             def podio(col_num, col_txt, titulo, meta, inverter=False):
                 st.markdown(f"#### {titulo}")
                 top = df_ops.nsmallest(3, col_num) if inverter else df_ops.nlargest(3, col_num)
                 m1, m2, m3 = st.columns(3)
+                medalhas = ["🥇","🥈","🥉"]
                 for i, (idx, row) in enumerate(top.iterrows()):
                     cor = definir_cor_kpi(row[col_num], meta, 5, inverter)
                     with [m1, m2, m3][i]:
-                        exibir_card(f"{i+1}º Lugar", row['Operador'], cor, ["🥇","🥈","🥉"][i])
-                        st.caption(f"Resultado: {row[col_txt]}")
+                        exibir_card(f"{i+1}º Lugar", row['Operador'], cor, medalhas[i])
+                        st.caption(f"Valor: {row[col_txt]}")
                 st.divider()
 
-            # Rankings solicitados
-            podio('Aderencia_num', 'Aderencia', "Destaques em Aderência", 85)
-            podio('Resolutividade_num', 'Resolutividade', "Destaques em Resolutividade", 85)
-            podio('TMA Voz_num', 'TMA Voz', "Melhores TMAs (Menores)", 8, True)
-            podio('Pesquisa_num', 'Pesquisa', "Destaques NPS", 4.5)
+            podio('Aderencia_num', 'Aderencia', "Destaques em Aderência (Meta 85%)", 85)
+            podio('Resolutividade_num', 'Resolutividade', "Destaques em Resolutividade (Meta 85%)", 85)
+            podio('TMA Voz_num', 'TMA Voz', "Destaques TMA (Meta 08:00)", 8, True)
+            podio('Pesquisa_num', 'Pesquisa', "Destaques NPS (Meta 4.5)", 4.5)
             podio('Absenteismo_num', 'Absenteismo', "Menores Absenteísmos", 5, True)
-            podio('Pausa Produtiva_num', 'Pausa Produtiva', "Uso de Pausa Produtiva", 20)
+            podio('Pausa Total_num', 'Pausa Total', "Menor Tempo de Pausa Total", 60, True)
 
-        # 4. ABA SAÚDE (FILTRO DE STATUS)
+        # --- 4. ABA SAÚDE DA OPERAÇÃO ---
         with tabs[3]:
             st.header("📊 Saúde da Operação")
             df_s = df[df['Operador'].str.strip() != 'EQUIPE'].copy()
-            sel = st.selectbox("Escolha a métrica:", ["Aderencia", "Resolutividade", "TMA Voz", "Pesquisa", "Absenteismo"])
+            sel = st.selectbox("Selecione a métrica para diagnóstico:", 
+                              ["Aderencia", "Resolutividade", "TMA Voz", "Pesquisa", "Absenteismo"])
             
-            # Lógica de Meta
+            # Configuração de Metas para o Gráfico
             mv = 8.0 if sel == "TMA Voz" else 5.0 if sel == "Absenteismo" else 4.5 if sel == "Pesquisa" else 85.0
             inv = True if sel in ["TMA Voz", "Absenteismo"] else False
             
-            df_s['Status'] = df_s[f'{sel}_num'].apply(lambda x: 'Dentro' if (x <= mv if inv else x >= mv) else 'Fora')
+            df_s['Status'] = df_s[f'{sel}_num'].apply(lambda x: 'Dentro da Meta' if (x <= mv if inv else x >= mv) else 'Fora da Meta')
             
             c_s1, c_s2 = st.columns(2)
             with c_s1:
-                fig = px.pie(df_s, names='Status', hole=0.5, color='Status', color_discrete_map={'Dentro':'#28a745','Fora':'#dc3545'})
+                fig = px.pie(df_s, names='Status', hole=0.5, color='Status', 
+                             color_discrete_map={'Dentro da Meta':'#28a745','Fora da Meta':'#dc3545'},
+                             title=f"Distribuição de {sel}")
                 st.plotly_chart(fig, use_container_width=True)
             with c_s2:
+                st.subheader("Lista Detalhada")
                 st.dataframe(df_s[['Operador', sel, 'Status']], use_container_width=True, hide_index=True)
+
+else:
+    st.info("Por favor, selecione uma equipe para carregar o painel.")
