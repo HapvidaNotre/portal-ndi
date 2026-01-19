@@ -57,7 +57,7 @@ def carregar_dados(nome_aba):
         if 'Matricula' in df.columns:
             df['Matricula'] = df['Matricula'].astype(str).str.split('.').str[0].str.strip()
 
-        # Mapeamento e criação automática de colunas numéricas para as 9 métricas
+        # Mapeamento e criação automática de colunas numéricas
         metricas_alvo = [
             'Aderencia', 'Absenteismo', 'Transf', 'TMA Voz', 'Pesquisa', 
             'Resolutividade', 'Pausa Produtiva', 'Pausa Improdutiva', 'Pausa Total'
@@ -65,7 +65,7 @@ def carregar_dados(nome_aba):
         
         for col in metricas_alvo:
             if col in df.columns:
-                if any(x in col for x in ['TMA', 'Pausa']):
+                if any(x in col for x in ['TMA']):
                     df[f'{col}_num'] = df[col].apply(converter_tma_minutos)
                 else:
                     df[f'{col}_num'] = df[col].apply(converter_para_numero)
@@ -107,7 +107,7 @@ if supervisor != "Selecione...":
                     c4, c5, c6 = st.columns(3)
                     with c4: exibir_card("NPS (Pesquisa)", r['Pesquisa'], definir_cor_kpi(r['Pesquisa_num'], 4.5, 0.5))
                     with c5: exibir_card("Transferência", r['Transf'], "#6c757d")
-                    with c6: exibir_card("Pausa Total", r['Pausa Total'], "#333", "⏱️")
+                    with c6: exibir_card("Pausa Total", r['Pausa Total'], definir_cor_kpi(r['Pausa Total_num'], 21.75, 2, True), "⏱️")
                 else: st.warning("Matrícula não encontrada.")
 
         # --- 2. ABA EQUIPE (MÉDIA GERAL) ---
@@ -124,7 +124,6 @@ if supervisor != "Selecione...":
                 ]
                 for i, (lab, col) in enumerate(met_list):
                     with cols[i % 3]: exibir_card(lab, e[col], "#007bff")
-            else: st.info("Linha 'EQUIPE' não encontrada nesta aba.")
 
         # --- 3. ABA MELHORES (RANKING TOP 3) ---
         with tabs[2]:
@@ -137,7 +136,7 @@ if supervisor != "Selecione...":
                 m1, m2, m3 = st.columns(3)
                 medalhas = ["🥇","🥈","🥉"]
                 for i, (idx, row) in enumerate(top.iterrows()):
-                    cor = definir_cor_kpi(row[col_num], meta, 5, inverter)
+                    cor = definir_cor_kpi(row[col_num], meta, 2, inverter)
                     with [m1, m2, m3][i]:
                         exibir_card(f"{i+1}º Lugar", row['Operador'], cor, medalhas[i])
                         st.caption(f"Valor: {row[col_txt]}")
@@ -148,18 +147,21 @@ if supervisor != "Selecione...":
             podio('TMA Voz_num', 'TMA Voz', "Destaques TMA (Meta 08:00)", 8, True)
             podio('Pesquisa_num', 'Pesquisa', "Destaques NPS (Meta 4.5)", 4.5)
             podio('Absenteismo_num', 'Absenteismo', "Menores Absenteísmos", 5, True)
-            podio('Pausa Total_num', 'Pausa Total', "Menor Tempo de Pausa Total", 60, True)
+            
+            # Ranking de Pausa Total atualizado para Meta 21.75%
+            podio('Pausa Total_num', 'Pausa Total', "Menor Tempo de Pausa Total (Meta 21,75%)", 21.75, True)
 
         # --- 4. ABA SAÚDE DA OPERAÇÃO ---
         with tabs[3]:
             st.header("📊 Saúde da Operação")
             df_s = df[df['Operador'].str.strip() != 'EQUIPE'].copy()
             sel = st.selectbox("Selecione a métrica para diagnóstico:", 
-                              ["Aderencia", "Resolutividade", "TMA Voz", "Pesquisa", "Absenteismo"])
+                              ["Aderencia", "Resolutividade", "TMA Voz", "Pesquisa", "Absenteismo", "Pausa Total"])
             
-            # Configuração de Metas para o Gráfico
-            mv = 8.0 if sel == "TMA Voz" else 5.0 if sel == "Absenteismo" else 4.5 if sel == "Pesquisa" else 85.0
-            inv = True if sel in ["TMA Voz", "Absenteismo"] else False
+            # Ajuste de metas para o diagnóstico
+            metas = {"TMA Voz": 8.0, "Absenteismo": 5.0, "Pesquisa": 4.5, "Pausa Total": 21.75}
+            mv = metas.get(sel, 85.0)
+            inv = True if sel in ["TMA Voz", "Absenteismo", "Pausa Total"] else False
             
             df_s['Status'] = df_s[f'{sel}_num'].apply(lambda x: 'Dentro da Meta' if (x <= mv if inv else x >= mv) else 'Fora da Meta')
             
@@ -172,6 +174,3 @@ if supervisor != "Selecione...":
             with c_s2:
                 st.subheader("Lista Detalhada")
                 st.dataframe(df_s[['Operador', sel, 'Status']], use_container_width=True, hide_index=True)
-
-else:
-    st.info("Por favor, selecione uma equipe para carregar o painel.")
