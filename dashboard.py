@@ -50,88 +50,93 @@ def exibir_metricas(label, valor, meta, menor_melhor=False):
     """, unsafe_allow_html=True)
     return cor
 
+def criar_podio(df_ranking, coluna_nome, coluna_valor, titulo):
+    st.subheader(f"🏆 Top 3: {titulo}")
+    # Converte para número para ordenar corretamente
+    temp_df = df_ranking.copy()
+    temp_df['valor_num'] = temp_df[coluna_valor].astype(str).str.replace('%', '').str.replace(',', '.').astype(float)
+    top_3 = temp_df.nlargest(3, 'valor_num')
+    
+    cols = st.columns(3)
+    medalhas = ["🥇 1º", "🥈 2º", "🥉 3º"]
+    for i, (idx, row) in enumerate(top_3.iterrows()):
+        with cols[i]:
+            st.markdown(f"""
+                <div style="text-align: center; background-color: #f8f9fa; padding: 10px; border-radius: 10px; border: 1px solid #ddd;">
+                    <p style="font-size: 14px; font-weight: bold; margin:0; color: #555;">{medalhas[i]}</p>
+                    <p style="font-size: 16px; font-weight: bold; margin:0; color: #1f77b4;">{row[coluna_nome]}</p>
+                    <p style="font-size: 20px; font-weight: bold; margin:0; color: #28a745;">{row[coluna_valor]}</p>
+                </div>
+            """, unsafe_allow_html=True)
+
 # --- INTERFACE ---
-st.title("🚀 Portal de Performance NDI - SP")
+st.title("🚀 Portal de Performance NDI")
 data_att = obter_data_atualizacao()
-st.info(f"📅 **Última atualização:** {data_att}")
+st.info(f"📅 **Sincronizado com Google Sheets em:** {data_att}")
 
 df = carregar_dados()
 
 if df is not None:
-    tab_ind, tab_equipe = st.tabs(["👤 Métricas Individuais", "👥 Métricas Equipe"])
+    tab_ind, tab_equipe, tab_melhores = st.tabs(["👤 Métricas Individuais", "👥 Métricas Equipe", "⭐ Melhores"])
 
+    # --- ABA INDIVIDUAL ---
     with tab_ind:
-        matricula_busca = st.text_input("Olá! Digite sua Matrícula para começar:", placeholder="Ex: 1039456")
-        
+        matricula_busca = st.text_input("Olá! Digite sua Matrícula:", placeholder="Ex: 1039456")
         if matricula_busca:
             colaborador = df[df['Matricula'] == str(matricula_busca).strip()]
-            
             if not colaborador.empty:
                 res = colaborador.iloc[0]
-                nome = res.get('Operador', 'Colaborador')
-                st.subheader(f"Bem-vindo(a), {nome}!")
-                
-                # Lógica de Cards
-                cores = []
+                st.subheader(f"Bem-vindo(a), {res.get('Operador', 'Colaborador')}!")
                 c1, c2, c3 = st.columns(3)
-                with c1: cores.append(exibir_metricas("Aderência", res.get('Aderencia', 0), 95))
-                with c2: cores.append(exibir_metricas("Resolutividade", res.get('Resolutividade', 0), 85))
-                with c3: cores.append(exibir_metricas("Transf", res.get('Transf', 0), 85))
-
-                c4, c5, c6 = st.columns(3)
-                with c4: cores.append(exibir_metricas("Absenteísmo", res.get('Absenteismo', 0), 5, menor_melhor=True))
-                with c5: cores.append(exibir_metricas("Pausa Total", res.get('Pausa Total', 0), 10, menor_melhor=True))
-                with c6: st.info(f"⏱️ **TMA Voz:** {res.get('TMA Voz', '00:00:00')}")
-
-                # Mensagem Dinâmica Motivacional
-                st.markdown("---")
-                if all(c == "green" for c in cores):
-                    st.balloons()
-                    st.success(f"🌟 **Incrível, {nome}!** Você está batendo todas as metas. Continue com esse foco!")
-                elif cores.count("green") >= 3:
-                    st.info(f"👍 **Bom trabalho, {nome}!** Você está no caminho certo. Ajuste os detalhes para ficar 100% verde!")
-                else:
-                    st.warning(f"💪 **Vamo pra cima, {nome}!** Identifique onde está o desafio e peça ajuda se precisar. Você consegue!")
+                exibir_metricas("Aderência", res.get('Aderencia', 0), 95)
+                exibir_metricas("Resolutividade", res.get('Resolutividade', 0), 85)
+                exibir_metricas("Transf", res.get('Transf', 0), 85)
+                st.markdown(f"**TMA Voz:** `{res.get('TMA Voz', '00:00:00')}` | **NPS:** `{res.get('Pesquisa', 'N/A')}`")
             else:
                 st.warning("Matrícula não encontrada.")
 
+    # --- ABA EQUIPE ---
     with tab_equipe:
-        # --- RANKING TOP 3 ---
-        st.subheader("🏆 Destaques da Equipe (Resolutividade)")
-        ranking_df = df[df['Operador'].str.strip() != 'EQUIPE'].copy()
-        
-        # Converte resolutividade para número para o ranking
-        ranking_df['Res_Num'] = ranking_df['Resolutividade'].astype(str).str.replace('%', '').str.replace(',', '.').astype(float)
-        top_3 = ranking_df.nlargest(3, 'Res_Num')
-
-        r1, r2, r3 = st.columns(3)
-        podio = ["🥇 1º Lugar", "🥈 2º Lugar", "🥉 3º Lugar"]
-        cols = [r1, r2, r3]
-        for i, (idx, row) in enumerate(top_3.iterrows()):
-            with cols[i]:
-                st.markdown(f"""
-                    <div style="text-align: center; background-color: #f8f9fa; padding: 15px; border-radius: 10px; border: 2px solid #e9ecef;">
-                        <h4 style="margin:0; color: #1f77b4;">{podio[i]}</h4>
-                        <p style="font-size: 16px; font-weight: bold; margin:5px 0;">{row['Operador']}</p>
-                        <span style="background-color: #d4edda; color: #155724; padding: 2px 10px; border-radius: 15px; font-size: 14px;">{row['Resolutividade']}</span>
-                    </div>
-                """, unsafe_allow_html=True)
-
-        st.markdown("---")
-        
-        # --- MÉTRICAS GERAIS ---
+        st.subheader("📊 Resultados Consolidados do Time")
         dados_equipe = df[df['Operador'].str.strip() == 'EQUIPE']
         if not dados_equipe.empty:
             res_eq = dados_equipe.iloc[0]
-            st.subheader("📊 Média Geral do Time")
             e1, e2, e3 = st.columns(3)
             with e1: exibir_metricas("Aderência Equipe", res_eq.get('Aderencia', 0), 95)
             with e2: exibir_metricas("Resolutividade Equipe", res_eq.get('Resolutividade', 0), 85)
             with e3: exibir_metricas("Transf Equipe", res_eq.get('Transf', 0), 85)
             
-            st.markdown(f"**TMA Médio da Sala:** `{res_eq.get('TMA Voz', '00:00:00')}`")
+            e4, e5, e6 = st.columns(3)
+            with e4: exibir_metricas("Absenteísmo Médio", res_eq.get('Absenteismo', 0), 5, menor_melhor=True)
+            with e5: exibir_metricas("Pausa Total Média", res_eq.get('Pausa Total', 0), 10, menor_melhor=True)
+            with e6: 
+                st.markdown(f"""
+                    <div style="background-color: #fcfcfc; padding: 20px; border-radius: 10px; border-left: 6px solid #FFD700; box-shadow: 2px 2px 8px rgba(0,0,0,0.1);">
+                        <p style="margin: 0; font-size: 14px; color: #666; font-weight: bold;">NPS Equipe</p>
+                        <h2 style="margin: 0; color: #444;">⭐ {res_eq.get('Pesquisa', 'N/A')}</h2>
+                    </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown(f"**TMA Médio Geral:** `{res_eq.get('TMA Voz', '00:00:00')}`")
         else:
-            st.warning("Linha 'EQUIPE' não encontrada na planilha.")
+            st.warning("Linha 'EQUIPE' não localizada.")
+
+    # --- ABA MELHORES ---
+    with tab_melhores:
+        st.header("🌟 Destaques do Período")
+        st.write("Estes são os 3 operadores com melhor desempenho em cada pilar.")
+        
+        # Filtra para não incluir a linha 'EQUIPE' no ranking
+        ranking_df = df[df['Operador'].str.strip() != 'EQUIPE'].copy()
+        
+        if not ranking_df.empty:
+            criar_podio(ranking_df, 'Operador', 'Aderencia', "Aderência")
+            st.markdown("---")
+            criar_podio(ranking_df, 'Operador', 'Resolutividade', "Resolutividade")
+            st.markdown("---")
+            criar_podio(ranking_df, 'Operador', 'Transf', "Transferência")
+        else:
+            st.write("Dados insuficientes para gerar o ranking.")
 
 st.markdown("---")
-st.caption("Portal de Performance NDI | Transparência e Reconhecimento")
+st.caption("Portal NDI | Performance e Reconhecimento")
