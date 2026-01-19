@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 from datetime import datetime
+import plotly.express as px
 
 # 1. Configuração da Página
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
@@ -34,7 +35,7 @@ def carregar_dados():
         st.error(f"Erro ao carregar base: {e}")
         return None
 
-# Função para exibir os blocos grandes e padronizados
+# Função para exibir os blocos grandes
 def exibir_card(label, valor, cor="#333", icon=""):
     st.markdown(f"""
         <div style="background-color: white; padding: 25px; border-radius: 12px; border-left: 8px solid {cor}; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; flex-direction: column; justify-content: center;">
@@ -48,17 +49,15 @@ def calcular_cor(valor, meta, menor_melhor=False):
     try:
         v = float(str(valor).replace('%', '').replace(',', '.'))
         if menor_melhor:
-            return "#28a745" if v <= meta else "#dc3545" # Verde/Vermelho
+            return "#28a745" if v <= meta else "#dc3545"
         return "#28a745" if v >= meta else "#dc3545"
     except: return "#333"
 
 def criar_podio(df_ranking, coluna_valor, titulo):
     st.markdown(f"### 🏆 Top 3: {titulo}")
     temp_df = df_ranking.copy()
-    # Limpeza para garantir ordenação numérica
     temp_df['v_num'] = temp_df[coluna_valor].astype(str).str.replace('%', '').str.replace(',', '.').replace('nan', '0')
     temp_df['v_num'] = pd.to_numeric(temp_df['v_num'], errors='coerce').fillna(0)
-    
     top_3 = temp_df.nlargest(3, 'v_num')
     
     cols = st.columns(3)
@@ -75,12 +74,14 @@ def criar_podio(df_ranking, coluna_valor, titulo):
 
 # --- INTERFACE ---
 st.title("🚀 Portal de Performance NDI")
-st.info(f"📅 **Dados sincronizados em:** {obter_data_atualizacao()}")
+st.info(f"📅 **Sincronizado em:** {obter_data_atualizacao()}")
 
 df = carregar_dados()
 
 if df is not None:
-    tab_ind, tab_equipe, tab_melhores = st.tabs(["👤 Métricas Individuais", "👥 Métricas Equipe", "⭐ Melhores"])
+    tab_ind, tab_equipe, tab_melhores, tab_grafico = st.tabs([
+        "👤 Individual", "👥 Equipe", "⭐ Melhores", "📊 Gráficos de Saúde"
+    ])
 
     # --- ABA INDIVIDUAL ---
     with tab_ind:
@@ -90,8 +91,6 @@ if df is not None:
             if not res.empty:
                 r = res.iloc[0]
                 st.subheader(f"Resultados: {r['Operador']}")
-                
-                # Cards Individuais
                 c1, c2, c3 = st.columns(3)
                 with c1: exibir_card("Aderência", r['Aderencia'], calcular_cor(r['Aderencia'], 95))
                 with c2: exibir_card("Resolutividade", r['Resolutividade'], calcular_cor(r['Resolutividade'], 85))
@@ -113,7 +112,6 @@ if df is not None:
         if not eq.empty:
             e = eq.iloc[0]
             st.subheader("📊 Médias Gerais da Sala")
-            
             col1, col2, col3 = st.columns(3)
             with col1: exibir_card("Aderência Equipe", e['Aderencia'], calcular_cor(e['Aderencia'], 95))
             with col2: exibir_card("Resolutividade Equipe", e['Resolutividade'], calcular_cor(e['Resolutividade'], 85))
@@ -127,12 +125,10 @@ if df is not None:
             st.markdown(f"""<div style="background-color: #333; padding: 20px; border-radius: 10px; text-align: center;">
                 <h2 style="margin:0; color: white;">⏱️ TMA Médio da Equipe: {e['TMA Voz']}</h2>
             </div>""", unsafe_allow_html=True)
-        else:
-            st.warning("Linha 'EQUIPE' não encontrada na planilha.")
+        else: st.warning("Linha 'EQUIPE' não encontrada.")
 
     # --- ABA MELHORES ---
     with tab_melhores:
-        st.header("🏆 Destaques da Operação")
         ranking_df = df[df['Operador'].str.strip() != 'EQUIPE'].copy()
         if not ranking_df.empty:
             criar_podio(ranking_df, 'Aderencia', "Aderência")
@@ -140,8 +136,33 @@ if df is not None:
             criar_podio(ranking_df, 'Resolutividade', "Resolutividade")
             st.markdown("---")
             criar_podio(ranking_df, 'Transf', "Transferência")
-        else:
-            st.write("Dados insuficientes para o ranking.")
+
+    # --- ABA GRÁFICOS ---
+    with tab_grafico:
+        st.header("📈 Saúde da Operação")
+        df_ops = df[df['Operador'].str.strip() != 'EQUIPE'].copy()
+        
+        def preparar_grafico(df, coluna, meta, menor_melhor=False):
+            df['v_num'] = df[coluna].astype(str).str.replace('%', '').str.replace(',', '.').replace('nan', '0')
+            df['v_num'] = pd.to_numeric(df['v_num'], errors='coerce').fillna(0)
+            if menor_melhor:
+                df['Status'] = df['v_num'].apply(lambda x: 'Dentro da Meta' if x <= meta else 'Fora da Meta')
+            else:
+                df['Status'] = df['v_num'].apply(lambda x: 'Dentro da Meta' if x >= meta else 'Fora da Meta')
+            contagem = df['Status'].value_counts().reset_index()
+            contagem.columns = ['Status', 'Quantidade']
+            fig = px.pie(contagem, values='Quantidade', names='Status', hole=0.5,
+                         color='Status', color_discrete_map={'Dentro da Meta':'#28a745', 'Fora da Meta':'#dc3545'})
+            fig.update_layout(title=f"Visão: {coluna}")
+            return fig
+
+        g1, g2 = st.columns(2)
+        with g1: st.plotly_chart(preparar_grafico(df_ops, 'Aderencia', 95), use_container_width=True)
+        with g2: st.plotly_chart(preparar_grafico(df_ops, 'Resolutividade', 85), use_container_width=True)
+        
+        g3, g4 = st.columns(2)
+        with g3: st.plotly_chart(preparar_grafico(df_ops, 'Transf', 85), use_container_width=True)
+        with g4: st.plotly_chart(preparar_grafico(df_ops, 'Absenteismo', 5, True), use_container_width=True)
 
 st.markdown("---")
-st.caption("Portal NDI | Performance, Transparência e Reconhecimento")
+st.caption("Portal NDI | Gestão Orientada a Dados")
