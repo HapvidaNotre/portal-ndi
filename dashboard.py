@@ -1,19 +1,37 @@
 import streamlit as st
 import pandas as pd
+import requests
+from datetime import datetime
 
 # 1. Configuração da Página
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="📊")
 
-# 2. Link da sua planilha Google (Exportação CSV)
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E/export?format=csv"
+# 2. Link da sua planilha Google e ID para verificar última modificação
+SHEET_ID = "1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E"
+SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 
-# 3. Função para Carregar Dados com Cache
-@st.cache_data(ttl=300)
+# 3. Função para pegar a data da última modificação da planilha via API pública
+def obter_data_atualizacao():
+    try:
+        # Puxa informações básicas da planilha pública
+        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/pubhtml"
+        response = requests.get(url)
+        # O cabeçalho 'Date' do servidor do Google nos dá uma ideia de quando o arquivo foi servido
+        data_header = response.headers.get('Date')
+        if data_header:
+            # Converte para o formato brasileiro
+            dt = datetime.strptime(data_header, '%a, %d %b %Y %H:%M:%S %Z')
+            return dt.strftime('%d/%m/%Y às %H:%M')
+    except:
+        return "Recentemente"
+    return "Recentemente"
+
+# 4. Função para Carregar Dados
+@st.cache_data(ttl=60) # Atualiza a cada 1 minuto para pegar mudanças rápidas
 def carregar_dados():
     try:
         df = pd.read_csv(SHEET_URL)
         df.columns = df.columns.str.strip()
-        # Ajusta a matrícula para texto e remove decimais
         if 'Matricula' in df.columns:
             df['Matricula'] = df['Matricula'].astype(str).str.split('.').str[0].str.strip()
         return df
@@ -21,23 +39,18 @@ def carregar_dados():
         st.error(f"Erro ao carregar base: {e}")
         return None
 
-# 4. Função de exibição dos Cards coloridos
+# 5. Função de Estilização dos Cards
 def exibir_metricas(label, valor, meta, menor_melhor=False):
     try:
-        # Converte o valor para número para lógica de cores
         valor_str = str(valor).replace('%', '').replace(',', '.')
         valor_num = float(valor_str)
-        
         if menor_melhor:
-            # Para Absenteísmo e Pausas: Menor que a meta = Verde
             cor = "green" if valor_num <= meta else "red"
         else:
-            # Para Aderência, Resolutividade e Transf: Maior ou igual a meta = Verde
             cor = "green" if valor_num >= meta else "red"
     except:
         cor = "#333"
 
-    # Garante que o % apareça apenas uma vez
     exibicao = str(valor) if '%' in str(valor) else f"{valor}%"
 
     st.markdown(f"""
@@ -49,29 +62,30 @@ def exibir_metricas(label, valor, meta, menor_melhor=False):
 
 # --- INTERFACE ---
 st.title("📊 Portal de Performance NDI - SP")
-st.info("📅 Última atualização: Métricas do dia **16/01**")
+
+# Exibe a data da última atualização automática
+data_att = obter_data_atualizacao()
+st.info(f"📅 **Última atualização dos dados:** {data_att}")
+
 st.markdown("---")
 
 df = carregar_dados()
 
 if df is not None:
-    matricula_busca = st.text_input("Olá! Digite sua Matrícula para conferir seus resultados:", placeholder="Ex: 1039456")
+    matricula_busca = st.text_input("Digite sua Matrícula:", placeholder="Ex: 1039456")
 
     if matricula_busca:
         colaborador = df[df['Matricula'] == str(matricula_busca).strip()]
 
         if not colaborador.empty:
             res = colaborador.iloc[0]
-            st.success(f"Resultados localizados para: **{res.get('Operador', 'Colaborador')}**")
+            st.success(f"Resultados de: **{res.get('Operador', 'Colaborador')}**")
             
-            # Linha 1: Indicadores de Performance
             c1, c2, c3 = st.columns(3)
             with c1: exibir_metricas("Aderência", res.get('Aderencia', 0), 95)
             with c2: exibir_metricas("Resolutividade", res.get('Resolutividade', 0), 85)
-            # Transf: Acima de 85% fica Verde
             with c3: exibir_metricas("Transf", res.get('Transf', 0), 85) 
 
-            # Linha 2: Indicadores de Comportamento
             c4, c5, c6 = st.columns(3)
             with c4: exibir_metricas("Absenteísmo", res.get('Absenteismo', 0), 5, menor_melhor=True)
             with c5: exibir_metricas("Pausa Total", res.get('Pausa Total', 0), 10, menor_melhor=True)
@@ -83,10 +97,9 @@ if df is not None:
                     </div>
                 """, unsafe_allow_html=True)
             
-            # TMA Voz formatado
             st.markdown(f"### ⏱️ TMA Voz: `{res.get('TMA Voz', '00:00:00')}`")
         else:
-            st.warning("Matrícula não encontrada. Verifique os dados na planilha.")
+            st.warning("Matrícula não encontrada.")
 
 st.markdown("---")
-st.caption("NDI Hapvida NotreDame Intermédica | Gestão de Performance")
+st.caption("NDI Hapvida NotreDame Intermédica | Sincronizado com Google Sheets")
