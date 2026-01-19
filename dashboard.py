@@ -10,7 +10,7 @@ st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_i
 # 2. CONFIGURAÇÃO DA PLANILHA MESTRE
 SHEET_ID = "1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E"
 
-# Mapeamento do HUB: Nome no Portal -> Nome exato da Aba na Planilha
+# Mapeamento do HUB baseado na sua planilha
 SUPERVISORES = {
     "Equipe Erik": "Equipe Erik",
     "Equipe Davi": "Equipe Davi",
@@ -25,7 +25,6 @@ SUPERVISORES = {
 @st.cache_data(ttl=60)
 def carregar_dados_aba(nome_aba):
     try:
-        # Codifica o nome da aba para URL (trata espaços)
         nome_aba_url = nome_aba.replace(" ", "%20")
         url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={nome_aba_url}"
         df = pd.read_csv(url)
@@ -52,53 +51,42 @@ def calcular_cor(valor, meta, menor_melhor=False):
         return "#28a745" if v >= meta else "#dc3545"
     except: return "#333"
 
-# --- HUB DE SELEÇÃO INICIAL ---
-if 'supervisor' not in st.session_state:
-    st.session_state['supervisor'] = None
+# --- INTERFACE DO HUB (FILTRO INICIAL) ---
+st.title("👋 Portal de Performance NDI")
 
-if st.session_state['supervisor'] is None:
-    st.title("👋 HUB de Performance NDI")
-    st.subheader("Para começar, selecione o seu Supervisor:")
-    
-    # Grid de botões para o HUB
-    cols = st.columns(3)
-    for i, nome_exibicao in enumerate(SUPERVISORES.keys()):
-        with cols[i % 3]:
-            if st.button(nome_exibicao, use_container_width=True):
-                st.session_state['supervisor'] = nome_exibicao
-                st.rerun()
-else:
-    # Botão para voltar ao HUB no menu lateral
-    if st.sidebar.button("⬅️ Trocar de Equipe"):
-        st.session_state['supervisor'] = None
-        st.rerun()
+# Filtro Único para Seleção de Supervisor
+supervisor_selecionado = st.selectbox(
+    "Para começar, selecione o seu Supervisor:",
+    ["Selecione..."] + list(SUPERVISORES.keys()),
+    index=0
+)
 
-    # --- PORTAL DA EQUIPE SELECIONADA ---
-    nome_aba = SUPERVISORES[st.session_state['supervisor']]
+if supervisor_selecionado != "Selecione...":
+    st.markdown("---")
+    nome_aba = SUPERVISORES[supervisor_selecionado]
     df = carregar_dados_aba(nome_aba)
 
     if df is not None:
-        st.title(f"🚀 {st.session_state['supervisor']}")
-        
-        # Abas conforme solicitado na imagem
+        # Abas conforme imagem enviada
         tab_ind, tab_equipe, tab_melhores, tab_grafico = st.tabs([
             "👤 Individual", "👥 Equipe", "⭐ Melhores", "📊 Gráficos de Saúde"
         ])
 
         with tab_ind:
-            matricula = st.text_input("Digite sua Matrícula:", key="input_matricula")
+            matricula = st.text_input("Digite sua Matrícula:", key="input_mat")
             if matricula:
                 res = df[df['Matricula'] == str(matricula).strip()]
                 if not res.empty:
                     r = res.iloc[0]
-                    st.subheader(f"Bem-vindo, {r.get('Operador', 'Colaborador')}!")
+                    st.subheader(f"Olá, {r.get('Operador', 'Colaborador')}")
                     
+                    # Blocos Grandes conforme solicitado
                     c1, c2, c3 = st.columns(3)
                     with c1: exibir_card("Aderência", r.get('Aderencia', 0), calcular_cor(r.get('Aderencia', 0), 85))
                     with c2: exibir_card("Resolutividade", r.get('Resolutividade', 0), calcular_cor(r.get('Resolutividade', 0), 85))
                     with c3: exibir_card("Transferência", r.get('Transf', 0), calcular_cor(r.get('Transf', 0), 85))
                     
-                    # Linha adicional conforme imagem de métricas secundárias
+                    # Linha de métricas secundárias formatada
                     st.markdown(f"**TMA Voz:** `{r.get('TMA Voz', '00:00:00')}` | **NPS:** `{r.get('Pesquisa', 'N/A')}`")
                 else:
                     st.warning("Matrícula não encontrada nesta equipe.")
@@ -107,25 +95,30 @@ else:
             eq = df[df['Operador'].str.strip() == 'EQUIPE']
             if not eq.empty:
                 e = eq.iloc[0]
-                st.subheader("Média Geral do Time")
+                st.subheader(f"Média Geral: {supervisor_selecionado}")
                 col1, col2, col3 = st.columns(3)
                 with col1: exibir_card("Aderência Equipe", e.get('Aderencia', 0), calcular_cor(e.get('Aderencia', 0), 85))
                 with col2: exibir_card("Resolutividade Equipe", e.get('Resolutividade', 0), calcular_cor(e.get('Resolutividade', 0), 85))
-                with col3: exibir_card("TMA Equipe", e.get('TMA Voz', '00:00:00'), "#1f77b4", "⏱️")
+                with col3: exibir_card("TMA Médio", e.get('TMA Voz', '00:00:00'), "#1f77b4", "⏱️")
 
         with tab_grafico:
             st.header("📈 Saúde da Operação")
             df_ops = df[df['Operador'].str.strip() != 'EQUIPE'].copy()
             
-            # Gráfico de Aderência conforme imagem enviada
             if not df_ops.empty:
+                # Lógica do Gráfico de Rosca
                 df_ops['n_aderencia'] = pd.to_numeric(df_ops['Aderencia'].astype(str).str.replace('%', '').str.replace(',', '.'), errors='coerce').fillna(0)
                 df_ops['Status'] = df_ops['n_aderencia'].apply(lambda x: 'Dentro da Meta' if x >= 85 else 'Fora da Meta')
                 
                 fig = px.pie(df_ops, names='Status', hole=0.5, color='Status', 
                              color_discrete_map={'Dentro da Meta': '#28a745', 'Fora da Meta': '#dc3545'})
-                fig.update_layout(title="Visão: Aderencia")
+                fig.update_layout(title="Visão: Aderencia (Meta 85%)")
                 st.plotly_chart(fig, use_container_width=True)
 
+else:
+    # Espaço reservado quando nada está selecionado
+    st.info("Aguardando seleção do supervisor para carregar os indicadores.")
+    st.image("https://www.hapvida.com.br/site/sites/default/files/logo_hapvida_ndi.png", width=200)
+
 st.markdown("---")
-st.caption("Portal de Performance NDI | HUB Multi-Equipes")
+st.caption("Central de Resultados NDI | HUB Multi-Equipes")
