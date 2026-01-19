@@ -35,7 +35,6 @@ def carregar_dados():
         st.error(f"Erro ao carregar base: {e}")
         return None
 
-# Função para exibir os blocos grandes
 def exibir_card(label, valor, cor="#333", icon=""):
     st.markdown(f"""
         <div style="background-color: white; padding: 25px; border-radius: 12px; border-left: 8px solid {cor}; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; flex-direction: column; justify-content: center;">
@@ -44,7 +43,6 @@ def exibir_card(label, valor, cor="#333", icon=""):
         </div>
     """, unsafe_allow_html=True)
 
-# Função para decidir a cor com base na meta
 def calcular_cor(valor, meta, menor_melhor=False):
     try:
         v = float(str(valor).replace('%', '').replace(',', '.'))
@@ -92,7 +90,7 @@ if df is not None:
                 r = res.iloc[0]
                 st.subheader(f"Resultados: {r['Operador']}")
                 c1, c2, c3 = st.columns(3)
-                with c1: exibir_card("Aderência", r['Aderencia'], calcular_cor(r['Aderencia'], 95))
+                with c1: exibir_card("Aderência", r['Aderencia'], calcular_cor(r['Aderencia'], 85))
                 with c2: exibir_card("Resolutividade", r['Resolutividade'], calcular_cor(r['Resolutividade'], 85))
                 with c3: exibir_card("Transferência", r['Transf'], calcular_cor(r['Transf'], 85))
 
@@ -113,7 +111,7 @@ if df is not None:
             e = eq.iloc[0]
             st.subheader("📊 Médias Gerais da Sala")
             col1, col2, col3 = st.columns(3)
-            with col1: exibir_card("Aderência Equipe", e['Aderencia'], calcular_cor(e['Aderencia'], 95))
+            with col1: exibir_card("Aderência Equipe", e['Aderencia'], calcular_cor(e['Aderencia'], 85))
             with col2: exibir_card("Resolutividade Equipe", e['Resolutividade'], calcular_cor(e['Resolutividade'], 85))
             with col3: exibir_card("Transf Equipe", e['Transf'], calcular_cor(e['Transf'], 85))
 
@@ -125,7 +123,6 @@ if df is not None:
             st.markdown(f"""<div style="background-color: #333; padding: 20px; border-radius: 10px; text-align: center;">
                 <h2 style="margin:0; color: white;">⏱️ TMA Médio da Equipe: {e['TMA Voz']}</h2>
             </div>""", unsafe_allow_html=True)
-        else: st.warning("Linha 'EQUIPE' não encontrada.")
 
     # --- ABA MELHORES ---
     with tab_melhores:
@@ -153,11 +150,11 @@ if df is not None:
             contagem.columns = ['Status', 'Quantidade']
             fig = px.pie(contagem, values='Quantidade', names='Status', hole=0.5,
                          color='Status', color_discrete_map={'Dentro da Meta':'#28a745', 'Fora da Meta':'#dc3545'})
-            fig.update_layout(title=f"Visão: {coluna}")
+            fig.update_layout(title=f"Visão: {coluna} (Meta: {meta}%)")
             return fig
 
         g1, g2 = st.columns(2)
-        with g1: st.plotly_chart(preparar_grafico(df_ops, 'Aderencia', 95), use_container_width=True)
+        with g1: st.plotly_chart(preparar_grafico(df_ops, 'Aderencia', 85), use_container_width=True)
         with g2: st.plotly_chart(preparar_grafico(df_ops, 'Resolutividade', 85), use_container_width=True)
         
         g3, g4 = st.columns(2)
@@ -165,4 +162,4 @@ if df is not None:
         with g4: st.plotly_chart(preparar_grafico(df_ops, 'Absenteismo', 5, True), use_container_width=True)
 
 st.markdown("---")
-st.caption("Portal NDI | Gestão Orientada a Dados")
+st.caption("Portal NDI | Performance Atualizada")
