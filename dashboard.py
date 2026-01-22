@@ -5,29 +5,28 @@ import plotly.express as px
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
-# 2. DICIONÁRIO CENTRALIZADO DE METAS
-# A meta de Pausa Total será tratada dinamicamente dentro do loop principal
+# 2. DICIONÁRIO DE METAS (Configuração Geral)
 METAS_BASE = {
     'Aderencia': {'valor': 85.0, 'margem': 5.0, 'menor_melhor': False},
     'Absenteismo': {'valor': 0.0, 'margem': 5.0, 'menor_melhor': True},
+    'Produtividade': {'valor': 90.0, 'margem': 10.0, 'menor_melhor': False},
     'Transf': {'valor': 85.0, 'margem': 5.0, 'menor_melhor': False},
     'TMA Voz': {'valor': 8.0, 'margem': 1.0, 'menor_melhor': True},
+    'ShortCall': {'valor': 5.0, 'margem': 2.0, 'menor_melhor': True},
     'Pesquisa': {'valor': 4.5, 'margem': 0.5, 'menor_melhor': False},
     'Resolutividade': {'valor': 75.0, 'margem': 5.0, 'menor_melhor': False}
 }
 
-# 3. FUNÇÕES DE TRATAMENTO E LÓGICA
+# 3. FUNÇÕES DE SUPORTE
 def definir_cor_kpi(valor, metrica_key, metas_atuais):
-    """Lógica Semafórica: Verde (Dentro), Amarelo (Quase), Vermelho (Fora)"""
     config = metas_atuais.get(metrica_key)
     if not config: return "#333"
-    
     m, tol, menor_melhor = config['valor'], config['margem'], config['menor_melhor']
     
     if menor_melhor:
-        if valor <= m: return "#28a745" # Verde
-        if valor <= m + tol: return "#ffc107" # Amarelo
-        return "#dc3545" # Vermelho
+        if valor <= m: return "#28a745" # Verde: Dentro da meta
+        if valor <= m + tol: return "#ffc107" # Amarelo: Atenção
+        return "#dc3545" # Vermelho: Fora da meta
     else:
         if valor >= m: return "#28a745" # Verde
         if valor >= m - tol: return "#ffc107" # Amarelo
@@ -64,10 +63,13 @@ def carregar_dados(nome_aba):
         df = pd.read_csv(url)
         df.columns = df.columns.str.strip()
         
-        colunas_converter = list(METAS_BASE.keys()) + ['Pausa Total']
-        for col in colunas_converter:
+        # Criação de colunas numéricas para cálculos
+        colunas_calculo = list(METAS_BASE.keys()) + ['Pausa Total']
+        for col in colunas_calculo:
             if col in df.columns:
                 df[f'{col}_num'] = df[col].apply(converter_tma_minutos if 'TMA' in col else converter_para_numero)
+            else:
+                df[f'{col}_num'] = 0.0
         return df
     except: return None
 
@@ -76,11 +78,10 @@ st.title("🚀 Portal de Performance NDI")
 supervisor = st.selectbox("Selecione o seu Supervisor:", ["Selecione...", "Equipe Erik", "Equipe Davi", "Equipe Elaine", "Equipe Sayanne", "Equipe Beatriz", "Equipe Aline", "Equipe Marcelo"])
 
 if supervisor != "Selecione...":
-    # Definição dinâmica da meta de Pausa Total baseada no Supervisor selecionado
-    equipes_especiais = ["Equipe Davi", "Equipe Elaine", "Equipe Sayanne", "Equipe Aline", "Equipe Marcelo"]
-    meta_pausa = 16.60 if supervisor in equipes_especiais else 21.75
+    # Regra Dinâmica de Pausa Total
+    especiais = ["Equipe Davi", "Equipe Elaine", "Equipe Sayanne", "Equipe Aline", "Equipe Marcelo"]
+    meta_pausa = 16.60 if supervisor in especiais else 21.75
     
-    # Criar dicionário de metas completo para a sessão atual
     METAS_SESSAO = METAS_BASE.copy()
     METAS_SESSAO['Pausa Total'] = {'valor': meta_pausa, 'margem': 3.0, 'menor_melhor': True}
 
@@ -90,22 +91,33 @@ if supervisor != "Selecione...":
 
         # 1. ABA INDIVIDUAL
         with tabs[0]:
-            mat = st.text_input("Sua Matrícula:")
+            mat = st.text_input("Digite sua Matrícula:")
             if mat:
                 res = df[df['Matricula'].astype(str).str.contains(mat.strip())]
                 if not res.empty:
                     r = res.iloc[0]
                     st.subheader(f"Olá, {r['Operador']}")
-                    c1, c2, c3 = st.columns(3)
+                    
+                    c1, c2, c3, c4 = st.columns(4)
                     with c1:
                         exibir_card("Aderência", r['Aderencia'], definir_cor_kpi(r['Aderencia_num'], 'Aderencia', METAS_SESSAO))
-                        exibir_card("Pesquisa", r['Pesquisa'], definir_cor_kpi(r['Pesquisa_num'], 'Pesquisa', METAS_SESSAO), "⭐")
+                        exibir_card("Produtividade", r['Produtividade'], definir_cor_kpi(r['Produtividade_num'], 'Produtividade', METAS_SESSAO))
                     with c2:
                         exibir_card("Resolutividade", r['Resolutividade'], definir_cor_kpi(r['Resolutividade_num'], 'Resolutividade', METAS_SESSAO))
                         exibir_card("TMA Voz", r['TMA Voz'], definir_cor_kpi(r['TMA Voz_num'], 'TMA Voz', METAS_SESSAO), "⏱️")
                     with c3:
                         exibir_card("Absenteísmo", r['Absenteismo'], definir_cor_kpi(r['Absenteismo_num'], 'Absenteismo', METAS_SESSAO))
                         exibir_card("Pausa Total", r['Pausa Total'], definir_cor_kpi(r['Pausa Total_num'], 'Pausa Total', METAS_SESSAO), "⏱️")
+                    with c4:
+                        exibir_card("Pesquisa", r['Pesquisa'], definir_cor_kpi(r['Pesquisa_num'], 'Pesquisa', METAS_SESSAO), "⭐")
+                        exibir_card("ShortCall", r['ShortCall'], definir_cor_kpi(r['ShortCall_num'], 'ShortCall', METAS_SESSAO))
+                    
+                    st.divider()
+                    st.caption("Detalhamento Operacional")
+                    ca, cb, cc = st.columns(3)
+                    ca.metric("Pausa Produtiva", r['Pausa Produtiva'])
+                    cb.metric("Pausa Improdutiva", r['Pausa Improdutiva'])
+                    cc.metric("Transferência", r['Transf'])
                 else: st.warning("Matrícula não encontrada.")
 
         # 2. ABA EQUIPE
@@ -113,50 +125,45 @@ if supervisor != "Selecione...":
             eq = df[df['Operador'].str.strip() == 'EQUIPE']
             if not eq.empty:
                 e = eq.iloc[0]
-                st.subheader(f"Médias da Equipe: {supervisor} (Meta Pausa: {meta_pausa}%)")
+                st.subheader(f"Médias de Equipe: {supervisor}")
                 cols = st.columns(3)
                 for i, (k, v) in enumerate(METAS_SESSAO.items()):
-                    with cols[i % 3]: 
+                    with cols[i % 3]:
                         exibir_card(f"{k} Equipe", e[k], definir_cor_kpi(e[f'{k}_num'], k, METAS_SESSAO))
-            else: st.info("Linha 'EQUIPE' não encontrada.")
+            else: st.info("Linha 'EQUIPE' não encontrada na planilha.")
 
         # 3. ABA MELHORES (RANKINGS)
         with tabs[2]:
-            st.subheader(f"🏆 Melhores Resultados - {supervisor}")
+            st.subheader(f"🏆 Top 3 por Categoria - {supervisor}")
             df_ops = df[df['Operador'].str.strip() != 'EQUIPE'].copy()
             for k, v in METAS_SESSAO.items():
                 st.markdown(f"#### Ranking: {k}")
                 top = df_ops.nsmallest(3, f'{k}_num') if v['menor_melhor'] else df_ops.nlargest(3, f'{k}_num')
                 mc = st.columns(3)
-                medalhas = ["🥇","🥈","🥉"]
                 for i, (_, row) in enumerate(top.iterrows()):
-                    with mc[i]: 
-                        exibir_card(f"{i+1}º Lugar", row['Operador'], definir_cor_kpi(row[f'{k}_num'], k, METAS_SESSAO), medalhas[i])
-                        st.caption(f"Valor: {row[k]}")
+                    with mc[i]:
+                        exibir_card(f"{i+1}º Lugar", row['Operador'], definir_cor_kpi(row[f'{k}_num'], k, METAS_SESSAO), ["🥇","🥈","🥉"][i])
+                        st.caption(f"Resultado: {row[k]}")
                 st.divider()
 
         # 4. ABA SAÚDE DA OPERAÇÃO
         with tabs[3]:
             st.header("📊 Saúde da Operação")
             df_s = df[df['Operador'].str.strip() != 'EQUIPE'].copy()
-            sel_saude = st.selectbox("Selecione a métrica para diagnóstico:", list(METAS_SESSAO.keys()))
+            sel = st.selectbox("Selecione a métrica para diagnóstico:", list(METAS_SESSAO.keys()))
             
-            conf = METAS_SESSAO[sel_saude]
-            mv, inv = conf['valor'], conf['menor_melhor']
+            mv, inv = METAS_SESSAO[sel]['valor'], METAS_SESSAO[sel]['menor_melhor']
+            df_s['Status'] = df_s[f'{sel}_num'].apply(lambda x: 'Dentro da Meta' if (x <= mv if inv else x >= mv) else 'Fora da Meta')
             
-            df_s['Status'] = df_s[f'{sel_saude}_num'].apply(
-                lambda x: 'Dentro da Meta' if (x <= mv if inv else x >= mv) else 'Fora da Meta'
-            )
-            
-            c_g1, c_g2 = st.columns(2)
-            with c_g1:
+            c_s1, c_s2 = st.columns(2)
+            with c_s1:
                 fig = px.pie(df_s, names='Status', hole=0.5, color='Status', 
                              color_discrete_map={'Dentro da Meta':'#28a745','Fora da Meta':'#dc3545'},
-                             title=f"Distribuição de {sel_saude} (Meta: {mv})")
+                             title=f"Visão Geral: {sel}")
                 st.plotly_chart(fig, use_container_width=True)
-            with c_g2:
+            with c_s2:
                 st.subheader("Lista Detalhada")
-                st.dataframe(df_s[['Operador', sel_saude, 'Status']], use_container_width=True, hide_index=True)
+                st.dataframe(df_s[['Operador', sel, 'Status']], use_container_width=True, hide_index=True)
 
 else:
-    st.info("Por favor, selecione um supervisor para carregar os dados.")
+    st.info("Por favor, selecione um supervisor acima.")
