@@ -5,39 +5,41 @@ import plotly.express as px
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
-# CSS: Botões Extra Largos e Retangulares
+# CSS: Botões MAIORES (Altura e Largura) e expansão total da tela
 st.markdown("""
     <style>
-    /* Estica o container principal para as bordas */
+    /* Expande o conteúdo para ocupar 95% da largura da tela */
     .block-container {
-        padding-left: 2rem !important;
-        padding-right: 2rem !important;
+        max-width: 95% !important;
+        padding-top: 2rem !important;
+        padding-bottom: 0rem !important;
     }
     
-    /* Estilo dos botões do Lobby */
+    /* Estilo dos botões do Lobby - Aumentados em altura e fonte */
     div.stButton > button {
-        height: 5em;
-        font-size: 20px !important;
-        font-weight: bold;
-        width: 100% !important; /* Força largura total da coluna */
-        border-radius: 12px;
+        height: 6.5em !important; /* Altura aumentada */
+        font-size: 22px !important; /* Fonte aumentada */
+        font-weight: bold !important;
+        width: 100% !important;
+        border-radius: 15px;
         background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
+        border: 2px solid #dee2e6; /* Borda levemente mais grossa para destaque */
         color: #495057;
-        transition: all 0.3s;
-        margin: 0px;
+        transition: all 0.3s ease;
+        box-shadow: 0px 2px 5px rgba(0,0,0,0.05);
     }
     
     div.stButton > button:hover {
         border-color: #004a99;
         color: #004a99;
         background-color: #e9ecef;
-        box-shadow: 0px 4px 15px rgba(0,0,0,0.1);
+        box-shadow: 0px 5px 15px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
     }
 
-    /* Remove espaços entre colunas para os botões encostarem mais nas laterais */
+    /* Remove o espaçamento exagerado entre as colunas dos botões */
     [data-testid="stHorizontalBlock"] {
-        gap: 10px !important;
+        gap: 15px !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -102,7 +104,6 @@ def carregar_dados(nome_aba):
         df = pd.read_csv(url)
         df.columns = df.columns.str.strip()
         
-        # Busca inteligente de colunas (ignora maiúsculas/espaços)
         col_op = next((c for c in df.columns if 'operador' in c.lower()), df.columns[0])
         col_mat = next((c for c in df.columns if 'matricula' in c.lower()), df.columns[1])
 
@@ -122,7 +123,7 @@ if st.session_state.servico is None:
     st.markdown("<br><h1 style='text-align: center; color: #004a99;'>🚀 Portal de Performance NDI</h1>", unsafe_allow_html=True)
     st.write("---")
     
-    # Colunas com proporção para ocupar quase todo o espaço lateral
+    # Colunas em proporção igual para ocupar toda a largura horizontal
     c1, c2, c3 = st.columns([1, 1, 1])
     with c1:
         if st.button("🏢 SAC NDI"):
