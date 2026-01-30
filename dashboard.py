@@ -23,7 +23,6 @@ st.markdown("""
         border-color: #004a99;
         color: #004a99;
     }
-    /* Estilo para o botão voltar na sidebar não ficar gigante */
     section[data-testid="stSidebar"] div.stButton > button {
         height: auto !important;
         font-size: 14px !important;
@@ -133,24 +132,33 @@ else:
         df, col_op, col_mat = carregar_dados(supervisor)
         if df is not None:
             metas_s = METAS_BASE.copy()
-            # Lógica de Meta de Pausa Total conforme solicitado anteriormente
+            
+            # --- CORREÇÃO DA MÉTRICA DE PAUSA TOTAL ---
             if st.session_state.servico == "SAC NDI":
-                meta_p = 16.60 if "Davi" in supervisor or "Elaine" in supervisor or "Sayanne" in supervisor or "Aline" in supervisor or "Marcelo" in supervisor else 21.75
+                # Erik e Beatriz agora possuem meta de 21.75
+                if "Erik" in supervisor or "Beatriz" in supervisor:
+                    meta_p = 21.75
+                else:
+                    meta_p = 16.60
             elif st.session_state.servico == "SAC PPO":
                 meta_p = 17.27 if "Carla" in supervisor else 19.06 if "Ellen" in supervisor else 17.17 if "Alex" in supervisor else 19.18 if "Magno" in supervisor else 21.75
-            else: meta_p = 21.75
+            else: 
+                meta_p = 21.75 # Padrão Hapvida
+                
             metas_s['Pausa Total'] = {'valor': meta_p, 'margem': 3.0, 'menor_melhor': True}
 
             st.header(f"Performance: {supervisor}")
             tabs = st.tabs(["👤 Individual", "👥 Equipe", "🏆 Ranking", "📊 Saúde"])
 
-            # 👥 EQUIPE - EXTRAÍDO DO CÓDIGO ORIGINAL
+            # 👥 EQUIPE
             with tabs[1]:
                 eq_row = df[df[col_op].str.strip().str.upper() == 'EQUIPE']
                 if not eq_row.empty:
                     e = eq_row.iloc[0]
                     cols = st.columns(3)
-                    for i, k in enumerate(metas_s.keys()):
+                    # Adicionando a métrica de Pausa Total explicitamente no loop da equipe
+                    lista_metrics = list(METAS_BASE.keys()) + ['Pausa Total']
+                    for i, k in enumerate(lista_metrics):
                         val_num = e.get(f'{k}_num', 0)
                         val_label = e.get(k, '0') if k != 'Pesquisa' else val_num
                         with cols[i % 3]: 
@@ -158,7 +166,6 @@ else:
                 else:
                     st.warning("Linha de resumo 'EQUIPE' não encontrada na planilha.")
 
-            # (As demais abas - Individual, Ranking e Saúde - permanecem com a mesma lógica robusta)
             with tabs[0]: # INDIVIDUAL
                 mat_in = st.text_input("Digite sua Matrícula:")
                 if mat_in:
