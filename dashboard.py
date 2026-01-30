@@ -17,6 +17,7 @@ st.markdown("""
         background-color: #f0f2f6;
         border: 1px solid #d1d5db;
         transition: all 0.3s;
+        color: #1f3a5f;
     }
     div.stButton > button:hover {
         background-color: #e5e7eb;
@@ -105,7 +106,7 @@ def carregar_dados(nome_aba):
     except:
         return None, None, None
 
-# --- LOBBY ---
+# --- NAVEGAÇÃO / LOBBY ---
 if st.session_state.servico is None:
     st.markdown("<br><h1 style='text-align: center; color: #004a99;'>🚀 Portal de Performance NDI</h1>", unsafe_allow_html=True)
     st.write("---")
@@ -131,36 +132,37 @@ else:
     if supervisor != "Selecione...":
         df, col_op, col_mat = carregar_dados(supervisor)
         if df is not None:
+            # --- AJUSTE DINÂMICO DE METAS (ERIK E BEATRIZ) ---
             metas_s = METAS_BASE.copy()
-            
-            # --- DEFINIÇÃO DA MÉTRICA DE PAUSA TOTAL ---
             if st.session_state.servico == "SAC NDI":
-                # Erik e Beatriz com 21.75. Demais com 16.60
+                # Regra solicitada: Erik e Beatriz com 21.75%. Demais com 16.60%
                 meta_p = 21.75 if ("Erik" in supervisor or "Beatriz" in supervisor) else 16.60
             elif st.session_state.servico == "SAC PPO":
                 meta_p = 17.27 if "Carla" in supervisor else 19.06 if "Ellen" in supervisor else 17.17 if "Alex" in supervisor else 19.18 if "Magno" in supervisor else 21.75
             else: 
-                meta_p = 21.75
+                meta_p = 21.75 # Padrão Hapvida
                 
             metas_s['Pausa Total'] = {'valor': meta_p, 'margem': 3.0, 'menor_melhor': True}
 
             st.header(f"Performance: {supervisor}")
             tabs = st.tabs(["👤 Individual", "👥 Equipe", "🏆 Ranking", "📊 Saúde"])
 
-            with tabs[1]: # 👥 EQUIPE
+            # 👥 EQUIPE (CÁLCULO CONSOLIDADO)
+            with tabs[1]:
                 eq_row = df[df[col_op].str.strip().str.upper() == 'EQUIPE']
                 if not eq_row.empty:
                     e = eq_row.iloc[0]
                     cols = st.columns(3)
-                    # Exibindo métricas base + Pausa Total
-                    lista_metrics = list(METAS_BASE.keys()) + ['Pausa Total']
-                    for i, k in enumerate(lista_metrics):
+                    # Lista de exibição incluindo a meta de pausa calculada acima
+                    display_metrics = list(METAS_BASE.keys()) + ['Pausa Total']
+                    for i, k in enumerate(display_metrics):
                         val_num = e.get(f'{k}_num', 0)
+                        # Formatação especial para pesquisa (decimal) vs as outras (label original da planilha)
                         val_label = e.get(k, '0') if k != 'Pesquisa' else f"{val_num:.2f}"
                         with cols[i % 3]: 
                             exibir_card(f"{k} Equipe", val_label, definir_cor_kpi(val_num, k, metas_s))
                 else:
-                    st.warning("Linha 'EQUIPE' não encontrada.")
+                    st.warning("Linha 'EQUIPE' não localizada nesta planilha.")
 
             with tabs[0]: # 👤 INDIVIDUAL
                 mat_in = st.text_input("Digite sua Matrícula:")
@@ -182,6 +184,8 @@ else:
                             exibir_card("TMA Voz", r.get('TMA Voz', '00:00'), definir_cor_kpi(r['TMA Voz_num'], 'TMA Voz', metas_s), "⏱️")
                             exibir_card("Absenteísmo", r.get('Absenteismo', '0%'), definir_cor_kpi(r['Absenteismo_num'], 'Absenteismo', metas_s))
                             exibir_card("Pausa Total", r.get('Pausa Total', '00:00'), definir_cor_kpi(r['Pausa Total_num'], 'Pausa Total', metas_s), "⏱️")
+                    else:
+                        st.warning("Matrícula não encontrada.")
 
             with tabs[2]: # 🏆 RANKING
                 df_ranking = df[(df[col_op].str.strip().str.upper() != 'EQUIPE') & (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE))].copy()
