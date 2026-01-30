@@ -5,7 +5,7 @@ import plotly.express as px
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
-# CSS para botões grandes, design limpo e sem cores vibrantes indesejadas
+# CSS para botões grandes, sem laranja e design limpo
 st.markdown("""
     <style>
     div.stButton > button {
@@ -24,13 +24,17 @@ st.markdown("""
         color: #004a99;
         background-color: #e9ecef;
     }
+    /* Remove a cor laranja de seleção padrão do Streamlit */
+    .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+        font-size: 18px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 if 'servico' not in st.session_state:
     st.session_state.servico = None
 
-# 2. METAS BASE E LISTA DE EXCLUSÃO (BACKOFFICE)
+# 2. METAS E CONFIGURAÇÕES
 METAS_BASE = {
     'Aderencia': {'valor': 85.0, 'margem': 5.0, 'menor_melhor': False},
     'Absenteismo': {'valor': 0.0, 'margem': 5.0, 'menor_melhor': True},
@@ -42,13 +46,9 @@ METAS_BASE = {
     'Resolutividade': {'valor': 75.0, 'margem': 5.0, 'menor_melhor': False}
 }
 
-# Matrículas do Backoffice (Ellen) que não devem ir para o Ranking
-MATRICULAS_BACKOFFICE = [
-    '1211819', '1210820', '1210724', '1211110', '1211213', 
-    '1214016', '10115858', '1212492', '1028483'
-]
+MATRICULAS_BACKOFFICE = ['1211819', '1210820', '1210724', '1211110', '1211213', '1214016', '10115858', '1212492', '1028483']
 
-# 3. FUNÇÕES DE TRATAMENTO DE DADOS
+# 3. FUNÇÕES DE TRATAMENTO
 def converter_para_numero(valor):
     if pd.isna(valor) or str(valor).strip().lower() in ['none', '', 'nan', '0']: return None
     try:
@@ -60,13 +60,12 @@ def converter_tma_minutos(tempo_str):
     if pd.isna(tempo_str) or str(tempo_str).strip().lower() in ['none', '', 'nan', '00:00:00', '0']: return None
     try:
         partes = str(tempo_str).split(':')
-        if len(partes) == 3:
-            return int(partes[0]) * 60 + int(partes[1]) + int(partes[2]) / 60
+        if len(partes) == 3: return int(partes[0]) * 60 + int(partes[1]) + int(partes[2]) / 60
         return int(partes[0]) + int(partes[1]) / 60
     except: return None
 
 def definir_cor_kpi(valor, metrica_key, metas_atuais):
-    if valor is None: return "#6c757d" # Cinza para sem dados
+    if valor is None: return "#6c757d"
     config = metas_atuais.get(metrica_key)
     m, tol, menor_melhor = config['valor'], config['margem'], config['menor_melhor']
     if menor_melhor:
@@ -77,7 +76,6 @@ def definir_cor_kpi(valor, metrica_key, metas_atuais):
         return "#ffc107" if valor >= m - tol else "#dc3545"
 
 def exibir_card(label, valor, cor="#333", icon=""):
-    # Formatação de exibição: 2 casas para números, "N/A" para vazios
     if isinstance(valor, (int, float)):
         val_fmt = f"{valor:.2f}"
     else:
@@ -99,7 +97,6 @@ def carregar_dados(nome_aba):
         df = pd.read_csv(url)
         df.columns = df.columns.str.strip()
         
-        # Mapeamento para evitar erro de coluna (KeyError)
         col_map = {col.lower(): col for col in df.columns}
         target_op = col_map.get('operador', 'Operador')
         target_mat = col_map.get('matricula', 'Matricula')
@@ -113,10 +110,10 @@ def carregar_dados(nome_aba):
         
         return df, target_op, target_mat
     except Exception as e:
-        st.error(f"Erro ao carregar dados da aba {nome_aba}: {e}")
+        st.error(f"Erro ao carregar dados: {e}")
         return None, None, None
 
-# --- NAVEGAÇÃO / LOBBY ---
+# --- LOBBY ---
 if st.session_state.servico is None:
     st.markdown("<br><h1 style='text-align: center; color: #004a99;'>🚀 Portal de Performance NDI</h1>", unsafe_allow_html=True)
     st.write("---")
@@ -135,30 +132,25 @@ else:
             lista = ["Selecione...", "Equipe Hapvida"]
         
         supervisor = st.selectbox("Supervisor:", lista)
-        st.write("---")
         if st.button("⬅️ Voltar ao Lobby"): st.session_state.servico = None; st.rerun()
 
     if supervisor != "Selecione...":
         df, col_op, col_mat = carregar_dados(supervisor)
         
         if df is not None:
-            # Lógica de Metas de Pausa Customizadas
+            # Metas de Pausa Customizadas
             metas_s = METAS_BASE.copy()
-            if st.session_state.servico == "SAC PPO":
-                if "Carla" in supervisor: meta_p = 17.27
-                elif "Ellen" in supervisor: meta_p = 19.06
-                elif "Alex" in supervisor: meta_p = 17.17
-                elif "Magno" in supervisor: meta_p = 19.18
-                else: meta_p = 21.75
-            else:
-                meta_p = 21.75
+            if "Carla" in supervisor: meta_p = 17.27
+            elif "Ellen" in supervisor: meta_p = 19.06
+            elif "Alex" in supervisor: meta_p = 17.17
+            elif "Magno" in supervisor: meta_p = 19.18
+            else: meta_p = 21.75
             metas_s['Pausa Total'] = {'valor': meta_p, 'margem': 3.0, 'menor_melhor': True}
 
-            st.header(f"Performance: {supervisor}")
-            tabs = st.tabs(["👤 Individual", "👥 Equipe", "🏆 Melhores (Atendimento)", "📊 Saúde"])
+            tabs = st.tabs(["👤 Individual", "👥 Equipe", "🏆 Melhores", "📊 Saúde"])
 
-            with tabs[0]: # INDIVIDUAL
-                mat_in = st.text_input("Digite sua Matrícula para consulta:")
+            with tabs[0]:
+                mat_in = st.text_input("Sua Matrícula:")
                 if mat_in:
                     res = df[df[col_mat].astype(str).str.contains(mat_in.strip())]
                     if not res.empty:
@@ -176,19 +168,22 @@ else:
                     else: st.warning("Matrícula não encontrada.")
 
             with tabs[1]: # EQUIPE
-                eq_row = df[df[col_op].str.strip().str.upper() == 'EQUIPE']
-                if not eq_row.empty:
-                    e = eq_row.iloc[0]
-                    cols = st.columns(3)
-                    for i, k in enumerate(metas_s.keys()):
-                        val_num = e.get(f'{k}_num')
-                        val_label = e.get(k, '0') if k != 'Pesquisa' else (f"{val_num:.2f}" if val_num else "0.00")
-                        with cols[i % 3]: exibir_card(f"{k} Equipe", val_label, definir_cor_kpi(val_num, k, metas_s))
+                # Uso de try/except para evitar o KeyError mostrado na imagem
+                try:
+                    eq_row = df[df[col_op].str.strip().str.upper() == 'EQUIPE']
+                    if not eq_row.empty:
+                        e = eq_row.iloc[0]
+                        cols = st.columns(3)
+                        for i, k in enumerate(metas_s.keys()):
+                            val_num = e.get(f'{k}_num')
+                            val_label = e.get(k, '0') if k != 'Pesquisa' else (f"{val_num:.2f}" if val_num else "0.00")
+                            with cols[i % 3]: exibir_card(f"{k} Equipe", val_label, definir_cor_kpi(val_num, k, metas_s))
+                except:
+                    st.error("Erro ao localizar linha 'EQUIPE' na planilha.")
 
             with tabs[2]: # RANKING (FILTRADO)
-                st.info("💡 Apenas colaboradores de atendimento com métricas válidas aparecem aqui.")
                 for k, v in metas_s.items():
-                    # FILTRO: Remove Equipe, Remove Backoffice e Remove quem está sem dados (None)
+                    # FILTRO: Remove Equipe, Backoffice e quem não tem dados (None)
                     df_rank = df[
                         (df[col_op].str.strip().str.upper() != 'EQUIPE') & 
                         (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
@@ -205,7 +200,8 @@ else:
                     st.divider()
 
             with tabs[3]: # SAÚDE (FILTRADA)
-                sel = st.selectbox("Selecione a Métrica para Análise:", list(metas_s.keys()))
+                sel = st.selectbox("Analise a Métrica:", list(metas_s.keys()))
+                # Filtro para não exibir "None" no gráfico ou na tabela (Caso Ludmila)
                 df_saude = df[
                     (df[col_op].str.strip().str.upper() != 'EQUIPE') & 
                     (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
