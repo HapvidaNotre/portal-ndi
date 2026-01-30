@@ -5,35 +5,39 @@ import plotly.express as px
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
-# CSS: Botões Largos e Retangulares (Estilo solicitado nas imagens)
+# CSS: Botões Extra Largos e Retangulares
 st.markdown("""
     <style>
-    /* Estilo para os botões do Lobby (Iniciais) */
+    /* Estica o container principal para as bordas */
+    .block-container {
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+    }
+    
+    /* Estilo dos botões do Lobby */
     div.stButton > button {
         height: 5em;
         font-size: 20px !important;
         font-weight: bold;
-        width: 100%; /* Faz o botão ocupar toda a largura da coluna */
-        border-radius: 15px;
+        width: 100% !important; /* Força largura total da coluna */
+        border-radius: 12px;
         background-color: #f8f9fa;
         border: 1px solid #dee2e6;
         color: #495057;
         transition: all 0.3s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        margin: 0px;
     }
     
     div.stButton > button:hover {
         border-color: #004a99;
         color: #004a99;
         background-color: #e9ecef;
-        box-shadow: 0px 4px 10px rgba(0,0,0,0.05);
+        box-shadow: 0px 4px 15px rgba(0,0,0,0.1);
     }
 
-    /* Ajuste específico para os botões do Lobby ficarem em linha mas esticados */
-    [data-testid="stHorizontalBlock"] div.stButton > button {
-        margin: 10px 0;
+    /* Remove espaços entre colunas para os botões encostarem mais nas laterais */
+    [data-testid="stHorizontalBlock"] {
+        gap: 10px !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -41,7 +45,7 @@ st.markdown("""
 if 'servico' not in st.session_state:
     st.session_state.servico = None
 
-# 2. METAS E REGRAS DE NEGÓCIO
+# 2. METAS E REGRAS
 METAS_BASE = {
     'Aderencia': {'valor': 85.0, 'margem': 5.0, 'menor_melhor': False},
     'Absenteismo': {'valor': 0.0, 'margem': 5.0, 'menor_melhor': True},
@@ -55,7 +59,7 @@ METAS_BASE = {
 
 MATRICULAS_BACKOFFICE = ['1211819', '1210820', '1210724', '1211110', '1211213', '1214016', '10115858', '1212492', '1028483']
 
-# 3. FUNÇÕES DE TRATAMENTO
+# 3. TRATAMENTO DE DADOS
 def converter_para_numero(valor):
     if pd.isna(valor) or str(valor).strip().lower() in ['none', '', 'nan', '0']: return None
     try:
@@ -98,7 +102,7 @@ def carregar_dados(nome_aba):
         df = pd.read_csv(url)
         df.columns = df.columns.str.strip()
         
-        # Correção para KeyError: Busca coluna que contém 'Operador' ou 'Matricula' indep. de maiúsculas
+        # Busca inteligente de colunas (ignora maiúsculas/espaços)
         col_op = next((c for c in df.columns if 'operador' in c.lower()), df.columns[0])
         col_mat = next((c for c in df.columns if 'matricula' in c.lower()), df.columns[1])
 
@@ -118,19 +122,19 @@ if st.session_state.servico is None:
     st.markdown("<br><h1 style='text-align: center; color: #004a99;'>🚀 Portal de Performance NDI</h1>", unsafe_allow_html=True)
     st.write("---")
     
-    # Colunas com espaçamento para os botões ficarem retangulares e largos
-    cols = st.columns([1, 1, 1])
-    with cols[0]:
+    # Colunas com proporção para ocupar quase todo o espaço lateral
+    c1, c2, c3 = st.columns([1, 1, 1])
+    with c1:
         if st.button("🏢 SAC NDI"):
             st.session_state.servico = "SAC NDI"; st.rerun()
-    with cols[1]:
+    with c2:
         if st.button("🏦 SAC PPO"):
             st.session_state.servico = "SAC PPO"; st.rerun()
-    with cols[2]:
+    with c3:
         if st.button("🏥 SAC HAPVIDA"):
             st.session_state.servico = "SAC HAPVIDA"; st.rerun()
 else:
-    # --- INTERFACE INTERNA ---
+    # --- ÁREA INTERNA ---
     with st.sidebar:
         st.title(f"📍 {st.session_state.servico}")
         if st.session_state.servico == "SAC NDI":
@@ -148,7 +152,6 @@ else:
         df, col_op, col_mat = carregar_dados(supervisor)
         if df is not None:
             metas_s = METAS_BASE.copy()
-            # Metas PPO
             if "Carla" in supervisor: meta_p = 17.27
             elif "Ellen" in supervisor: meta_p = 19.06
             elif "Alex" in supervisor: meta_p = 17.17
@@ -174,21 +177,14 @@ else:
                         with c3:
                             exibir_card("TMA Voz", r.get('TMA Voz', 'N/A'), definir_cor_kpi(r['TMA Voz_num'], 'TMA Voz', metas_s), "⏱️")
 
-            with tabs[1]: # EQUIPE
-                eq_row = df[df[col_op].str.strip().str.upper() == 'EQUIPE']
-                if not eq_row.empty:
-                    e = eq_row.iloc[0]
-                    cols_eq = st.columns(3)
-                    for i, k in enumerate(metas_s.keys()):
-                        v_n = e.get(f'{k}_num')
-                        v_l = e.get(k, '0') if k != 'Pesquisa' else (f"{v_n:.2f}" if v_n else "0.00")
-                        with cols_eq[i % 3]: exibir_card(f"{k} Equipe", v_l, definir_cor_kpi(v_n, k, metas_s))
-
-            with tabs[2]: # RANKING (FILTRADO)
+            with tabs[2]: # RANKING (OPERADORES SEM MÉTRICAS NÃO ENTRAM)
                 for k, v in metas_s.items():
-                    df_rank = df[(df[col_op].str.strip().str.upper() != 'EQUIPE') & 
-                                 (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
-                                 (df[f'{k}_num'].notna())].copy()
+                    df_rank = df[
+                        (df[col_op].str.strip().str.upper() != 'EQUIPE') & 
+                        (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
+                        (df[f'{k}_num'].notna())
+                    ].copy()
+                    
                     if not df_rank.empty:
                         st.markdown(f"#### Ranking: {k}")
                         top = df_rank.nsmallest(3, f'{k}_num') if v['menor_melhor'] else df_rank.nlargest(3, f'{k}_num')
@@ -199,15 +195,17 @@ else:
                     st.divider()
 
             with tabs[3]: # SAÚDE (FILTRADA)
-                sel = st.selectbox("Métrica:", list(metas_s.keys()))
-                df_saude = df[(df[col_op].str.strip().str.upper() != 'EQUIPE') & 
-                             (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
-                             (df[f'{sel}_num'].notna())].copy()
+                sel = st.selectbox("Escolha a Métrica:", list(metas_s.keys()))
+                df_saude = df[
+                    (df[col_op].str.strip().str.upper() != 'EQUIPE') & 
+                    (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
+                    (df[f'{sel}_num'].notna())
+                ].copy()
                 if not df_saude.empty:
                     mv, inv = metas_s[sel]['valor'], metas_s[sel]['menor_melhor']
                     df_saude['Status'] = df_saude[f'{sel}_num'].apply(lambda x: 'Dentro da Meta' if (x <= mv if inv else x >= mv) else 'Fora da Meta')
-                    c_s1, c_s2 = st.columns([1, 1.5])
-                    with c_s1:
+                    cs1, cs2 = st.columns([1, 1])
+                    with cs1:
                         fig = px.pie(df_saude, names='Status', hole=0.5, color='Status', color_discrete_map={'Dentro da Meta':'#28a745','Fora da Meta':'#dc3545'})
                         st.plotly_chart(fig, use_container_width=True)
-                    with c_s2: st.dataframe(df_saude[[col_op, sel, 'Status']], hide_index=True)
+                    with cs2: st.dataframe(df_saude[[col_op, sel, 'Status']], hide_index=True)
