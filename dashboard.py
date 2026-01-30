@@ -5,28 +5,32 @@ import plotly.express as px
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
-# CSS para botões grandes, sem laranja e design limpo
+# CSS para botões GIGANTES no Lobby e design limpo
 st.markdown("""
     <style>
+    /* Estilo dos botões do Lobby inicial */
     div.stButton > button {
-        height: 5em;
-        font-size: 20px !important;
-        font-weight: bold;
-        width: 100%;
-        border-radius: 12px;
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        color: #495057;
-        transition: all 0.3s;
+        height: 8em !important;
+        font-size: 25px !important;
+        font-weight: bold !important;
+        width: 100% !important;
+        border-radius: 20px !important;
+        background-color: #f8f9fa !important;
+        border: 2px solid #dee2e6 !important;
+        color: #333 !important;
+        transition: all 0.3s ease;
+        margin-bottom: 10px;
     }
     div.stButton > button:hover {
-        border-color: #004a99;
-        color: #004a99;
-        background-color: #e9ecef;
+        border-color: #004a99 !important;
+        color: #004a99 !important;
+        background-color: #e9ecef !important;
+        transform: scale(1.02);
     }
-    /* Remove a cor laranja de seleção padrão do Streamlit */
-    .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
-        font-size: 18px;
+    /* Ajuste para o botão de 'Voltar' no sidebar não ficar gigante */
+    section[data-testid="stSidebar"] div.stButton > button {
+        height: 3em !important;
+        font-size: 16px !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -46,6 +50,7 @@ METAS_BASE = {
     'Resolutividade': {'valor': 75.0, 'margem': 5.0, 'menor_melhor': False}
 }
 
+# Matrículas do Backoffice que não devem ir para o Ranking
 MATRICULAS_BACKOFFICE = ['1211819', '1210820', '1210724', '1211110', '1211213', '1214016', '10115858', '1212492', '1028483']
 
 # 3. FUNÇÕES DE TRATAMENTO
@@ -80,7 +85,6 @@ def exibir_card(label, valor, cor="#333", icon=""):
         val_fmt = f"{valor:.2f}"
     else:
         val_fmt = str(valor) if str(valor).lower() != 'none' else "N/A"
-        
     st.markdown(f"""
         <div style="background-color: white; padding: 15px; border-radius: 10px; border-left: 10px solid {cor}; 
              box-shadow: 2px 2px 8px rgba(0,0,0,0.1); margin-bottom: 12px;">
@@ -97,9 +101,10 @@ def carregar_dados(nome_aba):
         df = pd.read_csv(url)
         df.columns = df.columns.str.strip()
         
+        # Mapeamento insensível a maiúsculas/minúsculas para evitar KeyError
         col_map = {col.lower(): col for col in df.columns}
-        target_op = col_map.get('operador', 'Operador')
-        target_mat = col_map.get('matricula', 'Matricula')
+        target_op = col_map.get('operador', df.columns[0]) # Fallback para primeira coluna se não achar
+        target_mat = col_map.get('matricula', df.columns[1])
 
         for col in list(METAS_BASE.keys()) + ['Pausa Total', 'Pausa Produtiva', 'Pausa Improdutiva']:
             real_col = col_map.get(col.lower())
@@ -107,21 +112,33 @@ def carregar_dados(nome_aba):
                 df[f'{col}_num'] = df[real_col].apply(converter_tma_minutos if 'TMA' in col or 'Pausa' in col else converter_para_numero)
             else:
                 df[f'{col}_num'] = None
-        
         return df, target_op, target_mat
     except Exception as e:
         st.error(f"Erro ao carregar dados: {e}")
         return None, None, None
 
-# --- LOBBY ---
+# --- LOBBY INICIAL ---
 if st.session_state.servico is None:
     st.markdown("<br><h1 style='text-align: center; color: #004a99;'>🚀 Portal de Performance NDI</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #666;'>Selecione o serviço para iniciar</p>", unsafe_allow_html=True)
     st.write("---")
-    c1, c2, c3 = st.columns(3)
-    if c1.button("🏢 SAC NDI"): st.session_state.servico = "SAC NDI"; st.rerun()
-    if c2.button("🏦 SAC PPO"): st.session_state.servico = "SAC PPO"; st.rerun()
-    if c3.button("🏥 SAC HAPVIDA"): st.session_state.servico = "SAC HAPVIDA"; st.rerun()
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("🏢 SAC NDI"):
+            st.session_state.servico = "SAC NDI"
+            st.rerun()
+    with col2:
+        if st.button("🏦 SAC PPO"):
+            st.session_state.servico = "SAC PPO"
+            st.rerun()
+    with col3:
+        if st.button("🏥 SAC HAPVIDA"):
+            st.session_state.servico = "SAC HAPVIDA"
+            st.rerun()
+
 else:
+    # --- ÁREA INTERNA ---
     with st.sidebar:
         st.title(f"📍 {st.session_state.servico}")
         if st.session_state.servico == "SAC NDI":
@@ -131,14 +148,17 @@ else:
         else:
             lista = ["Selecione...", "Equipe Hapvida"]
         
-        supervisor = st.selectbox("Supervisor:", lista)
-        if st.button("⬅️ Voltar ao Lobby"): st.session_state.servico = None; st.rerun()
+        supervisor = st.selectbox("Selecione o Supervisor:", lista)
+        st.write("---")
+        if st.button("⬅️ Voltar ao Lobby"):
+            st.session_state.servico = None
+            st.rerun()
 
     if supervisor != "Selecione...":
         df, col_op, col_mat = carregar_dados(supervisor)
         
         if df is not None:
-            # Metas de Pausa Customizadas
+            # Metas Customizadas
             metas_s = METAS_BASE.copy()
             if "Carla" in supervisor: meta_p = 17.27
             elif "Ellen" in supervisor: meta_p = 19.06
@@ -147,10 +167,11 @@ else:
             else: meta_p = 21.75
             metas_s['Pausa Total'] = {'valor': meta_p, 'margem': 3.0, 'menor_melhor': True}
 
+            st.header(f"Performance: {supervisor}")
             tabs = st.tabs(["👤 Individual", "👥 Equipe", "🏆 Melhores", "📊 Saúde"])
 
             with tabs[0]:
-                mat_in = st.text_input("Sua Matrícula:")
+                mat_in = st.text_input("Digite sua Matrícula para consultar:")
                 if mat_in:
                     res = df[df[col_mat].astype(str).str.contains(mat_in.strip())]
                     if not res.empty:
@@ -159,8 +180,7 @@ else:
                         c1, c2, c3 = st.columns(3)
                         with c1:
                             exibir_card("Aderência", r.get('Aderencia', 'N/A'), definir_cor_kpi(r['Aderencia_num'], 'Aderencia', metas_s))
-                            v_pesq = r['Pesquisa_num']
-                            exibir_card("Pesquisa", v_pesq if v_pesq else "0.00", definir_cor_kpi(v_pesq, 'Pesquisa', metas_s), "⭐")
+                            exibir_card("Pesquisa", r['Pesquisa_num'] if r['Pesquisa_num'] else "0.00", definir_cor_kpi(r['Pesquisa_num'], 'Pesquisa', metas_s), "⭐")
                         with c2:
                             exibir_card("Resolutividade", r.get('Resolutividade', 'N/A'), definir_cor_kpi(r['Resolutividade_num'], 'Resolutividade', metas_s))
                         with c3:
@@ -168,8 +188,8 @@ else:
                     else: st.warning("Matrícula não encontrada.")
 
             with tabs[1]: # EQUIPE
-                # Uso de try/except para evitar o KeyError mostrado na imagem
                 try:
+                    # Busca ignorando case
                     eq_row = df[df[col_op].str.strip().str.upper() == 'EQUIPE']
                     if not eq_row.empty:
                         e = eq_row.iloc[0]
@@ -178,18 +198,15 @@ else:
                             val_num = e.get(f'{k}_num')
                             val_label = e.get(k, '0') if k != 'Pesquisa' else (f"{val_num:.2f}" if val_num else "0.00")
                             with cols[i % 3]: exibir_card(f"{k} Equipe", val_label, definir_cor_kpi(val_num, k, metas_s))
-                except:
-                    st.error("Erro ao localizar linha 'EQUIPE' na planilha.")
+                except: st.error("Linha 'EQUIPE' não identificada na planilha.")
 
             with tabs[2]: # RANKING (FILTRADO)
                 for k, v in metas_s.items():
-                    # FILTRO: Remove Equipe, Backoffice e quem não tem dados (None)
                     df_rank = df[
                         (df[col_op].str.strip().str.upper() != 'EQUIPE') & 
                         (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
                         (df[f'{k}_num'].notna())
                     ].copy()
-                    
                     if not df_rank.empty:
                         st.markdown(f"#### Ranking: {k}")
                         top = df_rank.nsmallest(3, f'{k}_num') if v['menor_melhor'] else df_rank.nlargest(3, f'{k}_num')
@@ -200,14 +217,12 @@ else:
                     st.divider()
 
             with tabs[3]: # SAÚDE (FILTRADA)
-                sel = st.selectbox("Analise a Métrica:", list(metas_s.keys()))
-                # Filtro para não exibir "None" no gráfico ou na tabela (Caso Ludmila)
+                sel = st.selectbox("Escolha a Métrica:", list(metas_s.keys()))
                 df_saude = df[
                     (df[col_op].str.strip().str.upper() != 'EQUIPE') & 
                     (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
                     (df[f'{sel}_num'].notna())
                 ].copy()
-                
                 if not df_saude.empty:
                     mv, inv = metas_s[sel]['valor'], metas_s[sel]['menor_melhor']
                     df_saude['Status'] = df_saude[f'{sel}_num'].apply(lambda x: 'Dentro da Meta' if (x <= mv if inv else x >= mv) else 'Fora da Meta')
