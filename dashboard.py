@@ -5,7 +5,7 @@ import plotly.express as px
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
-# Estilo CSS para aumentar os botões do Lobby e remover cores vibrantes indesejadas
+# Estilo CSS para botões grandes no Lobby e design limpo
 st.markdown("""
     <style>
     div.stButton > button {
@@ -14,6 +14,14 @@ st.markdown("""
         font-weight: bold;
         width: 100%;
         border-radius: 15px;
+        background-color: #f0f2f6;
+        border: 1px solid #d1d5db;
+        transition: all 0.3s;
+    }
+    div.stButton > button:hover {
+        background-color: #e5e7eb;
+        border-color: #004a99;
+        color: #004a99;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -21,7 +29,7 @@ st.markdown("""
 if 'servico' not in st.session_state:
     st.session_state.servico = None
 
-# 2. DICIONÁRIO CENTRALIZADO DE METAS
+# 2. DICIONÁRIO DE METAS E LISTA DE BACKOFFICE (FILTRO)
 METAS_BASE = {
     'Aderencia': {'valor': 85.0, 'margem': 5.0, 'menor_melhor': False},
     'Absenteismo': {'valor': 0.0, 'margem': 5.0, 'menor_melhor': True},
@@ -32,6 +40,12 @@ METAS_BASE = {
     'Pesquisa': {'valor': 4.5, 'margem': 0.5, 'menor_melhor': False},
     'Resolutividade': {'valor': 75.0, 'margem': 5.0, 'menor_melhor': False}
 }
+
+# Operadores que não entram no Ranking (Backoffice Ellen)
+MATRICULAS_BACKOFFICE = [
+    '1211819', '1210820', '1210724', '1211110', '1211213', 
+    '1214016', '10115858', '1212492', '1028483'
+]
 
 # 3. FUNÇÕES DE SUPORTE
 def converter_para_numero(valor):
@@ -61,7 +75,6 @@ def definir_cor_kpi(valor, metrica_key, metas_atuais):
         return "#dc3545"
 
 def exibir_card(label, valor, cor="#333", icon=""):
-    # Garante que se o valor for numérico (como Pesquisa), mostre apenas 2 casas decimais
     if isinstance(valor, (int, float)):
         valor_formatado = f"{valor:.2f}"
     else:
@@ -83,7 +96,6 @@ def carregar_dados(nome_aba):
         df = pd.read_csv(url)
         df.columns = df.columns.str.strip()
         
-        # Mapeamento para ignorar maiúsculas/minúsculas no nome das colunas
         col_map = {col.lower(): col for col in df.columns}
         target_op = col_map.get('operador', 'Operador')
         target_mat = col_map.get('matricula', 'Matricula')
@@ -101,21 +113,16 @@ def carregar_dados(nome_aba):
         st.error(f"Erro ao carregar dados: {e}")
         return None, None, None
 
-# --- LOBBY DE ENTRADA ---
+# --- LOBBY ---
 if st.session_state.servico is None:
     st.markdown("<br><h1 style='text-align: center; color: #004a99;'>🚀 Portal de Performance NDI</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 1.2em;'>Selecione o serviço para continuar:</p>", unsafe_allow_html=True)
     st.write("---")
     
-    col_l1, col_l2, col_l3 = st.columns(3)
-    if col_l1.button("🏢 SAC NDI", use_container_width=True): 
-        st.session_state.servico = "SAC NDI"; st.rerun()
-    if col_l2.button("🏦 SAC PPO", use_container_width=True): 
-        st.session_state.servico = "SAC PPO"; st.rerun()
-    if col_l3.button("🏥 SAC HAPVIDA", use_container_width=True): 
-        st.session_state.servico = "SAC HAPVIDA"; st.rerun()
+    c1, c2, c3 = st.columns(3)
+    if c1.button("🏢 SAC NDI", use_container_width=True): st.session_state.servico = "SAC NDI"; st.rerun()
+    if c2.button("🏦 SAC PPO", use_container_width=True): st.session_state.servico = "SAC PPO"; st.rerun()
+    if c3.button("🏥 SAC HAPVIDA", use_container_width=True): st.session_state.servico = "SAC HAPVIDA"; st.rerun()
 
-# --- INTERFACE PRINCIPAL ---
 else:
     with st.sidebar:
         st.title(f"📍 {st.session_state.servico}")
@@ -123,28 +130,34 @@ else:
             lista = ["Selecione...", "Equipe Erik", "Equipe Davi", "Equipe Elaine", "Equipe Sayanne", "Equipe Beatriz", "Equipe Aline", "Equipe Marcelo"]
         elif st.session_state.servico == "SAC PPO":
             lista = ["Selecione...", "Equipe Ellen", "Equipe Carla", "Equipe Magno", "Equipe Alex"]
-        else:
-            lista = ["Selecione...", "Em Breve"]
+        elif st.session_state.servico == "SAC HAPVIDA":
+            lista = ["Selecione...", "Equipe Hapvida"]
         
         supervisor = st.selectbox("Supervisor:", lista)
         st.write("---")
-        if st.button("⬅️ Voltar ao Lobby"): 
-            st.session_state.servico = None; st.rerun()
+        if st.button("⬅️ Voltar ao Lobby"): st.session_state.servico = None; st.rerun()
 
-    if supervisor != "Selecione..." and "Em Breve" not in supervisor:
+    if supervisor != "Selecione...":
         df, col_op, col_mat = carregar_dados(supervisor)
         
         if df is not None:
-            # Metas de Pausa Customizadas
-            especiais = ["Equipe Davi", "Equipe Elaine", "Equipe Sayanne", "Equipe Aline", "Equipe Marcelo"]
-            meta_p = 16.60 if supervisor in especiais else 21.75
+            # Lógica de Metas Customizadas
             metas_s = METAS_BASE.copy()
+            if st.session_state.servico == "SAC NDI":
+                meta_p = 16.60 if "Davi" in supervisor or "Elaine" in supervisor or "Sayanne" in supervisor or "Aline" in supervisor or "Marcelo" in supervisor else 21.75
+            elif st.session_state.servico == "SAC PPO":
+                if "Carla" in supervisor: meta_p = 17.27
+                elif "Ellen" in supervisor: meta_p = 19.06
+                elif "Alex" in supervisor: meta_p = 17.17
+                elif "Magno" in supervisor: meta_p = 19.18
+                else: meta_p = 21.75
+            else: meta_p = 21.75
+
             metas_s['Pausa Total'] = {'valor': meta_p, 'margem': 3.0, 'menor_melhor': True}
 
             st.header(f"Performance: {supervisor}")
-            tabs = st.tabs(["👤 Individual", "👥 Equipe", "🏆 Melhores", "📊 Saúde"])
+            tabs = st.tabs(["👤 Individual", "👥 Equipe", "🏆 Melhores (Atendimento)", "📊 Saúde"])
 
-            # 1. ABA INDIVIDUAL
             with tabs[0]:
                 mat_in = st.text_input("Digite sua Matrícula:")
                 if mat_in:
@@ -156,8 +169,8 @@ else:
                         with c1:
                             exibir_card("Aderência", r.get('Aderencia', '0%'), definir_cor_kpi(r['Aderencia_num'], 'Aderencia', metas_s))
                             exibir_card("Pausa Produtiva", r.get('Pausa Produtiva', '00:00'), "#004a99", "⏱️")
-                            val_pesq = converter_para_numero(r.get('Pesquisa', 0))
-                            exibir_card("Pesquisa", val_pesq, definir_cor_kpi(val_pesq, 'Pesquisa', metas_s), "⭐")
+                            v_pesq = converter_para_numero(r.get('Pesquisa', 0))
+                            exibir_card("Pesquisa", v_pesq, definir_cor_kpi(v_pesq, 'Pesquisa', metas_s), "⭐")
                         with c2:
                             exibir_card("Resolutividade", r.get('Resolutividade', '0%'), definir_cor_kpi(r['Resolutividade_num'], 'Resolutividade', metas_s))
                             exibir_card("Pausa Improdutiva", r.get('Pausa Improdutiva', '00:00'), "#004a99", "⏱️")
@@ -168,8 +181,7 @@ else:
                             exibir_card("Pausa Total", r.get('Pausa Total', '00:00'), definir_cor_kpi(r['Pausa Total_num'], 'Pausa Total', metas_s), "⏱️")
                     else: st.warning("Matrícula não encontrada.")
 
-            # 2. ABA EQUIPE
-            with tabs[1]:
+            with tabs[1]: # EQUIPE
                 eq_row = df[df[col_op].str.strip().str.upper() == 'EQUIPE']
                 if not eq_row.empty:
                     e = eq_row.iloc[0]
@@ -180,26 +192,36 @@ else:
                         with cols[i % 3]: 
                             exibir_card(f"{k} Equipe", val_label, definir_cor_kpi(val_num, k, metas_s))
 
-            # 3. ABA RANKING
-            with tabs[2]:
-                df_ops = df[df[col_op].str.strip().str.upper() != 'EQUIPE'].copy()
+            with tabs[2]: # RANKING (FILTRADO)
+                # Remove equipe e remove as matrículas de Backoffice
+                df_ranking = df[
+                    (df[col_op].str.strip().str.upper() != 'EQUIPE') & 
+                    (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE))
+                ].copy()
+                
+                st.info("💡 Colaboradores de Backoffice não são exibidos nos rankings para manter a competitividade justa no atendimento.")
+                
                 for k, v in metas_s.items():
                     st.markdown(f"#### Ranking: {k}")
-                    top = df_ops.nsmallest(3, f'{k}_num') if v['menor_melhor'] else df_ops.nlargest(3, f'{k}_num')
+                    top = df_ranking.nsmallest(3, f'{k}_num') if v['menor_melhor'] else df_ranking.nlargest(3, f'{k}_num')
                     mc = st.columns(3)
                     for i, (_, row) in enumerate(top.iterrows()):
                         val_top = row.get(k, '0') if k != 'Pesquisa' else row.get(f'{k}_num', 0)
                         with mc[i]: exibir_card(f"{i+1}º Lugar", row[col_op], definir_cor_kpi(row[f'{k}_num'], k, metas_s), ["🥇","🥈","🥉"][i])
                     st.divider()
 
-            # 4. ABA SAÚDE
-            with tabs[3]:
-                df_s = df[df[col_op].str.strip().str.upper() != 'EQUIPE'].copy()
-                sel = st.selectbox("Escolha a métrica:", list(metas_s.keys()))
+            with tabs[3]: # SAÚDE (FILTRADA)
+                df_saude = df[
+                    (df[col_op].str.strip().str.upper() != 'EQUIPE') & 
+                    (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE))
+                ].copy()
+                
+                sel = st.selectbox("Analise o Status Geral:", list(metas_s.keys()))
                 mv, inv = metas_s[sel]['valor'], metas_s[sel]['menor_melhor']
-                df_s['Status'] = df_s[f'{sel}_num'].apply(lambda x: 'Dentro da Meta' if (x <= mv if inv else x >= mv) else 'Fora da Meta')
+                df_saude['Status'] = df_saude[f'{sel}_num'].apply(lambda x: 'Dentro da Meta' if (x <= mv if inv else x >= mv) else 'Fora da Meta')
+                
                 c_s1, c_s2 = st.columns(2)
                 with c_s1:
-                    fig = px.pie(df_s, names='Status', hole=0.5, color='Status', color_discrete_map={'Dentro da Meta':'#28a745','Fora da Meta':'#dc3545'})
+                    fig = px.pie(df_saude, names='Status', hole=0.5, color='Status', color_discrete_map={'Dentro da Meta':'#28a745','Fora da Meta':'#dc3545'})
                     st.plotly_chart(fig, use_container_width=True)
-                with c_s2: st.dataframe(df_s[[col_op, sel, 'Status']], hide_index=True)
+                with c_s2: st.dataframe(df_saude[[col_op, sel, 'Status']], hide_index=True)
