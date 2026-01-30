@@ -102,7 +102,7 @@ def carregar_dados(nome_aba):
             else:
                 df[f'{col}_num'] = 0.0
         return df, target_op, target_mat
-    except Exception as e:
+    except:
         return None, None, None
 
 # --- LOBBY ---
@@ -133,40 +133,36 @@ else:
         if df is not None:
             metas_s = METAS_BASE.copy()
             
-            # --- CORREÇÃO DA MÉTRICA DE PAUSA TOTAL ---
+            # --- DEFINIÇÃO DA MÉTRICA DE PAUSA TOTAL ---
             if st.session_state.servico == "SAC NDI":
-                # Erik e Beatriz agora possuem meta de 21.75
-                if "Erik" in supervisor or "Beatriz" in supervisor:
-                    meta_p = 21.75
-                else:
-                    meta_p = 16.60
+                # Erik e Beatriz com 21.75. Demais com 16.60
+                meta_p = 21.75 if ("Erik" in supervisor or "Beatriz" in supervisor) else 16.60
             elif st.session_state.servico == "SAC PPO":
                 meta_p = 17.27 if "Carla" in supervisor else 19.06 if "Ellen" in supervisor else 17.17 if "Alex" in supervisor else 19.18 if "Magno" in supervisor else 21.75
             else: 
-                meta_p = 21.75 # Padrão Hapvida
+                meta_p = 21.75
                 
             metas_s['Pausa Total'] = {'valor': meta_p, 'margem': 3.0, 'menor_melhor': True}
 
             st.header(f"Performance: {supervisor}")
             tabs = st.tabs(["👤 Individual", "👥 Equipe", "🏆 Ranking", "📊 Saúde"])
 
-            # 👥 EQUIPE
-            with tabs[1]:
+            with tabs[1]: # 👥 EQUIPE
                 eq_row = df[df[col_op].str.strip().str.upper() == 'EQUIPE']
                 if not eq_row.empty:
                     e = eq_row.iloc[0]
                     cols = st.columns(3)
-                    # Adicionando a métrica de Pausa Total explicitamente no loop da equipe
+                    # Exibindo métricas base + Pausa Total
                     lista_metrics = list(METAS_BASE.keys()) + ['Pausa Total']
                     for i, k in enumerate(lista_metrics):
                         val_num = e.get(f'{k}_num', 0)
-                        val_label = e.get(k, '0') if k != 'Pesquisa' else val_num
+                        val_label = e.get(k, '0') if k != 'Pesquisa' else f"{val_num:.2f}"
                         with cols[i % 3]: 
                             exibir_card(f"{k} Equipe", val_label, definir_cor_kpi(val_num, k, metas_s))
                 else:
-                    st.warning("Linha de resumo 'EQUIPE' não encontrada na planilha.")
+                    st.warning("Linha 'EQUIPE' não encontrada.")
 
-            with tabs[0]: # INDIVIDUAL
+            with tabs[0]: # 👤 INDIVIDUAL
                 mat_in = st.text_input("Digite sua Matrícula:")
                 if mat_in:
                     res = df[df[col_mat].astype(str).str.contains(mat_in.strip())]
@@ -177,8 +173,7 @@ else:
                         with c1:
                             exibir_card("Aderência", r.get('Aderencia', '0%'), definir_cor_kpi(r['Aderencia_num'], 'Aderencia', metas_s))
                             exibir_card("Pausa Produtiva", r.get('Pausa Produtiva', '00:00'), "#004a99", "⏱️")
-                            v_pesq = converter_para_numero(r.get('Pesquisa', 0))
-                            exibir_card("Pesquisa", v_pesq, definir_cor_kpi(v_pesq, 'Pesquisa', metas_s), "⭐")
+                            exibir_card("Pesquisa", r.get('Pesquisa', 0), definir_cor_kpi(converter_para_numero(r.get('Pesquisa')), 'Pesquisa', metas_s), "⭐")
                         with c2:
                             exibir_card("Resolutividade", r.get('Resolutividade', '0%'), definir_cor_kpi(r['Resolutividade_num'], 'Resolutividade', metas_s))
                             exibir_card("Pausa Improdutiva", r.get('Pausa Improdutiva', '00:00'), "#004a99", "⏱️")
@@ -188,18 +183,18 @@ else:
                             exibir_card("Absenteísmo", r.get('Absenteismo', '0%'), definir_cor_kpi(r['Absenteismo_num'], 'Absenteismo', metas_s))
                             exibir_card("Pausa Total", r.get('Pausa Total', '00:00'), definir_cor_kpi(r['Pausa Total_num'], 'Pausa Total', metas_s), "⏱️")
 
-            with tabs[2]: # RANKING
+            with tabs[2]: # 🏆 RANKING
                 df_ranking = df[(df[col_op].str.strip().str.upper() != 'EQUIPE') & (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE))].copy()
                 for k, v in metas_s.items():
                     st.markdown(f"#### Ranking: {k}")
                     top = df_ranking.nsmallest(3, f'{k}_num') if v['menor_melhor'] else df_ranking.nlargest(3, f'{k}_num')
                     mc = st.columns(3)
                     for i, (_, row) in enumerate(top.iterrows()):
-                        val_top = row.get(k, '0') if k != 'Pesquisa' else row.get(f'{k}_num', 0)
+                        val_top = row.get(k, '0') if k != 'Pesquisa' else f"{row[f'{k}_num']:.2f}"
                         with mc[i]: exibir_card(f"{i+1}º Lugar", row[col_op], definir_cor_kpi(row[f'{k}_num'], k, metas_s), ["🥇","🥈","🥉"][i])
                     st.divider()
 
-            with tabs[3]: # SAÚDE
+            with tabs[3]: # 📊 SAÚDE
                 df_saude = df[(df[col_op].str.strip().str.upper() != 'EQUIPE') & (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE))].copy()
                 sel = st.selectbox("Analise o Status Geral:", list(metas_s.keys()))
                 mv, inv = metas_s[sel]['valor'], metas_s[sel]['menor_melhor']
