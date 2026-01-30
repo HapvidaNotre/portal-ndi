@@ -5,46 +5,45 @@ import plotly.express as px
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
-# CSS: Botões GIGANTES com Animação de Cursor (Hover)
+# CSS: Força os botões a ocuparem 100% da largura da coluna e adiciona animação premium
 st.markdown("""
     <style>
-    /* Expansão da área útil da página */
+    /* Remove margens laterais da página para os botões respirarem */
     .block-container {
         max-width: 98% !important;
-        padding-top: 1.5rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
     }
     
-    /* Estilo Base dos Botões do Lobby */
+    /* Estilização dos botões do Lobby */
     div.stButton > button {
-        height: 7.5em !important; /* Altura robusta */
-        font-size: 24px !important; /* Texto bem visível */
-        font-weight: bold !important;
         width: 100% !important;
-        border-radius: 18px;
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        color: #495057;
-        cursor: pointer;
-        
-        /* Transição suave para a animação */
-        transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        height: 8em !important; /* Altura generosa */
+        font-size: 22px !important;
+        font-weight: bold !important;
+        border-radius: 15px !important;
+        background-color: #f8f9fa !important;
+        border: 1px solid #dee2e6 !important;
+        color: #495057 !important;
+        transition: all 0.3s ease-in-out !important;
     }
     
-    /* ANIMAÇÃO AO PASSAR O CURSOR (HOVER) */
+    /* Animação ao passar o mouse: sobe e ganha sombra */
     div.stButton > button:hover {
-        border-color: #004a99;
-        color: #004a99;
-        background-color: #ffffff;
-        
-        /* Efeito de flutuar e sombra profunda */
-        transform: translateY(-8px); 
-        box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+        transform: translateY(-5px) !important;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+        border-color: #004a99 !important;
+        color: #004a99 !important;
+        background-color: #ffffff !important;
     }
 
-    /* Ajuste de proximidade das colunas */
-    [data-testid="stHorizontalBlock"] {
-        gap: 20px !important;
+    /* Estilização para as abas (Tabs) ficarem maiores */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        font-size: 18px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -52,7 +51,7 @@ st.markdown("""
 if 'servico' not in st.session_state:
     st.session_state.servico = None
 
-# 2. METAS E REGRAS (Filtros Anti-Erro inclusos)
+# 2. METAS E REGRAS
 METAS_BASE = {
     'Aderencia': {'valor': 85.0, 'margem': 5.0, 'menor_melhor': False},
     'Absenteismo': {'valor': 0.0, 'margem': 5.0, 'menor_melhor': True},
@@ -66,7 +65,7 @@ METAS_BASE = {
 
 MATRICULAS_BACKOFFICE = ['1211819', '1210820', '1210724', '1211110', '1211213', '1214016', '10115858', '1212492', '1028483']
 
-# 3. TRATAMENTO DE DADOS
+# 3. FUNÇÕES DE SUPORTE
 def converter_para_numero(valor):
     if pd.isna(valor) or str(valor).strip().lower() in ['none', '', 'nan', '0']: return None
     try:
@@ -109,7 +108,7 @@ def carregar_dados(nome_aba):
         df = pd.read_csv(url)
         df.columns = df.columns.str.strip()
         
-        # Busca dinâmica para evitar KeyError
+        # Identifica colunas dinamicamente
         col_op = next((c for c in df.columns if 'operador' in c.lower()), df.columns[0])
         col_mat = next((c for c in df.columns if 'matricula' in c.lower()), df.columns[1])
 
@@ -121,25 +120,28 @@ def carregar_dados(nome_aba):
                 df[f'{col}_num'] = None
         return df, col_op, col_mat
     except Exception as e:
-        st.error(f"Erro ao conectar com a planilha: {e}")
+        st.error(f"Erro ao carregar aba '{nome_aba}': {e}")
         return None, None, None
 
-# --- LOBBY INICIAL ---
+# --- LOBBY ---
 if st.session_state.servico is None:
     st.markdown("<br><h1 style='text-align: center; color: #004a99;'>🚀 Portal de Performance NDI</h1>", unsafe_allow_html=True)
     st.write("---")
     
-    # Colunas que forçam os botões a se esticarem horizontalmente
-    c1, c2, c3 = st.columns([1, 1, 1])
+    # Criamos colunas largas para garantir que os botões se estiquem horizontalmente
+    c1, c2, c3 = st.columns(3)
     with c1:
         if st.button("🏢 SAC NDI"):
-            st.session_state.servico = "SAC NDI"; st.rerun()
+            st.session_state.servico = "SAC NDI"
+            st.rerun()
     with c2:
         if st.button("🏦 SAC PPO"):
-            st.session_state.servico = "SAC PPO"; st.rerun()
+            st.session_state.servico = "SAC PPO"
+            st.rerun()
     with c3:
         if st.button("🏥 SAC HAPVIDA"):
-            st.session_state.servico = "SAC HAPVIDA"; st.rerun()
+            st.session_state.servico = "SAC HAPVIDA"
+            st.rerun()
 else:
     # --- ÁREA INTERNA ---
     with st.sidebar:
@@ -151,15 +153,16 @@ else:
         else:
             lista = ["Selecione...", "Equipe Hapvida"]
         
-        supervisor = st.selectbox("Selecione o Supervisor:", lista)
-        st.divider()
+        supervisor = st.selectbox("Escolha o Supervisor:", lista)
+        st.markdown("<br>", unsafe_allow_html=True)
         if st.button("⬅️ Voltar ao Lobby"):
-            st.session_state.servico = None; st.rerun()
+            st.session_state.servico = None
+            st.rerun()
 
     if supervisor != "Selecione...":
         df, col_op, col_mat = carregar_dados(supervisor)
         if df is not None:
-            # Ajuste de Metas dinâmico
+            # Definição de Metas de Pausa
             metas_s = METAS_BASE.copy()
             if "Carla" in supervisor: meta_p = 17.27
             elif "Ellen" in supervisor: meta_p = 19.06
@@ -168,10 +171,10 @@ else:
             else: meta_p = 21.75
             metas_s['Pausa Total'] = {'valor': meta_p, 'margem': 3.0, 'menor_melhor': True}
 
-            tabs = st.tabs(["👤 Individual", "👥 Equipe", "🏆 Melhores", "📊 Saúde"])
+            tabs = st.tabs(["👤 Individual", "🏆 Melhores", "📊 Saúde"])
 
             with tabs[0]: # INDIVIDUAL
-                mat_in = st.text_input("Consulte sua Matrícula:")
+                mat_in = st.text_input("Digite sua Matrícula para consultar:")
                 if mat_in:
                     res = df[df[col_mat].astype(str).str.contains(mat_in.strip())]
                     if not res.empty:
@@ -185,32 +188,47 @@ else:
                             exibir_card("Resolutividade", r.get('Resolutividade', 'N/A'), definir_cor_kpi(r['Resolutividade_num'], 'Resolutividade', metas_s))
                         with c3:
                             exibir_card("TMA Voz", r.get('TMA Voz', 'N/A'), definir_cor_kpi(r['TMA Voz_num'], 'TMA Voz', metas_s), "⏱️")
-                    else: st.warning("Matrícula não localizada.")
+                    else: st.warning("Matrícula não encontrada.")
 
-            with tabs[2]: # RANKING (LIMPO)
+            with tabs[1]: # RANKING (FILTRADO)
                 for k, v in metas_s.items():
-                    df_rank = df[(df[col_op].str.strip().str.upper() != 'EQUIPE') & 
-                                 (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
-                                 (df[f'{k}_num'].notna())].copy()
+                    df_rank = df[
+                        (df[col_op].str.strip().str.upper() != 'EQUIPE') & 
+                        (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
+                        (df[f'{k}_num'].notna())
+                    ].copy()
+                    
                     if not df_rank.empty:
                         st.markdown(f"#### Melhores em {k}")
                         top = df_rank.nsmallest(3, f'{k}_num') if v['menor_melhor'] else df_rank.nlargest(3, f'{k}_num')
                         mc = st.columns(3)
                         for i, (_, row) in enumerate(top.iterrows()):
-                            val_top = row.get(k) if k != 'Pesquisa' else f"{row[f'{k}_num']:.2f}"
                             with mc[i]: exibir_card(f"{i+1}º Lugar", row[col_op], definir_cor_kpi(row[f'{k}_num'], k, metas_s), ["🥇","🥈","🥉"][i])
                     st.divider()
 
-            with tabs[3]: # GRÁFICOS
-                sel = st.selectbox("Selecione a Métrica para Visão Geral:", list(metas_s.keys()))
-                df_saude = df[(df[col_op].str.strip().str.upper() != 'EQUIPE') & 
-                             (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
-                             (df[f'{sel}_num'].notna())].copy()
+            with tabs[2]: # SAÚDE (CORREÇÃO DO "NONE")
+                sel = st.selectbox("Selecione a Métrica para analisar:", list(metas_s.keys()))
+                
+                # FILTRO CRÍTICO: Remove Equipe, Backoffice e qualquer valor 'None' ou Nulo
+                df_saude = df[
+                    (df[col_op].str.strip().str.upper() != 'EQUIPE') & 
+                    (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
+                    (df[f'{sel}_num'].notna()) # Garante que Ludmilla e outros sem nota não apareçam
+                ].copy()
+
                 if not df_saude.empty:
                     mv, inv = metas_s[sel]['valor'], metas_s[sel]['menor_melhor']
                     df_saude['Status'] = df_saude[f'{sel}_num'].apply(lambda x: 'Dentro da Meta' if (x <= mv if inv else x >= mv) else 'Fora da Meta')
-                    cs1, cs2 = st.columns([1, 1])
-                    with cs1:
-                        fig = px.pie(df_saude, names='Status', hole=0.5, color='Status', color_discrete_map={'Dentro da Meta':'#28a745','Fora da Meta':'#dc3545'})
+                    
+                    c_s1, c_s2 = st.columns([1, 1.2])
+                    with c_s1:
+                        fig = px.pie(df_saude, names='Status', hole=0.5, color='Status', 
+                                     color_discrete_map={'Dentro da Meta':'#28a745','Fora da Meta':'#dc3545'})
+                        fig.update_layout(showlegend=True, margin=dict(t=0, b=0, l=0, r=0))
                         st.plotly_chart(fig, use_container_width=True)
-                    with cs2: st.dataframe(df_saude[[col_op, sel, 'Status']], hide_index=True)
+                    with c_s2:
+                        # Exibe apenas Operador, Métrica e Status
+                        real_col_name = next((c for c in df.columns if sel.lower() in c.lower()), sel)
+                        st.dataframe(df_saude[[col_op, real_col_name, 'Status']], hide_index=True, use_container_width=True)
+                else:
+                    st.info("Não há dados válidos para esta métrica nesta equipe.")
