@@ -6,76 +6,64 @@ import re
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
-# 2. CSS "DO ZERO" - REESTRUTURAÇÃO VISUAL TOTAL
+# 2. TOOLKIT DE CSS (O PAINEL PERFEITO)
 st.markdown("""
     <style>
-    /* 1. EXPANSÃO DA TELA: Removemos o espaço branco inútil nas laterais e topo */
+    /* Expansão de tela para preenchimento total */
     .block-container {
+        padding-top: 1.5rem !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
         max-width: 100% !important;
-        padding-top: 1rem !important;
-        padding-bottom: 0rem !important;
-        padding-left: 1.5rem !important;
-        padding-right: 1.5rem !important;
     }
 
-    /* 2. BOTÕES GIGANTES (LOBBY) - Alvo específico: Botões dentro das colunas principais */
-    div[data-testid="column"] button {
-        background-color: white !important;
-        
-        /* DIMENSÕES - AQUI ESTÁ O SEGREDO DO TAMANHO */
-        height: 350px !important;  /* Altura de um painel */
-        width: 100% !important;    /* Largura total da coluna */
-        
-        /* TIPOGRAFIA */
-        font-size: 40px !important;
-        font-weight: 900 !important;
-        text-transform: uppercase;
+    /* ESTILO DOS BOTÕES DO LOBBY (GIGANTES E LARGOS) */
+    /* Este alvo garante que apenas os botões da tela principal sejam afetados */
+    div[data-testid="stAppViewContainer"] div[data-testid="column"] button {
+        width: 100% !important;
+        height: 180px !important; /* Altura ideal para painel retangular */
+        font-size: 26px !important;
+        font-weight: 800 !important;
+        border-radius: 15px !important;
+        background-color: #ffffff !important;
+        border: 2px solid #e9ecef !important;
         color: #1f3a5f !important;
-        
-        /* BORDA E ACABAMENTO */
-        border: 2px solid #e6e6e6 !important;
-        border-radius: 25px !important;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.05) !important;
-        
-        /* FLEXBOX PARA CENTRALIZAR O TEXTO E ÍCONE */
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-        justify-content: center !important;
-        transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05) !important;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
     }
 
-    /* 3. EFEITO AO PASSAR O MOUSE (HOVER) */
-    div[data-testid="column"] button:hover {
-        transform: scale(1.02) !important; /* Cresce levemente */
+    /* Efeito de hover nos botões do Lobby */
+    div[data-testid="stAppViewContainer"] div[data-testid="column"] button:hover {
+        transform: translateY(-8px) !important;
         border-color: #004a99 !important;
         color: #004a99 !important;
+        box-shadow: 0 12px 24px rgba(0,74,153,0.15) !important;
         background-color: #f8faff !important;
-        box-shadow: 0 20px 40px rgba(0, 74, 153, 0.15) !important;
-        z-index: 99 !important;
     }
 
-    /* 4. BOTÃO VOLTAR (SIDEBAR) - RESETA O ESTILO PARA NÃO FICAR GIGANTE */
+    /* BOTÃO VOLTAR (SIDEBAR) - DISCRETO E PEQUENO */
     section[data-testid="stSidebar"] button {
-        height: 50px !important;
+        height: 45px !important;
         width: 100% !important;
-        font-size: 16px !important;
+        font-size: 15px !important;
         font-weight: normal !important;
-        background-color: #e9ecef !important;
-        border: 1px solid #ced4da !important;
-        box-shadow: none !important;
-        margin-top: 20px !important;
         border-radius: 8px !important;
-        display: block !important;
-    }
-    
-    section[data-testid="stSidebar"] button:hover {
-        background-color: #dee2e6 !important;
+        background-color: #f1f3f5 !important;
+        color: #495057 !important;
+        border: 1px solid #dee2e6 !important;
+        box-shadow: none !important;
         transform: none !important;
+        margin-top: 20px !important;
     }
 
-    /* AJUSTES FINAIS DE FONTE NAS TABELAS E ABAS */
-    .stTabs [data-baseweb="tab"] { font-size: 20px !important; }
+    section[data-testid="stSidebar"] button:hover {
+        background-color: #e9ecef !important;
+        border-color: #adb5bd !important;
+    }
+
+    /* Títulos e Abas */
+    .stTabs [data-baseweb="tab-list"] { gap: 25px; }
+    .stTabs [data-baseweb="tab"] { font-size: 18px !important; font-weight: 600; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -83,125 +71,108 @@ st.markdown("""
 if 'servico' not in st.session_state:
     st.session_state.servico = None
 
-# 4. TRATAMENTO DE DADOS (IMPEDE ERRO LUDMILLA/NONE)
-def limpar_dados(valor, is_time=False):
-    """
-    Remove estritamente qualquer valor que não seja um número válido.
-    Converte 'None', 'nan', '0', '' para None do Python.
-    """
+# 4. REGRAS DE NEGÓCIO
+METAS_BASE = {
+    'Aderencia': {'valor': 85.0, 'margem': 5.0, 'menor_melhor': False},
+    'TMA Voz': {'valor': 8.0, 'margem': 1.0, 'menor_melhor': True},
+    'Pesquisa': {'valor': 4.5, 'margem': 0.5, 'menor_melhor': False},
+    'Resolutividade': {'valor': 75.0, 'margem': 5.0, 'menor_melhor': False}
+}
+
+MATRICULAS_BACKOFFICE = ['1211819', '1210820', '1210724', '1211110', '1211213', '1214016', '10115858', '1212492', '1028483']
+
+# 5. FUNÇÕES DE TRATAMENTO (CORREÇÃO DE NONE/LUDMILLA)
+def tratar_valor(valor, is_time=False):
+    """Converte strings sujas, 'None' e vazios em nulo real ou float."""
     if pd.isna(valor): return None
     s = str(valor).strip().lower()
+    if s in ['none', '', 'nan', '0', '00:00:00', '0%', '0.0']: return None
     
-    # Lista de exclusão
-    if s in ['none', '', 'nan', 'null', '#n/a', '-', '0', '0.0', '0%', '0,0']:
-        return None
-
     if is_time and ':' in s:
         try:
-            p = s.split(':')
-            return int(p[0])*60 + int(p[1]) + (float(p[2])/60 if len(p)==3 else 0)
+            partes = s.split(':')
+            if len(partes) == 3: return int(partes[0])*60 + int(partes[1]) + int(partes[2])/60
+            if len(partes) == 2: return int(partes[0]) + int(partes[1])/60
         except: return None
     
     try:
-        num = re.sub(r'[^\d,.-]', '', s).replace(',', '.')
-        val = float(num)
-        return val if val != 0 else None
+        limpo = re.sub(r'[^\d,.-]', '', s).replace(',', '.')
+        return float(limpo) if float(limpo) != 0 else None
     except: return None
 
-# Regras de Metas
-METAS = {
-    'Aderencia': {'v': 85.0, 'tol': 5.0, 'inv': False},
-    'TMA Voz': {'v': 8.0, 'tol': 1.0, 'inv': True},
-    'Resolutividade': {'v': 75.0, 'tol': 5.0, 'inv': False},
-    'Pesquisa': {'v': 4.5, 'tol': 0.5, 'inv': False}
-}
-BACKOFFICE = ['1211819', '1210820', '1210724', '1211110', '1211213', '1214016', '10115858', '1212492', '1028483']
-
 @st.cache_data(ttl=60)
-def carregar(aba):
+def carregar_dados(aba):
     try:
-        url = f"https://docs.google.com/spreadsheets/d/1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E/gviz/tq?tqx=out:csv&sheet={aba.replace(' ', '%20')}"
+        sid = "1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E"
+        url = f"https://docs.google.com/spreadsheets/d/{sid}/gviz/tq?tqx=out:csv&sheet={aba.replace(' ', '%20')}"
         df = pd.read_csv(url)
+        df.columns = df.columns.str.strip()
         c_op = next(c for c in df.columns if 'operador' in c.lower())
         c_mat = next(c for c in df.columns if 'matricula' in c.lower())
         
-        for k in METAS.keys():
-            orig = next((c for c in df.columns if k.lower() in c.lower()), None)
-            if orig: df[f'{k}_num'] = df[orig].apply(lambda x: limpar_dados(x, 'TMA' in k))
-            else: df[f'{k}_num'] = None
+        for m in METAS_BASE.keys():
+            col_orig = next((c for c in df.columns if m.lower() in c.lower()), None)
+            df[f'{m}_clean'] = df[col_orig].apply(lambda x: tratar_valor(x, 'TMA' in m)) if col_orig else None
         return df, c_op, c_mat
     except: return None, None, None
 
-def get_cor(val, meta):
-    if val is None: return "#6c757d"
-    v, t, inv = meta['v'], meta['tol'], meta['inv']
-    if inv: return "#28a745" if val<=v else ("#ffc107" if val<=v+t else "#dc3545")
-    return "#28a745" if val>=v else ("#ffc107" if val>=v-t else "#dc3545")
-
-def card(lbl, val, cor, icon=""):
-    fmt = f"{val:.2f}" if isinstance(val, (float, int)) else "N/A"
-    st.markdown(f"""
-    <div style="background:white;padding:20px;border-radius:15px;border-left:10px solid {cor};box-shadow:0 5px 15px rgba(0,0,0,0.08);margin-bottom:15px">
-        <div style="font-size:12px;color:#888;font-weight:bold;text-transform:uppercase">{lbl}</div>
-        <div style="font-size:26px;color:{cor};font-weight:bold">{icon} {fmt}</div>
-    </div>""", unsafe_allow_html=True)
-
-# --- FLUXO PRINCIPAL ---
+# --- FLUXO DE NAVEGAÇÃO ---
 
 if st.session_state.servico is None:
-    # LOBBY - BOTÕES GIGANTES
-    st.markdown("<br><h1 style='text-align:center;color:#0f2c4c;font-size:42px'>PORTAL DE PERFORMANCE</h1><br>", unsafe_allow_html=True)
+    # TELA DE LOBBY (PAINEL DE BOTÕES LARGOS)
+    st.markdown("<br><h1 style='text-align: center; color: #1f3a5f;'>PORTAL DE PERFORMANCE NDI</h1>", unsafe_allow_html=True)
+    st.write("---")
     
-    # Grid com gap (espaço) generoso entre os botões
-    c1, c2, c3 = st.columns(3, gap="large")
-    
-    # O texto dentro do botão inclui quebras de linha (\n) e emoji grande para compor o visual
+    # Grid de 3 colunas para garantir que os botões se estiquem horizontalmente
+    c1, c2, c3 = st.columns(3)
     with c1:
-        if st.button("🏢\n\nSAC NDI"):
-            st.session_state.servico = "SAC NDI"
-            st.rerun()
+        if st.button("🏢 SAC NDI"): st.session_state.servico = "SAC NDI"; st.rerun()
     with c2:
-        if st.button("🏦\n\nSAC PPO"):
-            st.session_state.servico = "SAC PPO"
-            st.rerun()
+        if st.button("🏦 SAC PPO"): st.session_state.servico = "SAC PPO"; st.rerun()
     with c3:
-        if st.button("🏥\n\nSAC HAPVIDA"):
-            st.session_state.servico = "SAC HAPVIDA"
-            st.rerun()
+        if st.button("🏥 SAC HAPVIDA"): st.session_state.servico = "SAC HAPVIDA"; st.rerun()
 
 else:
-    # ÁREA INTERNA
+    # DASHBOARD INTERNO
     with st.sidebar:
-        st.header(f"📍 {st.session_state.servico}")
-        opcoes = ["Selecione..."] + (["Equipe Erik", "Equipe Davi", "Equipe Elaine"] if "NDI" in st.session_state.servico else ["Equipe Ellen", "Equipe Carla"])
-        sup = st.selectbox("Supervisor:", opcoes)
-        st.write("")
-        if st.button("⬅️ Voltar ao Lobby"): # Este botão será pequeno devido ao CSS específico
-            st.session_state.servico = None
-            st.rerun()
-
-    if sup != "Selecione...":
-        df, col_op, col_mat = carregar(sup)
-        if df is not None:
-            t1, t2, t3 = st.tabs(["👤 INDIVIDUAL", "🏆 RANKING", "📊 SAÚDE"])
+        st.markdown(f"## 📍 {st.session_state.servico}")
+        if "NDI" in st.session_state.servico:
+            sups = ["Selecione...", "Equipe Erik", "Equipe Davi", "Equipe Elaine", "Equipe Sayanne", "Equipe Beatriz", "Equipe Aline", "Equipe Marcelo"]
+        elif "PPO" in st.session_state.servico:
+            sups = ["Selecione...", "Equipe Ellen", "Equipe Carla", "Equipe Magno", "Equipe Alex"]
+        else:
+            sups = ["Selecione...", "Equipe Hapvida"]
             
-            with t3: # ABA SAÚDE - CORRIGIDA
-                metrica = st.selectbox("Indicador:", list(METAS.keys()))
-                # FILTRO DE SEGURANÇA: Remove quem não tem nota (Ludmilla)
-                df_s = df[
-                    (df[f'{metrica}_num'].notna()) & 
-                    (~df[col_mat].astype(str).str.contains('|'.join(BACKOFFICE))) &
-                    (df[col_op].str.upper() != 'EQUIPE')
+        supervisor = st.selectbox("Supervisor:", sups)
+        if st.button("⬅️ VOLTAR AO LOBBY"):
+            st.session_state.servico = None; st.rerun()
+
+    if supervisor != "Selecione...":
+        df, c_op, c_mat = carregar_dados(supervisor)
+        if df is not None:
+            tab1, tab2 = st.tabs(["👤 INDIVIDUAL", "📊 SAÚDE DA EQUIPE"])
+            
+            with tab2:
+                metrica = st.selectbox("Selecione o Indicador:", list(METAS_BASE.keys()))
+                
+                # FILTRO CRÍTICO: Remove 'Equipe', 'Backoffice' e qualquer valor Nulo/None (Ludmilla)
+                df_filtrado = df[
+                    (df[f'{metrica}_clean'].notna()) & 
+                    (df[c_op].str.upper() != 'EQUIPE') &
+                    (~df[c_mat].astype(str).str.contains('|'.join(MATRICULAS_BACKOFFICE)))
                 ].copy()
                 
-                if not df_s.empty:
-                    m = METAS[metrica]
-                    df_s['Status'] = df_s[f'{metrica}_num'].apply(lambda x: 'Meta Batida' if (x<=m['v'] if m['inv'] else x>=m['v']) else 'Fora da Meta')
+                if not df_filtrado.empty:
+                    m_val = METAS_BASE[metrica]['valor']
+                    m_inv = METAS_BASE[metrica]['menor_melhor']
+                    df_filtrado['Status'] = df_filtrado[f'{metrica}_clean'].apply(
+                        lambda x: 'Dentro da Meta' if (x <= m_val if m_inv else x >= m_val) else 'Fora da Meta'
+                    )
                     
-                    c_g, c_t = st.columns([1, 1])
-                    with c_g: 
-                        st.plotly_chart(px.pie(df_s, names='Status', hole=0.6, color='Status', color_discrete_map={'Meta Batida':'#28a745','Fora da Meta':'#dc3545'}), use_container_width=True)
-                    with c_t: 
-                        st.dataframe(df_s[[col_op, f'{metrica}_num', 'Status']], use_container_width=True, hide_index=True)
-                else:
-                    st.warning("Sem dados válidos para exibir.")
+                    c_g1, c_g2 = st.columns([1, 1])
+                    with c_g1:
+                        fig = px.pie(df_filtrado, names='Status', hole=0.5, color='Status', 
+                                     color_discrete_map={'Dentro da Meta':'#28a745','Fora da Meta':'#dc3545'})
+                        st.plotly_chart(fig, use_container_width=True)
+                    with c_g2:
+                        st.dataframe(df_filtrado[[c_op, 'Status']], use_container_width=True, hide_index=True)
