@@ -5,41 +5,46 @@ import plotly.express as px
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
-# CSS: Botões MAIORES (Altura e Largura) e expansão total da tela
+# CSS: Botões GIGANTES com Animação de Cursor (Hover)
 st.markdown("""
     <style>
-    /* Expande o conteúdo para ocupar 95% da largura da tela */
+    /* Expansão da área útil da página */
     .block-container {
-        max-width: 95% !important;
-        padding-top: 2rem !important;
-        padding-bottom: 0rem !important;
+        max-width: 98% !important;
+        padding-top: 1.5rem !important;
     }
     
-    /* Estilo dos botões do Lobby - Aumentados em altura e fonte */
+    /* Estilo Base dos Botões do Lobby */
     div.stButton > button {
-        height: 6.5em !important; /* Altura aumentada */
-        font-size: 22px !important; /* Fonte aumentada */
+        height: 7.5em !important; /* Altura robusta */
+        font-size: 24px !important; /* Texto bem visível */
         font-weight: bold !important;
         width: 100% !important;
-        border-radius: 15px;
+        border-radius: 18px;
         background-color: #f8f9fa;
-        border: 2px solid #dee2e6; /* Borda levemente mais grossa para destaque */
+        border: 1px solid #dee2e6;
         color: #495057;
-        transition: all 0.3s ease;
-        box-shadow: 0px 2px 5px rgba(0,0,0,0.05);
+        cursor: pointer;
+        
+        /* Transição suave para a animação */
+        transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
     }
     
+    /* ANIMAÇÃO AO PASSAR O CURSOR (HOVER) */
     div.stButton > button:hover {
         border-color: #004a99;
         color: #004a99;
-        background-color: #e9ecef;
-        box-shadow: 0px 5px 15px rgba(0,0,0,0.1);
-        transform: translateY(-2px);
+        background-color: #ffffff;
+        
+        /* Efeito de flutuar e sombra profunda */
+        transform: translateY(-8px); 
+        box-shadow: 0 12px 24px rgba(0,0,0,0.15);
     }
 
-    /* Remove o espaçamento exagerado entre as colunas dos botões */
+    /* Ajuste de proximidade das colunas */
     [data-testid="stHorizontalBlock"] {
-        gap: 15px !important;
+        gap: 20px !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -47,7 +52,7 @@ st.markdown("""
 if 'servico' not in st.session_state:
     st.session_state.servico = None
 
-# 2. METAS E REGRAS
+# 2. METAS E REGRAS (Filtros Anti-Erro inclusos)
 METAS_BASE = {
     'Aderencia': {'valor': 85.0, 'margem': 5.0, 'menor_melhor': False},
     'Absenteismo': {'valor': 0.0, 'margem': 5.0, 'menor_melhor': True},
@@ -104,6 +109,7 @@ def carregar_dados(nome_aba):
         df = pd.read_csv(url)
         df.columns = df.columns.str.strip()
         
+        # Busca dinâmica para evitar KeyError
         col_op = next((c for c in df.columns if 'operador' in c.lower()), df.columns[0])
         col_mat = next((c for c in df.columns if 'matricula' in c.lower()), df.columns[1])
 
@@ -115,15 +121,15 @@ def carregar_dados(nome_aba):
                 df[f'{col}_num'] = None
         return df, col_op, col_mat
     except Exception as e:
-        st.error(f"Erro na planilha: {e}")
+        st.error(f"Erro ao conectar com a planilha: {e}")
         return None, None, None
 
-# --- LOBBY ---
+# --- LOBBY INICIAL ---
 if st.session_state.servico is None:
     st.markdown("<br><h1 style='text-align: center; color: #004a99;'>🚀 Portal de Performance NDI</h1>", unsafe_allow_html=True)
     st.write("---")
     
-    # Colunas em proporção igual para ocupar toda a largura horizontal
+    # Colunas que forçam os botões a se esticarem horizontalmente
     c1, c2, c3 = st.columns([1, 1, 1])
     with c1:
         if st.button("🏢 SAC NDI"):
@@ -145,13 +151,15 @@ else:
         else:
             lista = ["Selecione...", "Equipe Hapvida"]
         
-        supervisor = st.selectbox("Supervisor:", lista)
+        supervisor = st.selectbox("Selecione o Supervisor:", lista)
+        st.divider()
         if st.button("⬅️ Voltar ao Lobby"):
             st.session_state.servico = None; st.rerun()
 
     if supervisor != "Selecione...":
         df, col_op, col_mat = carregar_dados(supervisor)
         if df is not None:
+            # Ajuste de Metas dinâmico
             metas_s = METAS_BASE.copy()
             if "Carla" in supervisor: meta_p = 17.27
             elif "Ellen" in supervisor: meta_p = 19.06
@@ -163,12 +171,12 @@ else:
             tabs = st.tabs(["👤 Individual", "👥 Equipe", "🏆 Melhores", "📊 Saúde"])
 
             with tabs[0]: # INDIVIDUAL
-                mat_in = st.text_input("Sua Matrícula:")
+                mat_in = st.text_input("Consulte sua Matrícula:")
                 if mat_in:
                     res = df[df[col_mat].astype(str).str.contains(mat_in.strip())]
                     if not res.empty:
                         r = res.iloc[0]
-                        st.subheader(f"Olá, {r[col_op]}")
+                        st.subheader(f"Dashboard: {r[col_op]}")
                         c1, c2, c3 = st.columns(3)
                         with c1:
                             exibir_card("Aderência", r.get('Aderencia', 'N/A'), definir_cor_kpi(r['Aderencia_num'], 'Aderencia', metas_s))
@@ -177,17 +185,15 @@ else:
                             exibir_card("Resolutividade", r.get('Resolutividade', 'N/A'), definir_cor_kpi(r['Resolutividade_num'], 'Resolutividade', metas_s))
                         with c3:
                             exibir_card("TMA Voz", r.get('TMA Voz', 'N/A'), definir_cor_kpi(r['TMA Voz_num'], 'TMA Voz', metas_s), "⏱️")
+                    else: st.warning("Matrícula não localizada.")
 
-            with tabs[2]: # RANKING (OPERADORES SEM MÉTRICAS NÃO ENTRAM)
+            with tabs[2]: # RANKING (LIMPO)
                 for k, v in metas_s.items():
-                    df_rank = df[
-                        (df[col_op].str.strip().str.upper() != 'EQUIPE') & 
-                        (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
-                        (df[f'{k}_num'].notna())
-                    ].copy()
-                    
+                    df_rank = df[(df[col_op].str.strip().str.upper() != 'EQUIPE') & 
+                                 (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
+                                 (df[f'{k}_num'].notna())].copy()
                     if not df_rank.empty:
-                        st.markdown(f"#### Ranking: {k}")
+                        st.markdown(f"#### Melhores em {k}")
                         top = df_rank.nsmallest(3, f'{k}_num') if v['menor_melhor'] else df_rank.nlargest(3, f'{k}_num')
                         mc = st.columns(3)
                         for i, (_, row) in enumerate(top.iterrows()):
@@ -195,13 +201,11 @@ else:
                             with mc[i]: exibir_card(f"{i+1}º Lugar", row[col_op], definir_cor_kpi(row[f'{k}_num'], k, metas_s), ["🥇","🥈","🥉"][i])
                     st.divider()
 
-            with tabs[3]: # SAÚDE (FILTRADA)
-                sel = st.selectbox("Escolha a Métrica:", list(metas_s.keys()))
-                df_saude = df[
-                    (df[col_op].str.strip().str.upper() != 'EQUIPE') & 
-                    (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
-                    (df[f'{sel}_num'].notna())
-                ].copy()
+            with tabs[3]: # GRÁFICOS
+                sel = st.selectbox("Selecione a Métrica para Visão Geral:", list(metas_s.keys()))
+                df_saude = df[(df[col_op].str.strip().str.upper() != 'EQUIPE') & 
+                             (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
+                             (df[f'{sel}_num'].notna())].copy()
                 if not df_saude.empty:
                     mv, inv = metas_s[sel]['valor'], metas_s[sel]['menor_melhor']
                     df_saude['Status'] = df_saude[f'{sel}_num'].apply(lambda x: 'Dentro da Meta' if (x <= mv if inv else x >= mv) else 'Fora da Meta')
