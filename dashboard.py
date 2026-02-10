@@ -5,88 +5,82 @@ import plotly.express as px
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="NDI Intelligence", layout="wide", page_icon="📊")
 
-# 2. ESTILO CSS - FUNDO DEGRADÊ E BOTÕES HORIZONTAIS
+# 2. ESTILO CSS - WHITE MINIMALIST DESIGN
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
 
     * { font-family: 'Plus Jakarta Sans', sans-serif; }
 
-    /* Fundo em degradê Azul, Laranja e Amarelo */
+    /* Fundo Branco Sólido */
     .stApp {
-        background: linear-gradient(135deg, #1e3a8a 0%, #f97316 50%, #eab308 100%);
-        background-attachment: fixed;
+        background-color: #FFFFFF;
     }
 
-    /* Cabeçalho */
+    /* Cabeçalho com contraste em azul marinho */
     .hero-section {
         text-align: center;
-        padding: 60px 0 40px 0;
+        padding: 50px 0 30px 0;
     }
     .hero-title {
-        font-size: 52px;
+        font-size: 48px;
         font-weight: 800;
-        color: white;
-        text-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+        color: #1e3a8a; /* Azul Marinho */
+        margin-bottom: 5px;
     }
     .hero-subtitle {
-        color: rgba(255,255,255,0.9);
-        font-size: 20px;
+        color: #64748b;
+        font-size: 18px;
     }
 
-    /* --- BOTÕES DO HUB (HORIZONTAIS E VIDRO) --- */
-    .hub-container {
-        display: flex;
-        justify-content: center;
-        gap: 20px;
-        margin-top: 20px;
-    }
-
+    /* --- BOTÕES DO HUB (HORIZONTAIS - WHITE GLASS) --- */
     div.stButton > button {
-        background: rgba(255, 255, 255, 0.15) !important;
-        border: 1px solid rgba(255, 255, 255, 0.3) !important;
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border-radius: 20px !important;
-        height: 100px !important;
+        background: rgba(248, 250, 252, 0.8) !important;
+        border: 1px solid #e2e8f0 !important;
+        backdrop-filter: blur(10px);
+        border-radius: 16px !important;
+        height: 90px !important;
         width: 100% !important;
-        transition: all 0.4s ease !important;
-        color: white !important;
-        font-size: 18px !important;
+        transition: all 0.3s ease !important;
+        color: #1e3a8a !important;
+        font-size: 17px !important;
         font-weight: 700 !important;
         text-transform: uppercase;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
     }
 
     div.stButton > button:hover {
-        background: rgba(255, 255, 255, 0.25) !important;
-        transform: translateY(-5px) !important;
-        border-color: white !important;
-        box-shadow: 0 12px 40px rgba(0,0,0,0.2) !important;
+        background: #ffffff !important;
+        transform: translateY(-4px) !important;
+        border-color: #3b82f6 !important;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        color: #3b82f6 !important;
     }
 
-    /* Dashboard Interno */
+    /* Dashboard Interno - Cards Claros */
     .metric-box {
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        backdrop-filter: blur(10px);
-        border-radius: 24px;
-        padding: 25px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        padding: 22px;
         text-align: center;
-        color: white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
-    .metric-label { color: rgba(255,255,255,0.7); font-size: 12px; font-weight: 700; text-transform: uppercase; }
-    .metric-value { font-size: 32px; font-weight: 800; margin-top: 8px; }
+    .metric-label { color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .metric-value { font-size: 30px; font-weight: 800; margin-top: 5px; color: #1e293b; }
 
-    /* Estilo das Tabs para combinar com o Vidro */
-    .stTabs [data-baseweb="tab-list"] { background: transparent; }
-    .stTabs [data-baseweb="tab"] {
-        color: white !important;
-        background: rgba(255,255,255,0.1);
-        border-radius: 12px;
-        padding: 8px 25px;
-        margin-right: 5px;
+    /* Customização de Inputs e Sidebar para Fundo Branco */
+    [data-testid="stSidebar"] {
+        background-color: #f1f5f9 !important;
+        border-right: 1px solid #e2e8f0;
     }
+    
+    .stTabs [data-baseweb="tab"] {
+        color: #64748b !important;
+    }
+    
+    /* Cor dos ícones e textos na sidebar */
+    .css-17l695f { color: #1e3a8a; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -119,13 +113,13 @@ def tma_to_float(v):
     except: return None
 
 def cor_kpi(val, met, metas):
-    if val is None: return "rgba(255,255,255,0.4)"
+    if val is None: return "#94a3b8" # Cinza neutro
     c = metas.get(met)
-    if not c: return "white"
+    if not c: return "#1e293b"
     m, tol, menor = c['valor'], c['margem'], c['menor_melhor']
     if menor:
-        return "#4ade80" if val <= m else ("#fbbf24" if val <= m + tol else "#f87171")
-    return "#4ade80" if val >= m else ("#fbbf24" if val >= m - tol else "#f87171")
+        return "#16a34a" if val <= m else ("#ca8a04" if val <= m + tol else "#dc2626")
+    return "#16a34a" if val >= m else ("#ca8a04" if val >= m - tol else "#dc2626")
 
 @st.cache_data(ttl=60)
 def load_data(sheet_name):
@@ -148,11 +142,10 @@ if st.session_state.servico is None:
     st.markdown("""
         <div class="hero-section">
             <h1 class="hero-title">NDI Performance</h1>
-            <p class="hero-subtitle">Gestão Estratégica de Canais</p>
+            <p class="hero-subtitle">Selecione o canal para análise de indicadores</p>
         </div>
     """, unsafe_allow_html=True)
     
-    # Alinhamento Horizontal usando colunas
     _, col1, col2, col3, _ = st.columns([0.5, 2, 2, 2, 0.5])
     
     with col1:
@@ -165,11 +158,11 @@ if st.session_state.servico is None:
 else:
     # --- ÁREA INTERNA ---
     with st.sidebar:
-        st.markdown(f"<h2 style='color:white;'>📍 {st.session_state.servico}</h2>", unsafe_allow_html=True)
+        st.markdown(f"### 📍 {st.session_state.servico}")
         lista = ["Selecione...", "Equipe Erik", "Equipe Davi", "Equipe Elaine", "Equipe Sayanne", "Equipe Beatriz", "Equipe Aline", "Equipe Marcelo"] if st.session_state.servico == "SAC NDI" else ["Selecione...", "Equipe Ellen", "Equipe Carla", "Equipe Magno", "Equipe Alex", "Equipe Hapvida"]
         sup = st.selectbox("Supervisor:", lista)
         st.markdown("<br>"*5, unsafe_allow_html=True)
-        if st.button("🏠 Retornar ao Início"):
+        if st.button("🏠 Voltar ao Hub"):
             st.session_state.servico = None; st.rerun()
 
     if sup != "Selecione...":
@@ -182,18 +175,18 @@ else:
             tabs = st.tabs(["Individual", "Equipe", "Ranking", "Saúde"])
 
             with tabs[0]:
-                mat = st.text_input("Matrícula:", placeholder="Digite sua matrícula...")
+                mat = st.text_input("Matrícula:")
                 if mat:
                     res = df[df[col_mat].astype(str).str.contains(mat.strip())]
                     if not res.empty:
                         r = res.iloc[0]
-                        st.markdown(f"### Olá, {r[col_op]}")
+                        st.markdown(f"#### Agente: {r[col_op]}")
                         c1, c2, c3 = st.columns(3)
                         indicadores = [('Aderencia', '📈'), ('Silencio', '🔇'), ('Resolutividade', '✅'), ('Pausa Total', '⏱️'), ('TMA Voz', '📞'), ('Pesquisa', '⭐')]
                         for i, (m, icon) in enumerate(indicadores):
                             with [c1, c2, c3][i % 3]:
                                 color = cor_kpi(r[f'{m}_num'], m, m_atuais)
-                                st.markdown(f"""<div class='metric-box' style='border-left: 6px solid {color}'>
+                                st.markdown(f"""<div class='metric-box' style='border-top: 4px solid {color}'>
                                     <div class='metric-label'>{m}</div>
                                     <div class='metric-value' style='color:{color}'>{icon} {r[m]}</div>
                                 </div><br>""", unsafe_allow_html=True)
@@ -206,29 +199,29 @@ else:
                     for i, m in enumerate(['Aderencia', 'Resolutividade', 'Pausa Total', 'TMA Voz', 'Pesquisa', 'Silencio']):
                         with [c1, c2, c3][i % 3]:
                             color = cor_kpi(eq[f'{m}_num'], m, m_atuais)
-                            st.markdown(f"""<div class='metric-box' style='border-left: 6px solid {color}'>
+                            st.markdown(f"""<div class='metric-box' style='border-top: 4px solid {color}'>
                                 <div class='metric-label'>{m} Equipe</div>
                                 <div class='metric-value' style='color:{color}'>{eq[m]}</div>
                             </div><br>""", unsafe_allow_html=True)
 
             with tabs[2]:
-                m_rank = st.selectbox("Ranking de:", list(m_atuais.keys()))
+                m_rank = st.selectbox("Ranking por:", list(m_atuais.keys()))
                 df_r = df[(df[col_op].astype(str).str.upper() != 'EQUIPE') & (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE)) & (df[f'{m_rank}_num'].notna())].copy()
                 if not df_r.empty:
                     top = df_r.nsmallest(5, f'{m_rank}_num') if m_atuais[m_rank]['menor_melhor'] else df_r.nlargest(5, f'{m_rank}_num')
                     for i, row in enumerate(top.itertuples()):
                         color = cor_kpi(getattr(row, f'{m_rank}_num'), m_rank, m_atuais)
-                        st.markdown(f"""<div class='metric-box' style='padding:15px; margin-bottom:10px; border-left: 8px solid {color}; text-align: left;'>
-                            <span style='font-weight:800;'>{i+1}º {getattr(row, col_op)}</span>
-                            <span style='float:right; color:{color};'>{getattr(row, m_rank)}</span>
+                        st.markdown(f"""<div class='metric-box' style='padding:15px; margin-bottom:10px; border-left: 8px solid {color}; text-align: left; background: white;'>
+                            <span style='font-weight:700; color: #1e293b;'>{i+1}º {getattr(row, col_op)}</span>
+                            <span style='float:right; color:{color}; font-weight:800;'>{getattr(row, m_rank)}</span>
                         </div>""", unsafe_allow_html=True)
 
             with tabs[3]:
-                m_s = st.selectbox("Análise Global:", list(m_atuais.keys()), key="s_box")
+                m_s = st.selectbox("Status Geral:", list(m_atuais.keys()), key="s_box")
                 df_s = df[(df[col_op].astype(str).str.upper() != 'EQUIPE') & (df[f'{m_s}_num'].notna())].copy()
                 if not df_s.empty:
                     conf = m_atuais[m_s]
-                    df_s['Status'] = df_s[f'{m_s}_num'].apply(lambda x: 'Meta' if (x <= conf['valor'] if conf['menor_melhor'] else x >= conf['valor']) else 'Abaixo')
-                    fig = px.pie(df_s, names='Status', hole=0.6, color='Status', color_discrete_map={'Meta':'#4ade80','Abaixo':'#f87171'})
-                    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='white', height=350)
+                    df_s['Status'] = df_s[f'{m_s}_num'].apply(lambda x: 'Meta' if (x <= conf['valor'] if conf['menor_melhor'] else x >= conf['valor']) else 'Fora')
+                    fig = px.pie(df_s, names='Status', hole=0.6, color='Status', color_discrete_map={'Meta':'#16a34a','Fora':'#dc2626'})
+                    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='#1e293b', height=350)
                     st.plotly_chart(fig, use_container_width=True)
