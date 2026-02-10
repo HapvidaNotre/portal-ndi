@@ -51,31 +51,35 @@ MATRICULAS_BACKOFFICE = ['1211819', '1210820', '1210724', '1211110', '1211213', 
 
 # 4. FUNÇÕES DE SUPORTE
 def converter_para_numero(valor):
-    if pd.isna(valor): return 0.0
+    if pd.isna(valor) or str(valor).strip() == "": return None
     try:
         s_val = str(valor).replace('%', '').replace(',', '.').replace(' ', '').strip()
-        return float(s_val) if s_val else 0.0
-    except: return 0.0
+        return float(s_val) if s_val else None
+    except: return None
 
 def converter_tma_minutos(tempo_str):
-    if pd.isna(tempo_str) or str(tempo_str).strip() in ["0", "00:00:00", ""]: return 0.0
+    if pd.isna(tempo_str) or str(tempo_str).strip() in ["0", "00:00:00", "", "None"]: return None
     try:
         partes = str(tempo_str).split(':')
         if len(partes) == 3: return int(partes[0]) * 60 + int(partes[1]) + int(partes[2]) / 60
         elif len(partes) == 2: return int(partes[0]) + int(partes[1]) / 60
         return float(str(tempo_str).replace(',', '.'))
-    except: return 0.0
+    except: return None
 
 def definir_cor_kpi(valor, metrica_key, metas_atuais):
+    if valor is None: return "#999" # Cor cinza para sem dados
     config = metas_atuais.get(metrica_key)
-    if not config or (valor == 0 and metrica_key != 'Absenteismo'): return "#333"
+    if not config: return "#333"
+    
     m, tol, menor_melhor = config['valor'], config['margem'], config['menor_melhor']
     if menor_melhor:
         return "#28a745" if valor <= m else ("#ffc107" if valor <= m + tol else "#dc3545")
     return "#28a745" if valor >= m else ("#ffc107" if valor >= m - tol else "#dc3545")
 
 def exibir_card(label, valor, cor="#333", icon=""):
+    # Garante que 'None' apareça como '0' ou '---'
     v_fmt = f"{valor:.2f}" if isinstance(valor, (int, float)) else str(valor)
+    if v_fmt == "None": v_fmt = "---"
     st.markdown(f"""
         <div class="metric-card" style="border-left-color: {cor};">
             <p style="margin: 0; font-size: 11px; color: #666; font-weight: bold; text-transform: uppercase;">{label}</p>
@@ -96,13 +100,15 @@ def carregar_dados(nome_aba):
         
         metricas_processar = list(METAS_BASE.keys()) + ['Pausa Total', 'Pausa Produtiva', 'Pausa Improdutiva']
         for m in metricas_processar:
+            # Busca flexível por "Silencio (%)" conforme sua imagem
             col_origem = col_map.get('silencio (%)') if m == 'Silencio' else col_map.get(m.lower())
+            
             if col_origem:
                 df[f'{m}_num'] = df[col_origem].apply(converter_tma_minutos if 'TMA' in m or 'Pausa' in m else converter_para_numero)
                 if m not in df.columns: df[m] = df[col_origem]
             else:
-                df[f'{m}_num'] = None # Usar None para diferenciar de zero real
-                df[m] = "Sem dados"
+                df[f'{m}_num'] = None
+                df[m] = "---"
         return df, target_op, target_mat
     except: return None, None, None
 
@@ -132,6 +138,64 @@ else:
 
             tabs = st.tabs(["👤 Individual", "👥 Equipe", "🏆 Ranking", "📊 Saúde"])
 
+            with tabs[1]: # ABA EQUIPE (CORRIGIDA)
+                eq_row = df[df[col_op].astype(str).str.strip().str.upper() == 'EQUIPE']
+                if not eq_row.empty:
+                    e = eq_row.iloc[0]
+                    c1, c2, c3 = st.columns(3)
+                    m_eq = ['Aderencia', 'Resolutividade', 'Pausa Total', 'TMA Voz', 'Pesquisa', 'Silencio']
+                    for i, m in enumerate(m_eq):
+                        with [c1, c2, c3][i % 3]:
+                            # Proteção contra erro de cálculo na equipe
+                            val_num = e.get(f'{m}_num')
+                            exibir_card(f"{m} (Equipe)", e.get(m, '---'), definir_cor_kpi(val_num, m, metas_s))
+
+            with tabs[2]: # RANKING (FILTRO DE NULOS APLICADO)
+                st.subheader("🏆 Melhores Performances")
+                metrica_rank = st.selectbox("Rankear por:", list(metas_s.keys()))
+                
+                # FILTRO CRÍTICO: Remove quem não tem o número da métrica (evita o TypeError)
+                df_rank = df[
+                    (df[col_op].astype(str).str.upper() != 'EQUIPE') & 
+                    (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
+                    (df[f'{metrica_rank}_num'].notna()) # Remove quem não tem valor
+                ].copy()
+                
+                if not df_rank.empty:
+                    is_menor = metas_s[metrica_rank]['menor_melhor']
+                    top = df_rank.nsmallest(5, f'{metrica_rank}_num') if is_menor else df_rank.nlargest(5, f'{metrica_rank}_num')
+                    
+                    for idx, row in enumerate(top.itertuples()):
+                        val_num = getattr(row, f'{metrica_rank}_num')
+                        val_txt = getattr(row, metrica_rank)
+                        exibir_card(f"{idx+1}º Lugar - {getattr(row, col_op)}", val_txt, definir_cor_kpi(val_num, metrica_rank, metas_s))
+                else:
+                    st.warning("Não existem dados válidos para gerar este ranking.")
+
+            with tabs[3]: # SAÚDE (ESTABILIZADA)
+                st.subheader("📊 Diagnóstico de Metas")
+                m_saude = st.selectbox("Analisar Status:", list(metas_s.keys()), key="sb_saude")
+                
+                df_saude = df[
+                    (df[col_op].astype(str).str.upper() != 'EQUIPE') & 
+                    (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
+                    (df[f'{m_saude}_num'].notna())
+                ].copy()
+                
+                if not df_saude.empty:
+                    c = metas_s[m_saude]
+                    df_saude['Status'] = df_saude[f'{m_saude}_num'].apply(
+                        lambda x: 'Dentro da Meta' if (x <= c['valor'] if c['menor_melhor'] else x >= c['valor']) else 'Fora da Meta'
+                    )
+                    c_pie, c_list = st.columns([1, 1])
+                    with c_pie:
+                        st.plotly_chart(px.pie(df_saude, names='Status', hole=0.5, color='Status', 
+                                             color_discrete_map={'Dentro da Meta':'#28a745','Fora da Meta':'#dc3545'}), use_container_width=True)
+                    with c_list:
+                        st.dataframe(df_saude[[col_op, m_saude, 'Status']], hide_index=True, use_container_width=True)
+                else:
+                    st.info("Nenhum operador possui dados para esta análise.")
+
             with tabs[0]: # INDIVIDUAL
                 mat_in = st.text_input("Sua Matrícula:")
                 if mat_in:
@@ -141,67 +205,11 @@ else:
                         st.subheader(f"Olá, {r[col_op]}")
                         c1, c2, c3 = st.columns(3)
                         with c1:
-                            exibir_card("Aderência", r.get('Aderencia', '0%'), definir_cor_kpi(r['Aderencia_num'], 'Aderencia', metas_s))
-                            exibir_card("Silêncio", r.get('Silencio', '0%'), definir_cor_kpi(r['Silencio_num'], 'Silencio', metas_s), "🔇")
+                            exibir_card("Aderência", r.get('Aderencia', '---'), definir_cor_kpi(r['Aderencia_num'], 'Aderencia', metas_s))
+                            exibir_card("Silêncio", r.get('Silencio', '---'), definir_cor_kpi(r['Silencio_num'], 'Silencio', metas_s), "🔇")
                         with c2:
-                            exibir_card("Resolutividade", r.get('Resolutividade', '0%'), definir_cor_kpi(r['Resolutividade_num'], 'Resolutividade', metas_s))
-                            exibir_card("Pausa Total", r.get('Pausa Total', '00:00'), definir_cor_kpi(r['Pausa Total_num'], 'Pausa Total', metas_s), "⏱️")
+                            exibir_card("Resolutividade", r.get('Resolutividade', '---'), definir_cor_kpi(r['Resolutividade_num'], 'Resolutividade', metas_s))
+                            exibir_card("Pausa Total", r.get('Pausa Total', '---'), definir_cor_kpi(r['Pausa Total_num'], 'Pausa Total', metas_s), "⏱️")
                         with c3:
-                            exibir_card("TMA Voz", r.get('TMA Voz', '00:00'), definir_cor_kpi(r['TMA Voz_num'], 'TMA Voz', metas_s), "⏱️")
-                            exibir_card("Pesquisa", r.get('Pesquisa', 0), definir_cor_kpi(converter_para_numero(r.get('Pesquisa')), 'Pesquisa', metas_s), "⭐")
-
-            with tabs[1]: # EQUIPE
-                eq_row = df[df[col_op].astype(str).str.strip().str.upper() == 'EQUIPE']
-                if not eq_row.empty:
-                    e = eq_row.iloc[0]
-                    c1, c2, c3 = st.columns(3)
-                    for i, m in enumerate(['Aderencia', 'Resolutividade', 'Pausa Total', 'TMA Voz', 'Pesquisa', 'Silencio']):
-                        with [c1, c2, c3][i % 3]:
-                            exibir_card(f"{m} (Equipe)", e.get(m, '0'), definir_cor_kpi(e[f'{m}_num'], m, metas_s))
-
-            with tabs[2]: # RANKING CORRIGIDO (FILTRA QUEM NÃO TEM DADOS)
-                st.subheader("🏆 Melhores Performances")
-                metrica_rank = st.selectbox("Rankear por:", list(metas_s.keys()))
-                
-                # Filtro: Remove Equipe, Backoffice e QUEM ESTÁ SEM DADOS (None ou 0 na métrica específica)
-                df_rank = df[
-                    (df[col_op].astype(str).str.upper() != 'EQUIPE') & 
-                    (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
-                    (df[f'{metrica_rank}_num'].notna()) & 
-                    (df[f'{metrica_rank}_num'] > 0)
-                ].copy()
-                
-                if not df_rank.empty:
-                    is_menor = metas_s[metrica_rank]['menor_melhor']
-                    top = df_rank.nsmallest(5, f'{metrica_rank}_num') if is_menor else df_rank.nlargest(5, f'{metrica_rank}_num')
-                    
-                    for idx, row in enumerate(top.itertuples()):
-                        val_display = getattr(row, metrica_rank)
-                        c_cor = definir_cor_kpi(getattr(row, f'{metrica_rank}_num'), metrica_rank, metas_s)
-                        exibir_card(f"{idx+1}º Lugar - {getattr(row, col_op)}", val_display, c_cor, "🥇" if idx==0 else "")
-                else:
-                    st.info("Não há dados suficientes para gerar o ranking desta métrica.")
-
-            with tabs[3]: # SAÚDE CORRIGIDA
-                st.subheader("📊 Diagnóstico de Metas")
-                metrica_saude = st.selectbox("Analisar Status:", list(metas_s.keys()), key="sb_saude")
-                
-                df_saude = df[
-                    (df[col_op].astype(str).str.upper() != 'EQUIPE') & 
-                    (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
-                    (df[f'{metrica_saude}_num'].notna())
-                ].copy()
-                
-                if not df_saude.empty:
-                    conf = metas_s[metrica_saude]
-                    df_saude['Status'] = df_saude[f'{metrica_saude}_num'].apply(
-                        lambda x: 'Dentro da Meta' if (x <= conf['valor'] if conf['menor_melhor'] else x >= conf['valor']) else 'Fora da Meta'
-                    )
-                    c_pie, c_list = st.columns([1, 1])
-                    with c_pie:
-                        st.plotly_chart(px.pie(df_saude, names='Status', hole=0.5, color='Status', 
-                                             color_discrete_map={'Dentro da Meta':'#28a745','Fora da Meta':'#dc3545'}), use_container_width=True)
-                    with c_list:
-                        st.dataframe(df_saude[[col_op, metrica_saude, 'Status']].sort_values(by='Status'), hide_index=True, use_container_width=True)
-                else:
-                    st.info("Sem dados para esta métrica.")
+                            exibir_card("TMA Voz", r.get('TMA Voz', '---'), definir_cor_kpi(r['TMA Voz_num'], 'TMA Voz', metas_s), "⏱️")
+                            exibir_card("Pesquisa", r.get('Pesquisa', '---'), definir_cor_kpi(r['Pesquisa_num'], 'Pesquisa', metas_s), "⭐")
