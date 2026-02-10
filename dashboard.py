@@ -1,110 +1,153 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 # 1. CONFIGURAÇÃO DA PÁGINA
-st.set_page_config(page_title="NDI Intelligence", layout="wide", page_icon="📊")
+st.set_page_config(
+    page_title="NDI Intelligence | Dashboard",
+    layout="wide",
+    page_icon="📊",
+    initial_sidebar_state="expanded"
+)
 
-# 2. ESTILO CSS - ALTO CONTRASTE E LEGIBILIDADE
+# 2. ESTILO CSS - FOCO EM LEGIBILIDADE E DESIGN PREMIUM
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
-    * { font-family: 'Plus Jakarta Sans', sans-serif; }
+    :root {
+        --primary: #1E3A8A;
+        --secondary: #64748B;
+        --background: #F8FAFC;
+        --card-bg: #FFFFFF;
+        --text-main: #0F172A;
+    }
 
+    /* Fundo da App */
     .stApp {
-        background-color: #FFFFFF;
+        background-color: var(--background);
+        font-family: 'Plus Jakarta Sans', sans-serif;
     }
 
-    /* Cabeçalho */
-    .hero-section {
+    /* --- ESTILO DO HUB CENTRAL --- */
+    .hub-container {
+        padding: 60px 20px;
         text-align: center;
-        padding: 40px 0 20px 0;
     }
-    .hero-title {
-        font-size: 42px;
+
+    .main-title {
+        font-size: 56px;
         font-weight: 800;
-        color: #1e3a8a;
-        margin-bottom: 5px;
+        color: var(--primary);
+        letter-spacing: -2px;
+        margin-bottom: 10px;
     }
-    .hero-subtitle {
-        color: #475569;
-        font-size: 16px;
+
+    .main-subtitle {
+        font-size: 20px;
+        color: var(--secondary);
+        margin-bottom: 50px;
         font-weight: 400;
     }
 
-    /* --- BOTÕES DO HUB (RETANGULARES, HORIZONTAIS, ALTO CONTRASTE) --- */
+    /* Botões Horizontais do Hub */
     div.stButton > button {
-        background: #f8fafc !important;
-        border: 2px solid #e2e8f0 !important;
-        border-radius: 12px !important;
-        height: 70px !important;
+        background-color: var(--card-bg) !important;
+        border: 2px solid #E2E8F0 !important;
+        border-radius: 24px !important;
+        padding: 40px 20px !important;
         width: 100% !important;
-        transition: all 0.2s ease-in-out !important;
-        color: #1e3a8a !important; /* Texto escuro para leitura */
-        font-size: 16px !important;
+        min-height: 160px !important;
+        transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1) !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    div.stButton > button p {
+        font-size: 22px !important;
         font-weight: 700 !important;
-        text-transform: uppercase;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+        color: var(--primary) !important;
     }
 
     div.stButton > button:hover {
-        background: #1e3a8a !important;
-        color: #ffffff !important;
-        border-color: #1e3a8a !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+        border-color: var(--primary) !important;
+        transform: translateY(-8px) !important;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1) !important;
+        background-color: #F1F5F9 !important;
     }
 
-    /* Cards de Métricas - Fundo levemente cinza para destacar o valor */
-    .metric-box {
-        background: #ffffff;
-        border: 2px solid #f1f5f9;
-        border-radius: 16px;
-        padding: 20px;
+    /* --- DASHBOARD INTERNO --- */
+    /* Títulos de Seção */
+    .section-header {
+        color: var(--text-main);
+        font-size: 28px;
+        font-weight: 700;
+        margin: 30px 0 20px 0;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #E2E8F0;
+    }
+
+    /* Cards de Metricas */
+    .kpi-card {
+        background-color: var(--card-bg);
+        border: 1px solid #E2E8F0;
+        border-radius: 20px;
+        padding: 30px;
         text-align: center;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }
-    .metric-label { 
-        color: #64748b; 
-        font-size: 11px; 
-        font-weight: 800; 
-        text-transform: uppercase; 
-        letter-spacing: 1px;
-        margin-bottom: 8px;
+
+    .kpi-label {
+        color: var(--secondary);
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        margin-bottom: 15px;
     }
-    .metric-value { 
-        font-size: 32px; 
-        font-weight: 800; 
-        color: #0f172a; /* Quase preto para legibilidade total */
+
+    .kpi-value {
+        font-size: 42px;
+        font-weight: 800;
+        margin-bottom: 5px;
     }
 
     /* Sidebar */
     [data-testid="stSidebar"] {
-        background-color: #f8fafc !important;
-        border-right: 1px solid #e2e8f0;
+        background-color: #FFFFFF !important;
+        border-right: 1px solid #E2E8F0;
     }
-    
-    /* Ajuste de abas */
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
+
+    /* Abas */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 15px;
+        background-color: transparent;
+    }
+
     .stTabs [data-baseweb="tab"] {
-        background-color: #f1f5f9;
-        border-radius: 8px 8px 0 0;
-        padding: 8px 20px;
+        height: 50px;
+        background-color: #E2E8F0;
+        border-radius: 12px;
+        padding: 0 30px;
         font-weight: 600;
-        color: #475569 !important;
+        color: var(--secondary);
     }
+
     .stTabs [aria-selected="true"] {
-        background-color: #1e3a8a !important;
+        background-color: var(--primary) !important;
         color: white !important;
+    }
+
+    /* Tabelas e Dataframes */
+    .stDataFrame {
+        border-radius: 15px;
+        overflow: hidden;
+        border: 1px solid #E2E8F0;
     }
     </style>
 """, unsafe_allow_html=True)
 
-if 'servico' not in st.session_state:
-    st.session_state.servico = None
-
-# 3. METAS E LÓGICA DE DADOS (CONSERVADOS E ROBUSTOS)
+# 3. LÓGICA DE NEGÓCIO E METAS
 METAS_BASE = {
     'Aderencia': {'valor': 85.0, 'margem': 5.0, 'menor_melhor': False},
     'Absenteismo': {'valor': 0.0, 'margem': 5.0, 'menor_melhor': True},
@@ -116,32 +159,30 @@ METAS_BASE = {
 
 MATRICULAS_BACKOFFICE = ['1211819', '1210820', '1210724', '1211110', '1211213', '1214016', '10115858', '1212492', '1028483']
 
-def limpar_valor(v):
-    if pd.isna(v) or str(v).strip() in ["", "None", "nan"]: return None
-    try: return float(str(v).replace('%', '').replace(',', '.').strip())
-    except: return None
-
-def tma_to_float(v):
-    if pd.isna(v) or str(v).strip() in ["", "0", "00:00:00"]: return None
+# Funções de Processamento
+def tratar_num(v):
+    if pd.isna(v) or str(v).strip() in ["", "None", "nan", "0", "00:00:00"]: return None
     try:
-        p = str(v).split(':')
-        if len(p) == 3: return int(p[0]) * 60 + int(p[1]) + int(p[2]) / 60
-        return float(str(v).replace(',', '.'))
+        if ':' in str(v):
+            p = str(v).split(':')
+            return int(p[0]) * 60 + int(p[1]) + (int(p[2])/60 if len(p)>2 else 0)
+        return float(str(v).replace('%', '').replace(',', '.').strip())
     except: return None
 
-def cor_kpi(val, met, metas):
-    if val is None: return "#94a3b8" 
+def get_color(val, met, metas):
+    if val is None: return "#94A3B8"
     c = metas.get(met)
-    if not c: return "#0f172a"
+    if not c: return "#0F172A"
     m, tol, menor = c['valor'], c['margem'], c['menor_melhor']
     if menor:
-        return "#059669" if val <= m else ("#d97706" if val <= m + tol else "#dc2626")
-    return "#059669" if val >= m else ("#d97706" if val >= m - tol else "#dc2626")
+        return "#10B981" if val <= m else ("#F59E0B" if val <= m + tol else "#EF4444")
+    return "#10B981" if val >= m else ("#F59E0B" if val >= m - tol else "#EF4444")
 
 @st.cache_data(ttl=60)
-def load_data(sheet_name):
+def carregar_dados(aba):
     try:
-        url = f"https://docs.google.com/spreadsheets/d/1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E/gviz/tq?tqx=out:csv&sheet={sheet_name.replace(' ', '%20')}"
+        ID = "1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E"
+        url = f"https://docs.google.com/spreadsheets/d/{ID}/gviz/tq?tqx=out:csv&sheet={aba.replace(' ', '%20')}"
         df = pd.read_csv(url)
         df.columns = df.columns.str.strip()
         cols = {c.lower(): c for c in df.columns}
@@ -149,96 +190,135 @@ def load_data(sheet_name):
             orig = cols.get('silencio (%)') if m == 'Silencio' else cols.get(m.lower())
             if not orig: orig = next((c for c in df.columns if m.lower() in c.lower()), None)
             if orig:
-                df[f'{m}_num'] = df[orig].apply(tma_to_float if 'TMA' in m or 'Pausa' in m else limpar_valor)
+                df[f'{m}_num'] = df[orig].apply(tratar_num)
                 df[m] = df[orig].astype(str).replace(['nan', 'None'], '---')
         return df, cols.get('operador', 'Operador'), cols.get('matricula', 'Matricula')
     except: return None, None, None
 
-# --- HUB INICIAL ---
+# --- NAVEGAÇÃO ---
+if 'servico' not in st.session_state:
+    st.session_state.servico = None
+
+# --- TELA: HUB CENTRAL ---
 if st.session_state.servico is None:
     st.markdown("""
-        <div class="hero-section">
-            <h1 class="hero-title">NDI Performance</h1>
-            <p class="hero-subtitle">Gestão de Indicadores em Tempo Real</p>
+        <div class="hub-container">
+            <h1 class="main-title">NDI Intelligence</h1>
+            <p class="main-subtitle">Selecione uma operação para iniciar o monitoramento</p>
         </div>
     """, unsafe_allow_html=True)
-    
-    _, col1, col2, col3, _ = st.columns([0.5, 2, 2, 2, 0.5])
-    
-    with col1:
-        if st.button("🏢 SAC NDI"): st.session_state.servico = "SAC NDI"; st.rerun()
-    with col2:
-        if st.button("🏦 SAC PPO"): st.session_state.servico = "SAC PPO"; st.rerun()
-    with col3:
-        if st.button("🏥 SAC HAPVIDA"): st.session_state.servico = "SAC HAPVIDA"; st.rerun()
 
+    _, c1, c2, c3, _ = st.columns([0.1, 1, 1, 1, 0.1])
+    with c1:
+        if st.button("🏢\n\nSAC NDI"):
+            st.session_state.servico = "SAC NDI"; st.rerun()
+    with c2:
+        if st.button("🏦\n\nSAC PPO"):
+            st.session_state.servico = "SAC PPO"; st.rerun()
+    with c3:
+        if st.button("🏥\n\nSAC HAPVIDA"):
+            st.session_state.servico = "SAC HAPVIDA"; st.rerun()
+
+# --- TELA: DASHBOARD ---
 else:
-    # --- DASHBOARD INTERNO ---
     with st.sidebar:
-        st.markdown(f"### 📍 {st.session_state.servico}")
-        lista = ["Selecione...", "Equipe Erik", "Equipe Davi", "Equipe Elaine", "Equipe Sayanne", "Equipe Beatriz", "Equipe Aline", "Equipe Marcelo"] if st.session_state.servico == "SAC NDI" else ["Selecione...", "Equipe Ellen", "Equipe Carla", "Equipe Magno", "Equipe Alex", "Equipe Hapvida"]
-        sup = st.selectbox("Selecione o Supervisor:", lista)
+        st.markdown(f"<h1 style='color:#1E3A8A; font-size: 24px;'>📍 {st.session_state.servico}</h1>", unsafe_allow_html=True)
+        opcoes = ["Selecione...", "Equipe Erik", "Equipe Davi", "Equipe Elaine", "Equipe Sayanne", "Equipe Beatriz", "Equipe Aline", "Equipe Marcelo"] if st.session_state.servico == "SAC NDI" else ["Selecione...", "Equipe Ellen", "Equipe Carla", "Equipe Magno", "Equipe Alex", "Equipe Hapvida"]
+        supervisor = st.selectbox("Gestor Responsável:", opcoes)
         st.markdown("<br>"*5, unsafe_allow_html=True)
-        if st.button("⬅️ Voltar ao Hub"):
+        if st.button("⬅️ Voltar ao Portal Principal"):
             st.session_state.servico = None; st.rerun()
 
-    if sup != "Selecione...":
-        df, col_op, col_mat = load_data(sup)
+    if supervisor != "Selecione...":
+        df, col_op, col_mat = carregar_dados(supervisor)
         if df is not None:
+            # Metas Dinâmicas
             m_atuais = METAS_BASE.copy()
-            meta_p = 21.75 if ("Erik" in sup or "Beatriz" in sup) else (16.60 if "NDI" in st.session_state.servico else 21.75)
-            m_atuais['Pausa Total'] = {'valor': meta_p, 'margem': 3.0, 'menor_melhor': True}
+            mp = 21.75 if ("Erik" in supervisor or "Beatriz" in supervisor) else (16.60 if "NDI" in st.session_state.servico else 21.75)
+            m_atuais['Pausa Total'] = {'valor': mp, 'margem': 3.0, 'menor_melhor': True}
 
-            tabs = st.tabs(["👤 Individual", "👥 Equipe", "🏆 Ranking", "📊 Saúde"])
+            tab1, tab2, tab3, tab4 = st.tabs(["👤 VISÃO INDIVIDUAL", "👥 PERFORMANCE TIME", "🏆 ELITE DO MÊS", "🩺 SAÚDE DA OPERAÇÃO"])
 
-            with tabs[0]:
-                mat = st.text_input("Sua Matrícula:")
-                if mat:
-                    res = df[df[col_mat].astype(str).str.contains(mat.strip())]
-                    if not res.empty:
-                        r = res.iloc[0]
-                        st.markdown(f"<h3 style='color:#1e3a8a;'>Olá, {r[col_op]}</h3>", unsafe_allow_html=True)
+            with tab1:
+                col_search1, col_search2 = st.columns([2, 1])
+                with col_search1:
+                    matricula = st.text_input("Busca rápida por Matrícula:", placeholder="Ex: 1210...")
+                
+                if matricula:
+                    user_data = df[df[col_mat].astype(str).str.contains(matricula.strip())]
+                    if not user_data.empty:
+                        row = user_data.iloc[0]
+                        st.markdown(f"<div class='section-header'>Resultados: {row[col_op]}</div>", unsafe_allow_html=True)
+                        
                         c1, c2, c3 = st.columns(3)
-                        inds = [('Aderencia', '📈'), ('Silencio', '🔇'), ('Resolutividade', '✅'), ('Pausa Total', '⏱️'), ('TMA Voz', '📞'), ('Pesquisa', '⭐')]
-                        for i, (m, icon) in enumerate(inds):
+                        indicadores = [
+                            ('Aderencia', '📈 Aderência'), ('Silencio', '🔇 Silêncio'),
+                            ('Resolutividade', '✅ Resolutividade'), ('Pausa Total', '⏱️ Pausa Total'),
+                            ('TMA Voz', '📞 TMA Voz'), ('Pesquisa', '⭐ Pesquisa')
+                        ]
+                        
+                        for i, (m, label) in enumerate(indicadores):
                             with [c1, c2, c3][i % 3]:
-                                color = cor_kpi(r[f'{m}_num'], m, m_atuais)
-                                st.markdown(f"""<div class='metric-box' style='border-left: 6px solid {color}'>
-                                    <div class='metric-label'>{m}</div>
-                                    <div class='metric-value' style='color:{color}'>{icon} {r[m]}</div>
-                                </div><br>""", unsafe_allow_html=True)
+                                cor = get_color(row[f'{m}_num'], m, m_atuais)
+                                st.markdown(f"""
+                                    <div class='kpi-card' style='border-top: 6px solid {cor}'>
+                                        <div class='kpi-label'>{label}</div>
+                                        <div class='kpi-value' style='color:{cor}'>{row[m]}</div>
+                                    </div><br>
+                                """, unsafe_allow_html=True)
+                    else:
+                        st.warning("⚠️ Matrícula não encontrada nesta equipe.")
 
-            with tabs[1]:
-                eq = df[df[col_op].astype(str).str.upper() == 'EQUIPE']
-                if not eq.empty:
-                    eq = eq.iloc[0]
+            with tab2:
+                team_data = df[df[col_op].astype(str).str.upper() == 'EQUIPE']
+                if not team_data.empty:
+                    tr = team_data.iloc[0]
+                    st.markdown("<div class='section-header'>Médias Consolidadas da Equipe</div>", unsafe_allow_html=True)
                     c1, c2, c3 = st.columns(3)
                     for i, m in enumerate(['Aderencia', 'Resolutividade', 'Pausa Total', 'TMA Voz', 'Pesquisa', 'Silencio']):
                         with [c1, c2, c3][i % 3]:
-                            color = cor_kpi(eq[f'{m}_num'], m, m_atuais)
-                            st.markdown(f"""<div class='metric-box' style='border-left: 6px solid {color}'>
-                                <div class='metric-label'>{m} Equipe</div>
-                                <div class='metric-value' style='color:{color}'>{eq[m]}</div>
-                            </div><br>""", unsafe_allow_html=True)
+                            cor = get_color(tr[f'{m}_num'], m, m_atuais)
+                            st.markdown(f"""
+                                <div class='kpi-card' style='border-top: 6px solid {cor}'>
+                                    <div class='kpi-label'>{m}</div>
+                                    <div class='kpi-value' style='color:{cor}'>{tr[m]}</div>
+                                </div><br>
+                            """, unsafe_allow_html=True)
 
-            with tabs[2]:
-                m_rank = st.selectbox("Critério:", list(m_atuais.keys()))
-                df_r = df[(df[col_op].astype(str).str.upper() != 'EQUIPE') & (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE)) & (df[f'{m_rank}_num'].notna())].copy()
-                if not df_r.empty:
-                    top = df_r.nsmallest(5, f'{m_rank}_num') if m_atuais[m_rank]['menor_melhor'] else df_r.nlargest(5, f'{m_rank}_num')
-                    for i, row in enumerate(top.itertuples()):
-                        color = cor_kpi(getattr(row, f'{m_rank}_num'), m_rank, m_atuais)
-                        st.markdown(f"""<div class='metric-box' style='padding:12px; margin-bottom:8px; border-left: 10px solid {color}; text-align: left;'>
-                            <span style='font-weight:800; color:#1e293b;'>{i+1}º {getattr(row, col_op)}</span>
-                            <span style='float:right; color:{color}; font-weight:800;'>{getattr(row, m_rank)}</span>
-                        </div>""", unsafe_allow_html=True)
+            with tab3:
+                m_rank = st.selectbox("Selecione a Métrica para o Ranking:", list(m_atuais.keys()))
+                df_rank = df[(df[col_op].astype(str).str.upper() != 'EQUIPE') & 
+                             (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE)) & 
+                             (df[f'{m_rank}_num'].notna())].copy()
+                
+                if not df_rank.empty:
+                    top = df_rank.nsmallest(5, f'{m_rank}_num') if m_atuais[m_rank]['menor_melhor'] else df_rank.nlargest(5, f'{m_rank}_num')
+                    st.markdown(f"<div class='section-header'>Top 5 Performance: {m_rank}</div>", unsafe_allow_html=True)
+                    for i, r in enumerate(top.itertuples()):
+                        cor = get_color(getattr(r, f'{m_rank}_num'), m_rank, m_atuais)
+                        st.markdown(f"""
+                            <div class='kpi-card' style='text-align: left; padding: 15px 30px; margin-bottom: 10px; border-left: 10px solid {cor};'>
+                                <span style='font-size: 20px; font-weight: 800; color: #1E293B;'>{i+1}º {getattr(r, col_op)}</span>
+                                <span style='float: right; font-size: 24px; font-weight: 800; color: {cor};'>{getattr(r, m_rank)}</span>
+                            </div>
+                        """, unsafe_allow_html=True)
 
-            with tabs[3]:
-                m_s = st.selectbox("Métrica Analisada:", list(m_atuais.keys()), key="s_box")
-                df_s = df[(df[col_op].astype(str).str.upper() != 'EQUIPE') & (df[f'{m_s}_num'].notna())].copy()
-                if not df_s.empty:
-                    conf = m_atuais[m_s]
-                    df_s['Status'] = df_s[f'{m_s}_num'].apply(lambda x: 'Meta' if (x <= conf['valor'] if conf['menor_melhor'] else x >= conf['valor']) else 'Fora')
-                    fig = px.pie(df_s, names='Status', hole=0.6, color='Status', color_discrete_map={'Meta':'#059669','Fora':'#dc2626'})
-                    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='#1e293b', height=350)
-                    st.plotly_chart(fig, use_container_width=True)
+            with tab4:
+                m_saude = st.selectbox("Métrica de Análise Crítica:", list(m_atuais.keys()), key="saude_box")
+                df_saude = df[(df[col_op].astype(str).str.upper() != 'EQUIPE') & (df[f'{m_saude}_num'].notna())].copy()
+                
+                if not df_saude.empty:
+                    conf = m_atuais[m_saude]
+                    def check(x): return 'Dentro da Meta' if (x <= conf['valor'] if conf['menor_melhor'] else x >= conf['valor']) else 'Fora da Meta'
+                    df_saude['Status'] = df_saude[f'{m_saude}_num'].apply(check)
+                    
+                    c_chart, c_table = st.columns([1, 1])
+                    with c_chart:
+                        fig = px.pie(df_saude, names='Status', hole=0.7, color='Status', 
+                                    color_discrete_map={'Dentro da Meta':'#10B981','Fora da Meta':'#EF4444'})
+                        fig.update_layout(showlegend=True, margin=dict(t=0, b=0, l=0, r=0))
+                        st.plotly_chart(fig, use_container_width=True)
+                    
+                    with c_table:
+                        st.markdown("<br><br>", unsafe_allow_html=True)
+                        st.dataframe(df_saude[[col_op, m_saude, 'Status']], use_container_width=True, hide_index=True)
