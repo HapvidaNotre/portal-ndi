@@ -96,15 +96,24 @@ def carregar_dados(nome_aba):
         
         metricas_processar = list(METAS_BASE.keys()) + ['Pausa Total', 'Pausa Produtiva', 'Pausa Improdutiva']
         for m in metricas_processar:
-            real_col = col_map.get(m.lower()) if m != 'Silencio' else (col_map.get('silencio (%)') or col_map.get('silencio'))
-            if real_col:
-                df[f'{m}_num'] = df[real_col].apply(converter_tma_minutos if 'TMA' in m or 'Pausa' in m else converter_para_numero)
+            # Busca por nome exato ou variações comuns como "Silencio (%)"
+            col_origem = None
+            if m == 'Silencio':
+                col_origem = col_map.get('silencio (%)') or col_map.get('silencio')
+            else:
+                col_origem = col_map.get(m.lower())
+            
+            if col_origem:
+                df[f'{m}_num'] = df[col_origem].apply(converter_tma_minutos if 'TMA' in m or 'Pausa' in m else converter_para_numero)
+                # Criar coluna formatada padrão caso não exista
+                if m not in df.columns: df[m] = df[col_origem]
             else:
                 df[f'{m}_num'] = 0.0
+                df[m] = "0"
         return df, target_op, target_mat
     except: return None, None, None
 
-# --- LÓGICA DO HUB INICIAL ---
+# --- HUB INICIAL ---
 if st.session_state.servico is None:
     st.markdown("<br><div class='main-title'><h1>🚀 Portal de Performance NDI</h1><p style='color: #666;'>Gestão de Indicadores em Tempo Real</p></div>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
@@ -117,18 +126,14 @@ if st.session_state.servico is None:
 else:
     with st.sidebar:
         st.title(f"📍 {st.session_state.servico}")
-        if st.session_state.servico == "SAC NDI":
-            lista = ["Selecione...", "Equipe Erik", "Equipe Davi", "Equipe Elaine", "Equipe Sayanne", "Equipe Beatriz", "Equipe Aline", "Equipe Marcelo"]
-        elif st.session_state.servico == "SAC PPO":
-            lista = ["Selecione...", "Equipe Ellen", "Equipe Carla", "Equipe Magno", "Equipe Alex"]
-        else:
-            lista = ["Selecione...", "Equipe Hapvida"]
-        supervisor = st.selectbox("Supervisor:", lista)
+        opcoes = ["Selecione...", "Equipe Erik", "Equipe Davi", "Equipe Elaine", "Equipe Sayanne", "Equipe Beatriz", "Equipe Aline", "Equipe Marcelo"] if st.session_state.servico == "SAC NDI" else ["Selecione...", "Equipe Ellen", "Equipe Carla", "Equipe Magno", "Equipe Alex"]
+        supervisor = st.selectbox("Supervisor:", opcoes)
         if st.button("⬅️ Voltar ao Hub"): st.session_state.servico = None; st.rerun()
 
     if supervisor != "Selecione...":
         df, col_op, col_mat = carregar_dados(supervisor)
         if df is not None:
+            # DEFINIÇÃO DE METAS DINÂMICAS
             metas_s = METAS_BASE.copy()
             meta_p = 21.75 if ("Erik" in supervisor or "Beatriz" in supervisor) else (16.60 if st.session_state.servico == "SAC NDI" else 21.75)
             metas_s['Pausa Total'] = {'valor': meta_p, 'margem': 3.0, 'menor_melhor': True}
@@ -145,7 +150,7 @@ else:
                         c1, c2, c3 = st.columns(3)
                         with c1:
                             exibir_card("Aderência", r.get('Aderencia', '0%'), definir_cor_kpi(r['Aderencia_num'], 'Aderencia', metas_s))
-                            exibir_card("Silêncio", r.get('Silencio (%)', '0%'), definir_cor_kpi(r['Silencio_num'], 'Silencio', metas_s), "🔇")
+                            exibir_card("Silêncio", r.get('Silencio', '0%'), definir_cor_kpi(r['Silencio_num'], 'Silencio', metas_s), "🔇")
                         with c2:
                             exibir_card("Resolutividade", r.get('Resolutividade', '0%'), definir_cor_kpi(r['Resolutividade_num'], 'Resolutividade', metas_s))
                             exibir_card("Pausa Total", r.get('Pausa Total', '00:00'), definir_cor_kpi(r['Pausa Total_num'], 'Pausa Total', metas_s), "⏱️")
@@ -158,41 +163,36 @@ else:
                 if not eq_row.empty:
                     e = eq_row.iloc[0]
                     c1, c2, c3 = st.columns(3)
-                    m_list = ['Aderencia', 'Resolutividade', 'Pausa Total', 'TMA Voz', 'Pesquisa', 'Silencio']
-                    for i, m in enumerate(m_list):
+                    for i, m in enumerate(['Aderencia', 'Resolutividade', 'Pausa Total', 'TMA Voz', 'Pesquisa', 'Silencio']):
                         with [c1, c2, c3][i % 3]:
-                            val_label = e.get(m, '0') if m != 'Silencio' else e.get('Silencio (%)', '0%')
-                            exibir_card(f"{m} (Equipe)", val_label, definir_cor_kpi(e[f'{m}_num'], m, metas_s))
+                            exibir_card(f"{m} (Equipe)", e.get(m, '0'), definir_cor_kpi(e[f'{m}_num'], m, metas_s))
 
             with tabs[2]: # RANKING CORRIGIDO
-                st.subheader("🏆 Melhores Performances da Equipe")
+                st.subheader("🏆 Melhores Performances")
                 df_rank = df[(df[col_op].astype(str).str.upper() != 'EQUIPE') & (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE))].copy()
-                metrica_sel = st.selectbox("Rankear por:", list(metas_s.keys()))
-                is_menor = metas_s[metrica_sel]['menor_melhor']
+                metrica_rank = st.selectbox("Rankear por:", list(metas_s.keys()))
                 
-                top = df_rank.nsmallest(5, f'{metrica_sel}_num') if is_menor else df_rank.nlargest(5, f'{metrica_sel}_num')
+                is_menor = metas_s[metrica_rank]['menor_melhor']
+                top = df_rank.nsmallest(5, f'{metrica_rank}_num') if is_menor else df_rank.nlargest(5, f'{metrica_rank}_num')
                 
-                for idx, row in enumerate(top.iterrows()):
-                    row = row[1]
-                    c_cor = definir_cor_kpi(row[f'{metrica_sel}_num'], metrica_sel, metas_s)
-                    exibir_card(f"{idx+1}º Lugar - {row[col_op]}", row.get(metrica_sel, row.get('Silencio (%)' if metrica_sel == 'Silencio' else metrica_sel)), c_cor, "🥇" if idx==0 else "")
+                for idx, row in enumerate(top.itertuples()):
+                    val_display = getattr(row, metrica_rank)
+                    c_cor = definir_cor_kpi(getattr(row, f'{metrica_rank}_num'), metrica_rank, metas_s)
+                    exibir_card(f"{idx+1}º Lugar - {getattr(row, col_op)}", val_display, c_cor, "🥇" if idx==0 else "")
 
             with tabs[3]: # SAÚDE CORRIGIDA
-                st.subheader("📊 Diagnóstico Geral de Saúde")
+                st.subheader("📊 Diagnóstico de Metas")
                 df_saude = df[(df[col_op].astype(str).str.upper() != 'EQUIPE') & (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE))].copy()
-                metrica_saude = st.selectbox("Analisar Status de:", list(metas_s.keys()), key="sb_saude")
+                metrica_saude = st.selectbox("Analisar Status:", list(metas_s.keys()), key="sb_saude")
                 
-                m_val = metas_s[metrica_saude]['valor']
-                m_inv = metas_s[metrica_saude]['menor_melhor']
-                
+                conf = metas_s[metrica_saude]
                 df_saude['Status'] = df_saude[f'{metrica_saude}_num'].apply(
-                    lambda x: 'Dentro da Meta' if (x <= m_val if m_inv else x >= m_val) else 'Fora da Meta'
+                    lambda x: 'Dentro da Meta' if (x <= conf['valor'] if conf['menor_melhor'] else x >= conf['valor']) else 'Fora da Meta'
                 )
                 
-                col_chart, col_table = st.columns([1, 1])
-                with col_chart:
-                    fig = px.pie(df_saude, names='Status', hole=0.5, 
-                                 color='Status', color_discrete_map={'Dentro da Meta':'#28a745','Fora da Meta':'#dc3545'})
-                    st.plotly_chart(fig, use_container_width=True)
-                with col_table:
-                    st.dataframe(df_saude[[col_op, metrica_sel if metrica_sel in df_saude.columns else col_op, 'Status']].sort_values(by='Status'), hide_index=True)
+                c_pie, c_list = st.columns([1, 1])
+                with c_pie:
+                    st.plotly_chart(px.pie(df_saude, names='Status', hole=0.5, color='Status', 
+                                         color_discrete_map={'Dentro da Meta':'#28a745','Fora da Meta':'#dc3545'}), use_container_width=True)
+                with c_list:
+                    st.dataframe(df_saude[[col_op, metrica_saude, 'Status']].sort_values(by='Status'), hide_index=True, use_container_width=True)
