@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 # 1. CONFIGURAÇÃO DA PÁGINA
-st.set_page_config(page_title="NDI Intelligence", layout="wide", page_icon="📊")
+st.set_page_config(page_title="Portal de Performace", layout="wide", page_icon="📊")
 
 # 2. ESTILO CSS - WHITE MINIMALIST DESIGN
 st.markdown("""
@@ -225,3 +225,4 @@ else:
                     fig = px.pie(df_s, names='Status', hole=0.6, color='Status', color_discrete_map={'Meta':'#16a34a','Fora':'#dc2626'})
                     fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='#1e293b', height=350)
                     st.plotly_chart(fig, use_container_width=True)
+
