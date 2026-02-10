@@ -5,90 +5,92 @@ import plotly.express as px
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
-# 2. ESTILO CSS - HUB ESTÉTICO E MODERNO (REFORMULADO)
+# 2. ESTILO CSS - DESIGN PREMIUM (MODERN HUB)
 st.markdown("""
     <style>
-    /* Fundo com degradê elegante */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
     .stApp {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        color: #f8fafc;
+        background: radial-gradient(circle at top right, #1e293b, #0f172a);
+        font-family: 'Inter', sans-serif;
     }
 
-    /* Título Principal com Glow */
-    .main-title {
-        font-family: 'Inter', sans-serif;
+    /* Título e Subtítulo */
+    .header-container {
         text-align: center;
-        font-size: 52px;
+        padding: 60px 0 40px 0;
+    }
+    .main-title {
+        font-size: 60px;
         font-weight: 800;
-        background: linear-gradient(to right, #60a5fa, #a855f7);
+        letter-spacing: -2px;
+        background: linear-gradient(135deg, #fff 30%, #94a3b8 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-top: 40px;
-        margin-bottom: 5px;
-        filter: drop-shadow(0 0 10px rgba(96, 165, 250, 0.3));
+        margin-bottom: 10px;
     }
-
     .sub-title {
-        text-align: center;
-        color: #94a3b8;
-        font-size: 18px;
-        margin-bottom: 50px;
+        color: #64748b;
+        font-size: 20px;
+        font-weight: 400;
     }
 
-    /* Grid de Botões Estilizados */
+    /* Container dos Botões */
+    .hub-grid {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        margin-top: 20px;
+    }
+
+    /* Estilização Geral dos Botões do Streamlit para o Hub */
     div.stButton > button {
-        background: rgba(255, 255, 255, 0.05) !important;
+        background: rgba(255, 255, 255, 0.03) !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        backdrop-filter: blur(12px);
-        border-radius: 24px !important;
-        height: 180px !important;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-radius: 32px !important;
+        height: 280px !important;
         width: 100% !important;
-        color: #f8fafc !important;
-        font-size: 22px !important;
-        font-weight: 600 !important;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+        color: white !important;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        padding: 40px !important;
     }
 
     div.stButton > button:hover {
-        background: rgba(255, 255, 255, 0.1) !important;
-        border-color: #60a5fa !important;
-        transform: translateY(-8px) scale(1.02);
-        box-shadow: 0 10px 40px rgba(59, 130, 246, 0.2);
-        color: #60a5fa !important;
+        background: rgba(255, 255, 255, 0.07) !important;
+        border-color: rgba(59, 130, 246, 0.5) !important;
+        transform: translateY(-12px);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     }
 
-    /* Cards de Métrica Internos (Glassmorphism) */
-    .metric-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        padding: 20px;
-        border-radius: 20px;
-        margin-bottom: 15px;
-        border-left: 6px solid;
+    /* Estilo Interno dos Botões (Texto) */
+    .btn-label {
+        font-size: 24px;
+        font-weight: 700;
+        margin-top: 20px;
+        display: block;
     }
-
-    /* Ajuste de Tabs para o modo escuro */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background-color: transparent;
-    }
-
-    .stTabs [data-baseweb="tab"] {
-        background-color: rgba(255, 255, 255, 0.05);
-        border-radius: 10px 10px 0 0;
+    .btn-desc {
+        font-size: 14px;
         color: #94a3b8;
-        padding: 10px 20px;
+        font-weight: 400;
+        margin-top: 8px;
+        display: block;
     }
 
-    .stTabs [aria-selected="true"] {
-        background-color: rgba(96, 165, 250, 0.2) !important;
-        color: #60a5fa !important;
+    /* Cards de Métricas Internas */
+    .metric-card {
+        background: rgba(30, 41, 59, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 24px;
+        padding: 24px;
+        transition: transform 0.3s ease;
+    }
+    .metric-card:hover {
+        transform: scale(1.02);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -96,14 +98,12 @@ st.markdown("""
 if 'servico' not in st.session_state:
     st.session_state.servico = None
 
-# 3. DICIONÁRIO DE METAS E LOGICA ROBUSTA
+# 3. DICIONÁRIO DE METAS E TRATAMENTO (ROBUSTEZ MANTIDA)
 METAS_BASE = {
     'Aderencia': {'valor': 85.0, 'margem': 5.0, 'menor_melhor': False},
     'Absenteismo': {'valor': 0.0, 'margem': 5.0, 'menor_melhor': True},
     'Produtividade': {'valor': 90.0, 'margem': 10.0, 'menor_melhor': False},
-    'Transf': {'valor': 85.0, 'margem': 5.0, 'menor_melhor': False},
     'TMA Voz': {'valor': 8.0, 'margem': 1.0, 'menor_melhor': True},
-    'ShortCall': {'valor': 5.0, 'margem': 2.0, 'menor_melhor': True},
     'Pesquisa': {'valor': 4.5, 'margem': 0.5, 'menor_melhor': False},
     'Resolutividade': {'valor': 75.0, 'margem': 5.0, 'menor_melhor': False},
     'Silencio': {'valor': 15.0, 'margem': 5.0, 'menor_melhor': True}
@@ -111,7 +111,6 @@ METAS_BASE = {
 
 MATRICULAS_BACKOFFICE = ['1211819', '1210820', '1210724', '1211110', '1211213', '1214016', '10115858', '1212492', '1028483']
 
-# Funções de conversão (Mantidas para robustez)
 def limpar_valor_numerico(valor):
     if pd.isna(valor) or str(valor).strip() in ["", "None", "---", "nan"]: return None
     try:
@@ -139,9 +138,9 @@ def definir_cor_kpi(valor_num, metrica, metas):
 def exibir_card(label, valor_display, cor="#f8fafc", icon=""):
     txt = "---" if valor_display is None or str(valor_display).strip() in ["nan", "None", ""] else str(valor_display)
     st.markdown(f"""
-        <div class="metric-card" style="border-left-color: {cor};">
-            <p style="margin: 0; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">{label}</p>
-            <h2 style="margin: 5px 0 0 0; color: {cor}; font-size: 24px; font-weight: 700;">{icon} {txt}</h2>
+        <div class="metric-card" style="border-top: 4px solid {cor};">
+            <p style="margin: 0; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">{label}</p>
+            <h2 style="margin: 10px 0 0 0; color: #fff; font-size: 28px;">{icon} {txt}</h2>
         </div>
     """, unsafe_allow_html=True)
 
@@ -169,37 +168,38 @@ def carregar_dados_aba(nome_aba):
         return df, target_op, target_mat
     except: return None, None, None
 
-# --- UI HUB INICIAL (ESTETICA REFORMULADA) ---
+# --- HUB INICIAL PREMIUM ---
 if st.session_state.servico is None:
-    st.markdown('<h1 class="main-title">Portal NDI</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Gestão de Performance e Indicadores em Tempo Real</p>', unsafe_allow_html=True)
+    st.markdown("""
+        <div class="header-container">
+            <h1 class="main-title">NDI Performance</h1>
+            <p class="sub-title">Selecione a unidade de negócio para visualizar os indicadores</p>
+        </div>
+    """, unsafe_allow_html=True)
     
-    # Grid centralizado
-    _, col_btn, _ = st.columns([1, 4, 1])
+    col_hub1, col_hub2, col_hub3 = st.columns(3)
     
-    with col_btn:
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            if st.button("🏢\n\nSAC NDI"):
-                st.session_state.servico = "SAC NDI"
-                st.rerun()
-        with c2:
-            if st.button("🏦\n\nSAC PPO"):
-                st.session_state.servico = "SAC PPO"
-                st.rerun()
-        with c3:
-            if st.button("🏥\n\nSAC HAPVIDA"):
-                st.session_state.servico = "SAC HAPVIDA"
-                st.rerun()
+    with col_hub1:
+        if st.button("🏢\n\nSAC NDI"):
+            st.session_state.servico = "SAC NDI"
+            st.rerun()
+    with col_hub2:
+        if st.button("🏦\n\nSAC PPO"):
+            st.session_state.servico = "SAC PPO"
+            st.rerun()
+    with col_hub3:
+        if st.button("🏥\n\nSAC HAPVIDA"):
+            st.session_state.servico = "SAC HAPVIDA"
+            st.rerun()
 
 else:
-    # --- INTERFACE INTERNA (DASHBOARD) ---
+    # --- ÁREA INTERNA ---
     with st.sidebar:
-        st.markdown(f"<h2 style='color:#60a5fa;'>📍 {st.session_state.servico}</h2>", unsafe_allow_html=True)
+        st.markdown(f"### 📍 {st.session_state.servico}")
         lista = ["Selecione...", "Equipe Erik", "Equipe Davi", "Equipe Elaine", "Equipe Sayanne", "Equipe Beatriz", "Equipe Aline", "Equipe Marcelo"] if st.session_state.servico == "SAC NDI" else ["Selecione...", "Equipe Ellen", "Equipe Carla", "Equipe Magno", "Equipe Alex", "Equipe Hapvida"]
-        supervisor = st.selectbox("Selecione o Supervisor:", lista)
-        st.markdown("---")
-        if st.button("⬅️ Voltar ao Hub"):
+        supervisor = st.selectbox("Supervisor:", lista)
+        st.write("---")
+        if st.sidebar.button("🏠 Voltar ao Início"):
             st.session_state.servico = None
             st.rerun()
 
@@ -212,13 +212,13 @@ else:
 
             tabs = st.tabs(["👤 Individual", "👥 Equipe", "🏆 Ranking", "📊 Saúde"])
 
-            with tabs[0]: # INDIVIDUAL
-                mat = st.text_input("Sua Matrícula:")
+            with tabs[0]:
+                mat = st.text_input("Digite a Matrícula:", placeholder="Ex: 1210...")
                 if mat:
                     res = df[df[col_mat].astype(str).str.contains(mat.strip())]
                     if not res.empty:
                         r = res.iloc[0]
-                        st.markdown(f"### Olá, {r[col_op]}")
+                        st.markdown(f"#### Bem-vindo, {r[col_op]}")
                         c1, c2, c3 = st.columns(3)
                         with c1:
                             exibir_card("Aderência", r['Aderencia'], definir_cor_kpi(r['Aderencia_num'], 'Aderencia', metas_atuais))
@@ -230,7 +230,7 @@ else:
                             exibir_card("TMA Voz", r['TMA Voz'], definir_cor_kpi(r['TMA Voz_num'], 'TMA Voz', metas_atuais), "📞")
                             exibir_card("Pesquisa", r['Pesquisa'], definir_cor_kpi(r['Pesquisa_num'], 'Pesquisa', metas_atuais), "⭐")
 
-            with tabs[1]: # EQUIPE
+            with tabs[1]:
                 eq = df[df[col_op].astype(str).str.upper() == 'EQUIPE']
                 if not eq.empty:
                     eq = eq.iloc[0]
@@ -239,8 +239,8 @@ else:
                         with [c1, c2, c3][i % 3]:
                             exibir_card(f"{m} (Equipe)", eq[m], definir_cor_kpi(eq[f'{m}_num'], m, metas_atuais))
 
-            with tabs[2]: # RANKING
-                m_rank = st.selectbox("Rankear por:", list(metas_atuais.keys()), key="rank_box")
+            with tabs[2]:
+                m_rank = st.selectbox("Selecione a métrica:", list(metas_atuais.keys()))
                 df_r = df[(df[col_op].astype(str).str.upper() != 'EQUIPE') & 
                           (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE)) &
                           (df[f'{m_rank}_num'].notna())].copy()
@@ -249,8 +249,8 @@ else:
                     for i, row in enumerate(top.itertuples()):
                         exibir_card(f"{i+1}º Lugar - {getattr(row, col_op)}", getattr(row, m_rank), definir_cor_kpi(getattr(row, f'{m_rank}_num'), m_rank, metas_atuais))
 
-            with tabs[3]: # SAÚDE
-                m_s = st.selectbox("Status Geral:", list(metas_atuais.keys()), key="saude_box")
+            with tabs[3]:
+                m_s = st.selectbox("Análise de Meta:", list(metas_atuais.keys()), key="s_box")
                 df_s = df[(df[col_op].astype(str).str.upper() != 'EQUIPE') & 
                           (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE)) &
                           (df[f'{m_s}_num'].notna())].copy()
