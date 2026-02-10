@@ -5,29 +5,48 @@ import plotly.express as px
 # 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
-# 2. ESTILO CSS (HUB MODERNO + CARDS)
+# 2. ESTILO CSS (REVERTIDO PARA O HUB ORIGINAL + ROBUSTEZ)
 st.markdown("""
     <style>
-    .stApp { background-color: #f8f9fa; }
-    .main-title { text-align: center; color: #004a99; font-family: 'Segoe UI', sans-serif; margin-bottom: 40px; }
+    .stApp { background-color: #0e1117; } /* Fundo escuro conforme imagem image_0f6a99 */
     
-    /* Estilo dos Botões do Hub Inicial */
-    div.stButton > button {
-        border: none; border-radius: 20px; background: white; padding: 40px 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: all 0.3s ease-in-out;
-        height: 220px !important; display: flex; flex-direction: column;
-        align-items: center; justify-content: center; color: #1f3a5f !important;
-        font-size: 20px !important; font-weight: 600 !important;
+    /* Layout do Hub Inicial (Revertido) */
+    .hub-container {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        padding-top: 50px;
     }
-    div.stButton > button:hover {
-        transform: translateY(-10px); box-shadow: 0 12px 25px rgba(0,74,153,0.15);
-        border: 1px solid #004a99; color: #004a99 !important;
+    
+    div.stButton > button {
+        background-color: #f0f2f6;
+        color: #004a99;
+        border-radius: 15px;
+        height: 150px !important;
+        width: 150px !important;
+        font-weight: bold;
+        border: none;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    /* Título do Portal */
+    .main-title {
+        color: #1E88E5;
+        font-family: 'sans-serif';
+        text-align: center;
+        font-size: 45px;
+        font-weight: bold;
+        margin-bottom: 10px;
     }
 
-    /* Estilo dos Cards de Métrica */
+    /* Cards de Métrica Internos */
     .metric-card {
-        background-color: white; padding: 15px; border-radius: 12px;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.05); margin-bottom: 15px; border-left: 8px solid;
+        background-color: white;
+        padding: 15px;
+        border-radius: 12px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
+        margin-bottom: 15px;
+        border-left: 8px solid;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -35,7 +54,7 @@ st.markdown("""
 if 'servico' not in st.session_state:
     st.session_state.servico = None
 
-# 3. DICIONÁRIO DE METAS
+# 3. DICIONÁRIO DE METAS E BACKOFFICE
 METAS_BASE = {
     'Aderencia': {'valor': 85.0, 'margem': 5.0, 'menor_melhor': False},
     'Absenteismo': {'valor': 0.0, 'margem': 5.0, 'menor_melhor': True},
@@ -50,7 +69,7 @@ METAS_BASE = {
 
 MATRICULAS_BACKOFFICE = ['1211819', '1210820', '1210724', '1211110', '1211213', '1214016', '10115858', '1212492', '1028483']
 
-# 4. FUNÇÕES DE TRATAMENTO
+# 4. TRATAMENTO ROBUSTO DE DADOS
 def limpar_valor_numerico(valor):
     if pd.isna(valor) or str(valor).strip() in ["", "None", "---", "nan"]: return None
     try:
@@ -91,13 +110,12 @@ def carregar_dados_aba(nome_aba):
         url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={nome_aba.replace(' ', '%20')}"
         df = pd.read_csv(url)
         df.columns = df.columns.str.strip()
-        cols_originais = {c.lower(): c for c in df.columns}
         
+        cols_originais = {c.lower(): c for c in df.columns}
         target_op = cols_originais.get('operador', 'Operador')
         target_mat = cols_originais.get('matricula', 'Matricula')
         
         for m in list(METAS_BASE.keys()) + ['Pausa Total']:
-            # Mapeamento para Silencio ou Silencio (%)
             if m == 'Silencio':
                 origem = cols_originais.get('silencio (%)') or cols_originais.get('silencio') or next((c for c in df.columns if 'silencio' in c.lower()), None)
             else:
@@ -112,24 +130,44 @@ def carregar_dados_aba(nome_aba):
         return df, target_op, target_mat
     except: return None, None, None
 
-# --- NAVEGAÇÃO / UI ---
+# --- UI HUB INICIAL (REVERTIDO) ---
 if st.session_state.servico is None:
-    st.markdown("<div class='main-title'><h1>🚀 Portal de Performance NDI</h1><p>Selecione sua operação</p></div>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    if c1.button("🏢\n\nSAC NDI"): st.session_state.servico = "SAC NDI"; st.rerun()
-    if c2.button("🏦\n\nSAC PPO"): st.session_state.servico = "SAC PPO"; st.rerun()
-    if c3.button("🏥\n\nSAC HAPVIDA"): st.session_state.servico = "SAC HAPVIDA"; st.rerun()
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown('<p class="main-title">🚀 Portal de Performance NDI</p>', unsafe_allow_html=True)
+    st.markdown('<p style="text-align:center; color:white;">Selecione sua operação</p>', unsafe_allow_html=True)
+    
+    col_hub1, col_hub2, col_hub3, col_hub4, col_hub5 = st.columns([1, 2, 2, 2, 1])
+    
+    with col_hub2:
+        if st.button("🏢 SAC NDI", key="btn_ndi"):
+            st.session_state.servico = "SAC NDI"
+            st.rerun()
+    with col_hub3:
+        if st.button("🏦 SAC PPO", key="btn_ppo"):
+            st.session_state.servico = "SAC PPO"
+            st.rerun()
+    with col_hub4:
+        if st.button("🏥 SAC HAP", key="btn_hap"):
+            st.session_state.servico = "SAC HAPVIDA"
+            st.rerun()
+
 else:
+    # --- ÁREA INTERNA DA OPERAÇÃO ---
     with st.sidebar:
-        st.write(f"📍 Operação: **{st.session_state.servico}**")
-        lista = ["Selecione...", "Equipe Erik", "Equipe Davi", "Equipe Elaine", "Equipe Sayanne", "Equipe Beatriz", "Equipe Aline", "Equipe Marcelo"] if st.session_state.servico == "SAC NDI" else ["Selecione...", "Equipe Ellen", "Equipe Carla", "Equipe Magno", "Equipe Alex", "Equipe Hapvida"]
-        supervisor = st.selectbox("Escolha o Supervisor:", lista)
-        if st.button("⬅️ Voltar ao Hub"): st.session_state.servico = None; st.rerun()
+        st.markdown(f"### 📍 {st.session_state.servico}")
+        if st.session_state.servico == "SAC NDI":
+            lista = ["Selecione...", "Equipe Erik", "Equipe Davi", "Equipe Elaine", "Equipe Sayanne", "Equipe Beatriz", "Equipe Aline", "Equipe Marcelo"]
+        else:
+            lista = ["Selecione...", "Equipe Ellen", "Equipe Carla", "Equipe Magno", "Equipe Alex", "Equipe Hapvida"]
+        
+        supervisor = st.selectbox("Supervisor:", lista)
+        if st.button("⬅️ Voltar ao Hub"):
+            st.session_state.servico = None
+            st.rerun()
 
     if supervisor != "Selecione...":
         df, col_op, col_mat = carregar_dados_aba(supervisor)
         if df is not None:
-            # Metas Dinâmicas (Regra Pausa)
             metas_atuais = METAS_BASE.copy()
             meta_p = 21.75 if ("Erik" in supervisor or "Beatriz" in supervisor) else (16.60 if "NDI" in st.session_state.servico else 21.75)
             metas_atuais['Pausa Total'] = {'valor': meta_p, 'margem': 3.0, 'menor_melhor': True}
@@ -137,7 +175,7 @@ else:
             tabs = st.tabs(["👤 Individual", "👥 Equipe", "🏆 Ranking", "📊 Saúde"])
 
             with tabs[0]: # INDIVIDUAL
-                mat = st.text_input("Digite sua Matrícula:")
+                mat = st.text_input("Sua Matrícula:")
                 if mat:
                     res = df[df[col_mat].astype(str).str.contains(mat.strip())]
                     if not res.empty:
@@ -163,8 +201,8 @@ else:
                         with [c1, c2, c3][i % 3]:
                             exibir_card(f"{m} (Equipe)", eq[m], definir_cor_kpi(eq[f'{m}_num'], m, metas_atuais))
 
-            with tabs[2]: # RANKING (FILTRO DE NULOS)
-                m_rank = st.selectbox("Rankear por:", list(metas_atuais.keys()))
+            with tabs[2]: # RANKING (SEM TYPEERROR)
+                m_rank = st.selectbox("Rankear por:", list(metas_atuais.keys()), key="rank_box")
                 df_r = df[(df[col_op].astype(str).str.upper() != 'EQUIPE') & 
                           (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE)) &
                           (df[f'{m_rank}_num'].notna())].copy()
@@ -174,10 +212,10 @@ else:
                     top = df_r.nsmallest(5, f'{m_rank}_num') if is_menor else df_r.nlargest(5, f'{m_rank}_num')
                     for i, row in enumerate(top.itertuples()):
                         exibir_card(f"{i+1}º Lugar - {getattr(row, col_op)}", getattr(row, m_rank), definir_cor_kpi(getattr(row, f'{m_rank}_num'), m_rank, metas_atuais))
-                else: st.info("Sem dados válidos para gerar este ranking.")
+                else: st.info("Sem dados para este ranking.")
 
-            with tabs[3]: # SAÚDE
-                m_s = st.selectbox("Analisar Saúde de:", list(metas_atuais.keys()), key="saude_key")
+            with tabs[3]: # SAÚDE (SEM ERRO DE DADOS VAZIOS)
+                m_s = st.selectbox("Status Geral:", list(metas_atuais.keys()), key="saude_box")
                 df_s = df[(df[col_op].astype(str).str.upper() != 'EQUIPE') & 
                           (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE)) &
                           (df[f'{m_s}_num'].notna())].copy()
@@ -187,4 +225,4 @@ else:
                     df_s['Status'] = df_s[f'{m_s}_num'].apply(lambda x: 'Dentro da Meta' if (x <= conf['valor'] if conf['menor_melhor'] else x >= conf['valor']) else 'Fora da Meta')
                     st.plotly_chart(px.pie(df_s, names='Status', hole=0.5, color='Status', color_discrete_map={'Dentro da Meta':'#28a745','Fora da Meta':'#dc3545'}))
                     st.dataframe(df_s[[col_op, m_s, 'Status']], hide_index=True, use_container_width=True)
-                else: st.warning("Dados insuficientes para análise nesta métrica.")
+                else: st.warning("Nenhum dado encontrado para análise.")
