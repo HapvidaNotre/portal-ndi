@@ -96,20 +96,13 @@ def carregar_dados(nome_aba):
         
         metricas_processar = list(METAS_BASE.keys()) + ['Pausa Total', 'Pausa Produtiva', 'Pausa Improdutiva']
         for m in metricas_processar:
-            # Busca por nome exato ou variações comuns como "Silencio (%)"
-            col_origem = None
-            if m == 'Silencio':
-                col_origem = col_map.get('silencio (%)') or col_map.get('silencio')
-            else:
-                col_origem = col_map.get(m.lower())
-            
+            col_origem = col_map.get('silencio (%)') if m == 'Silencio' else col_map.get(m.lower())
             if col_origem:
                 df[f'{m}_num'] = df[col_origem].apply(converter_tma_minutos if 'TMA' in m or 'Pausa' in m else converter_para_numero)
-                # Criar coluna formatada padrão caso não exista
                 if m not in df.columns: df[m] = df[col_origem]
             else:
-                df[f'{m}_num'] = 0.0
-                df[m] = "0"
+                df[f'{m}_num'] = None # Usar None para diferenciar de zero real
+                df[m] = "Sem dados"
         return df, target_op, target_mat
     except: return None, None, None
 
@@ -133,7 +126,6 @@ else:
     if supervisor != "Selecione...":
         df, col_op, col_mat = carregar_dados(supervisor)
         if df is not None:
-            # DEFINIÇÃO DE METAS DINÂMICAS
             metas_s = METAS_BASE.copy()
             meta_p = 21.75 if ("Erik" in supervisor or "Beatriz" in supervisor) else (16.60 if st.session_state.servico == "SAC NDI" else 21.75)
             metas_s['Pausa Total'] = {'valor': meta_p, 'margem': 3.0, 'menor_melhor': True}
@@ -167,32 +159,49 @@ else:
                         with [c1, c2, c3][i % 3]:
                             exibir_card(f"{m} (Equipe)", e.get(m, '0'), definir_cor_kpi(e[f'{m}_num'], m, metas_s))
 
-            with tabs[2]: # RANKING CORRIGIDO
+            with tabs[2]: # RANKING CORRIGIDO (FILTRA QUEM NÃO TEM DADOS)
                 st.subheader("🏆 Melhores Performances")
-                df_rank = df[(df[col_op].astype(str).str.upper() != 'EQUIPE') & (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE))].copy()
                 metrica_rank = st.selectbox("Rankear por:", list(metas_s.keys()))
                 
-                is_menor = metas_s[metrica_rank]['menor_melhor']
-                top = df_rank.nsmallest(5, f'{metrica_rank}_num') if is_menor else df_rank.nlargest(5, f'{metrica_rank}_num')
+                # Filtro: Remove Equipe, Backoffice e QUEM ESTÁ SEM DADOS (None ou 0 na métrica específica)
+                df_rank = df[
+                    (df[col_op].astype(str).str.upper() != 'EQUIPE') & 
+                    (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
+                    (df[f'{metrica_rank}_num'].notna()) & 
+                    (df[f'{metrica_rank}_num'] > 0)
+                ].copy()
                 
-                for idx, row in enumerate(top.itertuples()):
-                    val_display = getattr(row, metrica_rank)
-                    c_cor = definir_cor_kpi(getattr(row, f'{metrica_rank}_num'), metrica_rank, metas_s)
-                    exibir_card(f"{idx+1}º Lugar - {getattr(row, col_op)}", val_display, c_cor, "🥇" if idx==0 else "")
+                if not df_rank.empty:
+                    is_menor = metas_s[metrica_rank]['menor_melhor']
+                    top = df_rank.nsmallest(5, f'{metrica_rank}_num') if is_menor else df_rank.nlargest(5, f'{metrica_rank}_num')
+                    
+                    for idx, row in enumerate(top.itertuples()):
+                        val_display = getattr(row, metrica_rank)
+                        c_cor = definir_cor_kpi(getattr(row, f'{metrica_rank}_num'), metrica_rank, metas_s)
+                        exibir_card(f"{idx+1}º Lugar - {getattr(row, col_op)}", val_display, c_cor, "🥇" if idx==0 else "")
+                else:
+                    st.info("Não há dados suficientes para gerar o ranking desta métrica.")
 
             with tabs[3]: # SAÚDE CORRIGIDA
                 st.subheader("📊 Diagnóstico de Metas")
-                df_saude = df[(df[col_op].astype(str).str.upper() != 'EQUIPE') & (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE))].copy()
                 metrica_saude = st.selectbox("Analisar Status:", list(metas_s.keys()), key="sb_saude")
                 
-                conf = metas_s[metrica_saude]
-                df_saude['Status'] = df_saude[f'{metrica_saude}_num'].apply(
-                    lambda x: 'Dentro da Meta' if (x <= conf['valor'] if conf['menor_melhor'] else x >= conf['valor']) else 'Fora da Meta'
-                )
+                df_saude = df[
+                    (df[col_op].astype(str).str.upper() != 'EQUIPE') & 
+                    (~df[col_mat].astype(str).str.strip().isin(MATRICULAS_BACKOFFICE)) &
+                    (df[f'{metrica_saude}_num'].notna())
+                ].copy()
                 
-                c_pie, c_list = st.columns([1, 1])
-                with c_pie:
-                    st.plotly_chart(px.pie(df_saude, names='Status', hole=0.5, color='Status', 
-                                         color_discrete_map={'Dentro da Meta':'#28a745','Fora da Meta':'#dc3545'}), use_container_width=True)
-                with c_list:
-                    st.dataframe(df_saude[[col_op, metrica_saude, 'Status']].sort_values(by='Status'), hide_index=True, use_container_width=True)
+                if not df_saude.empty:
+                    conf = metas_s[metrica_saude]
+                    df_saude['Status'] = df_saude[f'{metrica_saude}_num'].apply(
+                        lambda x: 'Dentro da Meta' if (x <= conf['valor'] if conf['menor_melhor'] else x >= conf['valor']) else 'Fora da Meta'
+                    )
+                    c_pie, c_list = st.columns([1, 1])
+                    with c_pie:
+                        st.plotly_chart(px.pie(df_saude, names='Status', hole=0.5, color='Status', 
+                                             color_discrete_map={'Dentro da Meta':'#28a745','Fora da Meta':'#dc3545'}), use_container_width=True)
+                    with c_list:
+                        st.dataframe(df_saude[[col_op, metrica_saude, 'Status']].sort_values(by='Status'), hide_index=True, use_container_width=True)
+                else:
+                    st.info("Sem dados para esta métrica.")
