@@ -3,24 +3,21 @@ import pandas as pd
 import plotly.express as px
 import copy
 
-# 1. CONFIGURAÇÃO DA PÁGINA
+# CONFIG
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
-# 2. ESTILO CSS
+# CSS
 st.markdown("""
 <style>
 .stApp { background-color: #f8f9fa; }
 
-/* Título */
 .main-title { 
     text-align: center; 
     color: #004a99; 
-    font-family: 'Segoe UI', sans-serif; 
     margin-bottom: 20px; 
     padding-top: 20px;
 }
 
-/* Container Hub */
 .hub-container {
     display: flex;
     justify-content: center;
@@ -29,16 +26,11 @@ st.markdown("""
     flex-wrap: wrap;
 }
 
-/* Card Wrapper */
-.hub-card {
-    width: 260px;
-}
+.hub-card { width: 260px; }
 
-/* Botões Hub */
 .hub-card div.stButton > button {
     width: 100%;
     height: 220px !important;
-    border: 1px solid #e0e0e0;
     border-radius: 24px;
     background: white;
     padding: 30px 20px;
@@ -46,11 +38,9 @@ st.markdown("""
     transition: all 0.3s ease-in-out;
 
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
 
-    color: #1f3a5f !important;
     font-size: 20px !important;
     font-weight: 700 !important;
 }
@@ -59,18 +49,8 @@ st.markdown("""
     transform: translateY(-8px);
     box-shadow: 0 14px 28px rgba(0,74,153,0.18);
     border: 2px solid #004a99;
-    color: #004a99 !important;
 }
 
-/* Sidebar botão */
-section[data-testid="stSidebar"] div.stButton > button {
-    height: 50px !important;
-    padding: 10px !important;
-    font-size: 14px !important;
-    margin-top: 20px;
-}
-
-/* Cards métricas */
 .metric-card {
     background-color: white; 
     padding: 20px; 
@@ -85,7 +65,7 @@ section[data-testid="stSidebar"] div.stButton > button {
 if 'servico' not in st.session_state:
     st.session_state.servico = None
 
-# 3. METAS
+# METAS
 METAS_BASE = {
     'Aderencia': {'valor': 85.0, 'margem': 5.0, 'menor_melhor': False},
     'Absenteismo': {'valor': 0.0, 'margem': 5.0, 'menor_melhor': True},
@@ -100,7 +80,7 @@ METAS_BASE = {
 
 MATRICULAS_BACKOFFICE = ['1211819','1210820','1210724','1211110','1211213','1214016','10115858','1212492','1028483']
 
-# 4. FUNÇÕES
+# FUNÇÕES
 def limpar_valor_numerico(valor):
     if pd.isna(valor) or str(valor).strip() in ["", "None", "---", "nan"]:
         return None
@@ -158,10 +138,7 @@ def carregar_dados_aba(nome_aba):
         target_mat=cols_originais.get('matricula','Matricula')
 
         for m in list(METAS_BASE.keys())+['Pausa Total']:
-            if m=='Silencio':
-                origem = cols_originais.get('silencio (%)') or cols_originais.get('silencio')
-            else:
-                origem = cols_originais.get(m.lower())
+            origem = cols_originais.get(m.lower())
 
             if origem:
                 df[f'{m}_num']=df[origem].apply(
@@ -176,41 +153,32 @@ def carregar_dados_aba(nome_aba):
     except:
         return None,None,None
 
-# NAV
+# HUB
 if st.session_state.servico is None:
 
     st.markdown("<div class='main-title'><h1>🚀 Portal de Performance NDI</h1><p>Selecione sua operação</p></div>", unsafe_allow_html=True)
 
-    st.markdown('<div class="hub-container">', unsafe_allow_html=True)
-
-    col1,col2,col3 = st.columns(3, gap="large")
+    col1,col2,col3 = st.columns(3)
 
     with col1:
-        st.markdown('<div class="hub-card">', unsafe_allow_html=True)
         if st.button("🏢\n\nSAC NDI", use_container_width=True):
             st.session_state.servico="SAC NDI"
             st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
-        st.markdown('<div class="hub-card">', unsafe_allow_html=True)
         if st.button("🏦\n\nSAC PPO", use_container_width=True):
             st.session_state.servico="SAC PPO"
             st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
 
     with col3:
-        st.markdown('<div class="hub-card">', unsafe_allow_html=True)
         if st.button("🏥\n\nSAC HAPVIDA", use_container_width=True):
             st.session_state.servico="SAC HAPVIDA"
             st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
 else:
 
     with st.sidebar:
+
         st.markdown(f"### 📍 {st.session_state.servico}")
 
         if st.session_state.servico=="SAC NDI":
@@ -232,9 +200,7 @@ else:
 
             metas_atuais=copy.deepcopy(METAS_BASE)
 
-            meta_pausa = 21.75 if ("Erik" in supervisor or "Beatriz" in supervisor) else (16.60 if "NDI" in st.session_state.servico else 21.75)
-
-            metas_atuais['Pausa Total']={'valor':meta_pausa,'margem':3.0,'menor_melhor':True}
+            metas_atuais['Pausa Total']={'valor':21.75,'margem':3.0,'menor_melhor':True}
 
             tabs = st.tabs(["👤 Individual","👥 Equipe","🏆 Ranking","📊 Saúde"])
 
@@ -265,48 +231,38 @@ else:
                             exibir_card("TMA Voz", r['TMA Voz'], definir_cor_kpi(r['TMA Voz_num'],'TMA Voz',metas_atuais),"📞")
                             exibir_card("Pesquisa", r['Pesquisa'], definir_cor_kpi(r['Pesquisa_num'],'Pesquisa',metas_atuais),"⭐")
 
-            # EQUIPE
-            with tabs[1]:
-
-                eq=df[df[col_op].astype(str).str.upper()=='EQUIPE']
-
-                if not eq.empty:
-                    eq=eq.iloc[0]
-
-                    c1,c2,c3=st.columns(3)
-
-                    for i,m in enumerate(['Aderencia','Resolutividade','Pausa Total','TMA Voz','Pesquisa','Silencio']):
-                        with [c1,c2,c3][i%3]:
-                            exibir_card(f"{m} (Equipe)", eq[m], definir_cor_kpi(eq[f'{m}_num'],m,metas_atuais))
-
-            # RANKING
+            # RANKING (CORRIGIDO)
             with tabs[2]:
 
-                m_rank=st.selectbox("Ver Ranking de:", list(metas_atuais.keys()))
+                m_rank = st.selectbox("Ver Ranking de:", list(metas_atuais.keys()))
 
-                df_rank=df[
-                    (df[col_op].astype(str).str.upper()!='EQUIPE') &
+                df_rank = df[
+                    (df[col_op].astype(str).str.upper() != 'EQUIPE') &
                     (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE)) &
                     (df[f'{m_rank}_num'].notna())
                 ].copy()
 
                 if not df_rank.empty:
 
-                    is_menor=metas_atuais[m_rank]['menor_melhor']
+                    is_menor = metas_atuais[m_rank]['menor_melhor']
 
-                    top=df_rank.nsmallest(5,f'{m_rank}_num') if is_menor else df_rank.nlargest(5,f'{m_rank}_num')
+                    if is_menor:
+                        top = df_rank.sort_values(by=f'{m_rank}_num').head(5)
+                    else:
+                        top = df_rank.sort_values(by=f'{m_rank}_num', ascending=False).head(5)
 
-                    for i,row in enumerate(top.itertuples()):
+                    for i, (_, row) in enumerate(top.iterrows()):
+
                         exibir_card(
-                            f"{i+1}º Lugar - {getattr(row,col_op)}",
-                            getattr(row,m_rank),
-                            definir_cor_kpi(getattr(row,f'{m_rank}_num'),m_rank,metas_atuais)
+                            f"{i+1}º Lugar - {row[col_op]}",
+                            row[m_rank],
+                            definir_cor_kpi(row[f'{m_rank}_num'], m_rank, metas_atuais)
                         )
 
             # SAÚDE
             with tabs[3]:
 
-                m_saude=st.selectbox("Analisar Saúde de:", list(metas_atuais.keys()), key="saude_sb")
+                m_saude=st.selectbox("Analisar Saúde de:", list(metas_atuais.keys()))
 
                 df_saude=df[
                     (df[col_op].astype(str).str.upper()!='EQUIPE') &
