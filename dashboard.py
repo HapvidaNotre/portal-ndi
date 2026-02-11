@@ -1,64 +1,71 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import time
-import traceback
-from datetime import datetime
+import copy
 
-# =====================================================
-# CONFIGURAÇÃO DA PÁGINA
-# =====================================================
+# CONFIG
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
-# =====================================================
-# CSS + LOADING SKELETON
-# =====================================================
+# CSS
 st.markdown("""
 <style>
 .stApp { background-color: #f8f9fa; }
 
-@keyframes pulse {
-    0% {opacity: 0.6;}
-    50% {opacity: 1;}
-    100% {opacity: 0.6;}
+.main-title { 
+    text-align: center; 
+    color: #004a99; 
+    margin-bottom: 20px; 
+    padding-top: 20px;
+}
+
+.hub-container {
+    display: flex;
+    justify-content: center;
+    gap: 60px;
+    margin-top: 60px;
+    flex-wrap: wrap;
+}
+
+.hub-card { width: 260px; }
+
+.hub-card div.stButton > button {
+    width: 100%;
+    height: 220px !important;
+    border-radius: 24px;
+    background: white;
+    padding: 30px 20px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    transition: all 0.3s ease-in-out;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 20px !important;
+    font-weight: 700 !important;
+}
+
+.hub-card div.stButton > button:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 14px 28px rgba(0,74,153,0.18);
+    border: 2px solid #004a99;
 }
 
 .metric-card {
-    background-color: white;
-    padding: 20px;
+    background-color: white; 
+    padding: 20px; 
     border-radius: 12px;
-    box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
-    margin-bottom: 15px;
+    box-shadow: 2px 2px 10px rgba(0,0,0,0.05); 
+    margin-bottom: 15px; 
     border-left: 8px solid;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# =====================================================
-# SKELETON LOADING
-# =====================================================
-def skeleton_cards(qtd=3):
-    cols = st.columns(qtd)
-    for c in cols:
-        with c:
-            st.markdown("""
-            <div style="
-                background:#f0f2f6;
-                height:120px;
-                border-radius:12px;
-                animation:pulse 1.5s infinite;">
-            </div>
-            """, unsafe_allow_html=True)
-
-# =====================================================
-# SESSION
-# =====================================================
 if 'servico' not in st.session_state:
     st.session_state.servico = None
 
-# =====================================================
 # METAS
-# =====================================================
 METAS_BASE = {
     'Aderencia': {'valor': 85.0, 'margem': 5.0, 'menor_melhor': False},
     'Absenteismo': {'valor': 0.0, 'margem': 5.0, 'menor_melhor': True},
@@ -71,247 +78,214 @@ METAS_BASE = {
     'Silencio': {'valor': 15.0, 'margem': 5.0, 'menor_melhor': True}
 }
 
-MATRICULAS_BACKOFFICE = ['1211819','1210820','1210724','1211110']
+MATRICULAS_BACKOFFICE = ['1211819','1210820','1210724','1211110','1211213','1214016','10115858','1212492','1028483']
 
-# =====================================================
-# FUNÇÕES DE TRATAMENTO
-# =====================================================
+# FUNÇÕES
 def limpar_valor_numerico(valor):
-    if pd.isna(valor): return None
+    if pd.isna(valor) or str(valor).strip() in ["", "None", "---", "nan"]:
+        return None
     try:
         return float(str(valor).replace('%','').replace(',','.'))
     except:
         return None
 
 def converter_tma_segundos(valor):
-    if pd.isna(valor): return None
+    if pd.isna(valor) or str(valor).strip() in ["","0","00:00:00","None"]:
+        return None
     try:
-        partes = str(valor).split(':')
-        if len(partes)==3:
-            return int(partes[0])*60 + int(partes[1]) + int(partes[2])/60
+        p = str(valor).split(':')
+        if len(p)==3:
+            return int(p[0])*60 + int(p[1]) + int(p[2])/60
         return float(str(valor).replace(',','.'))
     except:
         return None
 
-# =====================================================
-# KPI COR
-# =====================================================
-def definir_cor_kpi(valor, metrica, metas):
-    if valor is None:
-        return "#999"
-
+def definir_cor_kpi(valor_num, metrica, metas):
+    if valor_num is None: return "#999"
     conf = metas.get(metrica)
-    if not conf:
-        return "#333"
+    if not conf: return "#333"
 
-    meta = conf['valor']
-    margem = conf['margem']
-    menor = conf['menor_melhor']
+    m,tol,menor = conf['valor'],conf['margem'],conf['menor_melhor']
 
     if menor:
-        if valor <= meta:
-            return "#28a745"
-        elif valor <= meta + margem:
-            return "#ffc107"
-        else:
-            return "#dc3545"
-    else:
-        if valor >= meta:
-            return "#28a745"
-        elif valor >= meta - margem:
-            return "#ffc107"
-        else:
-            return "#dc3545"
+        return "#28a745" if valor_num<=m else ("#ffc107" if valor_num<=m+tol else "#dc3545")
+    return "#28a745" if valor_num>=m else ("#ffc107" if valor_num>=m-tol else "#dc3545")
 
-# =====================================================
-# CARD
-# =====================================================
-def exibir_card(label, valor_display, cor="#333"):
-    txt = "---" if valor_display is None else str(valor_display)
+def exibir_card(label, valor_display, cor="#333", icon=""):
+    txt = "---" if valor_display in [None,"nan","None",""] else str(valor_display)
 
     st.markdown(f"""
-        <div class="metric-card" style="border-left-color:{cor};">
-            <p style="font-size:12px;color:#666">{label}</p>
-            <h2 style="color:#1f3a5f">{txt}</h2>
-        </div>
+    <div class="metric-card" style="border-left-color:{cor};">
+        <p style="margin:0;font-size:11px;color:#666;font-weight:bold;text-transform:uppercase;">
+            {label}
+        </p>
+        <h2 style="margin:5px 0 0 0;color:#1f3a5f;font-size:24px;font-weight:800;">
+            {icon} {txt}
+        </h2>
+    </div>
     """, unsafe_allow_html=True)
 
-# =====================================================
-# INSIGHTS AUTOMÁTICOS
-# =====================================================
-def gerar_insights(row, metas):
-    insights = []
-
-    for m, conf in metas.items():
-        val = row.get(f"{m}_num")
-
-        if val is None:
-            continue
-
-        meta = conf['valor']
-        menor = conf['menor_melhor']
-
-        if menor and val > meta:
-            insights.append(f"⚠️ {m} acima da meta")
-        elif not menor and val < meta:
-            insights.append(f"⚠️ {m} abaixo da meta")
-        elif menor and val < meta * 0.85:
-            insights.append(f"🏆 Excelente desempenho em {m}")
-        elif not menor and val > meta * 1.15:
-            insights.append(f"🏆 Destaque em {m}")
-
-    return insights
-
-# =====================================================
-# CARREGAMENTO SEGURO
-# =====================================================
 @st.cache_data(ttl=60)
 def carregar_dados_aba(nome_aba):
-
     try:
-        with st.spinner("📡 Carregando dados..."):
-            time.sleep(1)
+        SHEET_ID="1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E"
+        url=f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={nome_aba.replace(' ','%20')}"
+        df=pd.read_csv(url)
+        df.columns=df.columns.str.strip()
 
-            SHEET_ID = "1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E"
-            url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={nome_aba}"
+        cols_originais={c.lower():c for c in df.columns}
+        target_op=cols_originais.get('operador','Operador')
+        target_mat=cols_originais.get('matricula','Matricula')
 
-            df = pd.read_csv(url)
-            df.columns = df.columns.str.strip()
+        for m in list(METAS_BASE.keys())+['Pausa Total']:
+            origem = cols_originais.get(m.lower())
 
-            for m in METAS_BASE.keys():
-                if m in df.columns:
-                    if "TMA" in m:
-                        df[f"{m}_num"] = df[m].apply(converter_tma_segundos)
-                    else:
-                        df[f"{m}_num"] = df[m].apply(limpar_valor_numerico)
+            if origem:
+                df[f'{m}_num']=df[origem].apply(
+                    converter_tma_segundos if 'TMA' in m or 'Pausa' in m else limpar_valor_numerico
+                )
+                df[m]=df[origem].astype(str).replace(['nan','None'],'---')
+            else:
+                df[f'{m}_num']=None
+                df[m]="---"
 
-            st.session_state["ultima_atualizacao"] = datetime.now()
+        return df,target_op,target_mat
+    except:
+        return None,None,None
 
-            return df, None
-
-    except Exception:
-        return None, traceback.format_exc()
-
-# =====================================================
 # HUB
-# =====================================================
 if st.session_state.servico is None:
 
-    st.title("🚀 Portal de Performance NDI")
+    st.markdown("<div class='main-title'><h1>🚀 Portal de Performance NDI</h1><p>Selecione sua operação</p></div>", unsafe_allow_html=True)
 
-    c1,c2,c3 = st.columns(3)
+    col1,col2,col3 = st.columns(3)
 
-    if c1.button("SAC NDI"):
-        st.session_state.servico = "SAC NDI"
-        st.rerun()
+    with col1:
+        if st.button("🏢\n\nSAC NDI", use_container_width=True):
+            st.session_state.servico="SAC NDI"
+            st.rerun()
 
-    if c2.button("SAC PPO"):
-        st.session_state.servico = "SAC PPO"
-        st.rerun()
+    with col2:
+        if st.button("🏦\n\nSAC PPO", use_container_width=True):
+            st.session_state.servico="SAC PPO"
+            st.rerun()
 
-    if c3.button("SAC HAPVIDA"):
-        st.session_state.servico = "SAC HAPVIDA"
-        st.rerun()
+    with col3:
+        if st.button("🏥\n\nSAC HAPVIDA", use_container_width=True):
+            st.session_state.servico="SAC HAPVIDA"
+            st.rerun()
 
-# =====================================================
-# DASHBOARD
-# =====================================================
 else:
 
     with st.sidebar:
 
-        st.subheader(st.session_state.servico)
+        st.markdown(f"### 📍 {st.session_state.servico}")
 
-        supervisor = st.text_input("Supervisor")
+        if st.session_state.servico=="SAC NDI":
+            lista=["Selecione...","Equipe Erik","Equipe Davi","Equipe Elaine","Equipe Sayanne","Equipe Beatriz","Equipe Aline","Equipe Marcelo"]
+        else:
+            lista=["Selecione...","Equipe Ellen","Equipe Carla","Equipe Magno","Equipe Alex","Equipe Hapvida"]
 
-        if st.button("Voltar"):
-            st.session_state.servico = None
+        supervisor=st.selectbox("Escolha o Supervisor:",lista)
+
+        if st.button("⬅️ Voltar ao Hub"):
+            st.session_state.servico=None
             st.rerun()
 
-    if supervisor:
+    if supervisor!="Selecione...":
 
-        df, erro = carregar_dados_aba(supervisor)
+        df,col_op,col_mat=carregar_dados_aba(supervisor)
 
-        if erro:
-            st.error("Erro ao carregar dados")
-            st.code(erro)
-            st.stop()
+        if df is not None:
 
-        if "ultima_atualizacao" in st.session_state:
-            st.caption(f"Atualizado em {st.session_state['ultima_atualizacao']}")
+            metas_atuais=copy.deepcopy(METAS_BASE)
 
-        tabs = st.tabs(["Individual","Ranking"])
+            metas_atuais['Pausa Total']={'valor':21.75,'margem':3.0,'menor_melhor':True}
 
-        # =====================================================
-        # INDIVIDUAL
-        # =====================================================
-        with tabs[0]:
+            tabs = st.tabs(["👤 Individual","👥 Equipe","🏆 Ranking","📊 Saúde"])
 
-            mat = st.text_input("Digite matrícula")
+            # INDIVIDUAL
+            with tabs[0]:
 
-            if mat:
+                mat = st.text_input("Digite sua Matrícula:")
 
-                res = df[df["Matricula"].astype(str).str.contains(mat)]
+                if mat:
+                    res=df[df[col_mat].astype(str)==mat.strip()]
 
-                if not res.empty:
+                    if not res.empty:
+                        r=res.iloc[0]
 
-                    r = res.iloc[0]
+                        st.subheader(f"Olá, {r[col_op]}")
 
-                    skeleton_cards()
-                    time.sleep(0.4)
+                        c1,c2,c3=st.columns(3)
 
-                    cols = st.columns(3)
+                        with c1:
+                            exibir_card("Aderência", r['Aderencia'], definir_cor_kpi(r['Aderencia_num'],'Aderencia',metas_atuais))
+                            exibir_card("Silêncio", r['Silencio'], definir_cor_kpi(r['Silencio_num'],'Silencio',metas_atuais),"🔇")
 
-                    for i,m in enumerate(["Aderencia","TMA Voz","Pesquisa"]):
+                        with c2:
+                            exibir_card("Resolutividade", r['Resolutividade'], definir_cor_kpi(r['Resolutividade_num'],'Resolutividade',metas_atuais))
+                            exibir_card("Pausa Total", r['Pausa Total'], definir_cor_kpi(r['Pausa Total_num'],'Pausa Total',metas_atuais),"⏱️")
 
-                        with cols[i]:
+                        with c3:
+                            exibir_card("TMA Voz", r['TMA Voz'], definir_cor_kpi(r['TMA Voz_num'],'TMA Voz',metas_atuais),"📞")
+                            exibir_card("Pesquisa", r['Pesquisa'], definir_cor_kpi(r['Pesquisa_num'],'Pesquisa',metas_atuais),"⭐")
 
-                            exibir_card(
-                                m,
-                                r[m],
-                                definir_cor_kpi(r[f"{m}_num"],m,METAS_BASE)
-                            )
+            # RANKING (CORRIGIDO)
+            with tabs[2]:
 
-                    insights = gerar_insights(r,METAS_BASE)
+                m_rank = st.selectbox("Ver Ranking de:", list(metas_atuais.keys()))
 
-                    if insights:
-                        st.subheader("💡 Insights")
-                        for i in insights:
-                            st.info(i)
+                df_rank = df[
+                    (df[col_op].astype(str).str.upper() != 'EQUIPE') &
+                    (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE)) &
+                    (df[f'{m_rank}_num'].notna())
+                ].copy()
 
-        # =====================================================
-        # RANKING (CORRIGIDO)
-        # =====================================================
-        with tabs[1]:
+                if not df_rank.empty:
 
-            m_rank = st.selectbox("Ranking de",list(METAS_BASE.keys()))
+                    is_menor = metas_atuais[m_rank]['menor_melhor']
 
-            df_rank = df[
-                (df[f"{m_rank}_num"].notna()) &
-                (~df["Matricula"].astype(str).isin(MATRICULAS_BACKOFFICE))
-            ].copy()
+                    if is_menor:
+                        top = df_rank.sort_values(by=f'{m_rank}_num').head(5)
+                    else:
+                        top = df_rank.sort_values(by=f'{m_rank}_num', ascending=False).head(5)
 
-            if not df_rank.empty:
-
-                is_menor = METAS_BASE[m_rank]['menor_melhor']
-
-                if is_menor:
-                    top = df_rank.sort_values(f"{m_rank}_num").head(5)
-                else:
-                    top = df_rank.sort_values(f"{m_rank}_num",ascending=False).head(5)
-
-                cols = st.columns(5)
-
-                for i,row in enumerate(top.itertuples()):
-
-                    with cols[i]:
+                    for i, (_, row) in enumerate(top.iterrows()):
 
                         exibir_card(
-                            f"{i+1}º - {row.Operador}",
-                            getattr(row,m_rank),
-                            definir_cor_kpi(
-                                getattr(row,f"{m_rank}_num"),
-                                m_rank,
-                                METAS_BASE
-                            )
+                            f"{i+1}º Lugar - {row[col_op]}",
+                            row[m_rank],
+                            definir_cor_kpi(row[f'{m_rank}_num'], m_rank, metas_atuais)
                         )
+
+            # SAÚDE
+            with tabs[3]:
+
+                m_saude=st.selectbox("Analisar Saúde de:", list(metas_atuais.keys()))
+
+                df_saude=df[
+                    (df[col_op].astype(str).str.upper()!='EQUIPE') &
+                    (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE)) &
+                    (df[f'{m_saude}_num'].notna())
+                ].copy()
+
+                if not df_saude.empty:
+
+                    conf=metas_atuais[m_saude]
+
+                    df_saude['Status']=df_saude[f'{m_saude}_num'].apply(
+                        lambda x:'Meta OK' if (x<=conf['valor'] if conf['menor_melhor'] else x>=conf['valor']) else 'Fora da Meta'
+                    )
+
+                    st.plotly_chart(
+                        px.pie(
+                            df_saude,
+                            names='Status',
+                            hole=0.5,
+                            color='Status',
+                            color_discrete_map={'Meta OK':'#28a745','Fora da Meta':'#dc3545'}
+                        )
+                    )
+
+                    st.dataframe(df_saude[[col_op,m_saude,'Status']], hide_index=True, use_container_width=True)
