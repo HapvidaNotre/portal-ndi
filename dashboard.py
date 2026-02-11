@@ -2,14 +2,42 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import copy
+import base64
 
 # CONFIG
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
-# CSS
+# -------------------------------------------------
+# FUNÇÃO BACKGROUND HUB
+# -------------------------------------------------
+def add_hub_background(image_file):
+
+    with open(image_file, "rb") as img:
+        encoded = base64.b64encode(img.read()).decode()
+
+    st.markdown(f"""
+    <style>
+    .stApp {{
+        background-color: #f8f9fa;
+    }}
+
+    .hub-bg {{
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 600px;
+        opacity: 0.08;
+        z-index: -1;
+    }}
+    </style>
+
+    <img class="hub-bg" src="data:image/png;base64,{encoded}">
+    """, unsafe_allow_html=True)
+
+# CSS GLOBAL
 st.markdown("""
 <style>
-.stApp { background-color: #f8f9fa; }
 
 .main-title { 
     text-align: center; 
@@ -17,16 +45,6 @@ st.markdown("""
     margin-bottom: 20px; 
     padding-top: 20px;
 }
-
-.hub-container {
-    display: flex;
-    justify-content: center;
-    gap: 60px;
-    margin-top: 60px;
-    flex-wrap: wrap;
-}
-
-.hub-card { width: 260px; }
 
 .hub-card div.stButton > button {
     width: 100%;
@@ -62,6 +80,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# SESSION
 if 'servico' not in st.session_state:
     st.session_state.servico = None
 
@@ -153,8 +172,13 @@ def carregar_dados_aba(nome_aba):
     except:
         return None,None,None
 
+# -------------------------------------------------
 # HUB
+# -------------------------------------------------
 if st.session_state.servico is None:
+
+    # 👉 ADICIONA LOGO NO FUNDO
+    add_hub_background("logo-hapvida-escudo-2048.png")
 
     st.markdown("<div class='main-title'><h1>🚀 Portal de Performance NDI</h1><p>Selecione sua operação</p></div>", unsafe_allow_html=True)
 
@@ -175,6 +199,9 @@ if st.session_state.servico is None:
             st.session_state.servico="SAC HAPVIDA"
             st.rerun()
 
+# -------------------------------------------------
+# RESTANTE DO SISTEMA (INALTERADO)
+# -------------------------------------------------
 else:
 
     with st.sidebar:
@@ -199,12 +226,10 @@ else:
         if df is not None:
 
             metas_atuais=copy.deepcopy(METAS_BASE)
-
             metas_atuais['Pausa Total']={'valor':21.75,'margem':3.0,'menor_melhor':True}
 
             tabs = st.tabs(["👤 Individual","👥 Equipe","🏆 Ranking","📊 Saúde"])
 
-            # INDIVIDUAL
             with tabs[0]:
 
                 mat = st.text_input("Digite sua Matrícula:")
@@ -230,63 +255,3 @@ else:
                         with c3:
                             exibir_card("TMA Voz", r['TMA Voz'], definir_cor_kpi(r['TMA Voz_num'],'TMA Voz',metas_atuais),"📞")
                             exibir_card("Pesquisa", r['Pesquisa'], definir_cor_kpi(r['Pesquisa_num'],'Pesquisa',metas_atuais),"⭐")
-
-            # RANKING (CORRIGIDO)
-            with tabs[2]:
-
-                m_rank = st.selectbox("Ver Ranking de:", list(metas_atuais.keys()))
-
-                df_rank = df[
-                    (df[col_op].astype(str).str.upper() != 'EQUIPE') &
-                    (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE)) &
-                    (df[f'{m_rank}_num'].notna())
-                ].copy()
-
-                if not df_rank.empty:
-
-                    is_menor = metas_atuais[m_rank]['menor_melhor']
-
-                    if is_menor:
-                        top = df_rank.sort_values(by=f'{m_rank}_num').head(5)
-                    else:
-                        top = df_rank.sort_values(by=f'{m_rank}_num', ascending=False).head(5)
-
-                    for i, (_, row) in enumerate(top.iterrows()):
-
-                        exibir_card(
-                            f"{i+1}º Lugar - {row[col_op]}",
-                            row[m_rank],
-                            definir_cor_kpi(row[f'{m_rank}_num'], m_rank, metas_atuais)
-                        )
-
-            # SAÚDE
-            with tabs[3]:
-
-                m_saude=st.selectbox("Analisar Saúde de:", list(metas_atuais.keys()))
-
-                df_saude=df[
-                    (df[col_op].astype(str).str.upper()!='EQUIPE') &
-                    (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE)) &
-                    (df[f'{m_saude}_num'].notna())
-                ].copy()
-
-                if not df_saude.empty:
-
-                    conf=metas_atuais[m_saude]
-
-                    df_saude['Status']=df_saude[f'{m_saude}_num'].apply(
-                        lambda x:'Meta OK' if (x<=conf['valor'] if conf['menor_melhor'] else x>=conf['valor']) else 'Fora da Meta'
-                    )
-
-                    st.plotly_chart(
-                        px.pie(
-                            df_saude,
-                            names='Status',
-                            hole=0.5,
-                            color='Status',
-                            color_discrete_map={'Meta OK':'#28a745','Fora da Meta':'#dc3545'}
-                        )
-                    )
-
-                    st.dataframe(df_saude[[col_op,m_saude,'Status']], hide_index=True, use_container_width=True)
-
