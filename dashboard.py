@@ -92,7 +92,7 @@ METAS_BASE = {
 
 MATRICULAS_BACKOFFICE = [‘1211819’,‘1210820’,‘1210724’,‘1211110’,‘1211213’,‘1214016’,‘10115858’,‘1212492’,‘1028483’]
 
-# FUNÇÕES
+# FUNCOES
 
 def limpar_valor_numerico(valor):
 if pd.isna(valor) or str(valor).strip() in [””, “None”, “—”, “nan”]:
@@ -174,7 +174,7 @@ except Exception as e:
 ```
 
 def calcular_estatisticas_equipe(df, metrica, col_op, col_mat, metas):
-“”“Calcula estatísticas da equipe para uma métrica”””
+“”“Calcula estatisticas da equipe para uma metrica”””
 df_filtrado = df[
 (df[col_op].astype(str).str.upper() != ‘EQUIPE’) &
 (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE)) &
@@ -256,7 +256,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Informações da sidebar
+    # Informacoes da sidebar
     st.markdown("### ℹ️ Legenda de Cores")
     st.markdown("🟢 **Verde**: Na meta")
     st.markdown("🟡 **Amarelo**: Atenção")
@@ -309,7 +309,7 @@ if supervisor != "Selecione...":
                         exibir_card("TMA Voz", r['TMA Voz'], definir_cor_kpi(r['TMA Voz_num'],'TMA Voz', metas_atuais), "📞")
                         exibir_card("Pesquisa", r['Pesquisa'], definir_cor_kpi(r['Pesquisa_num'],'Pesquisa', metas_atuais), "⭐")
                     
-                    # Métricas adicionais se disponíveis
+                    # Metricas adicionais se disponiveis
                     if r['Produtividade'] != "---" or r['Transf'] != "---" or r['ShortCall'] != "---":
                         st.markdown("### 📊 Outras Métricas")
                         c4, c5, c6 = st.columns(3)
@@ -341,7 +341,7 @@ if supervisor != "Selecione...":
             stats = calcular_estatisticas_equipe(df, metrica_equipe, col_op, col_mat, metas_atuais)
             
             if stats:
-                # Cards com estatísticas
+                # Cards com estatisticas
                 col1, col2, col3, col4 = st.columns(4)
                 
                 with col1:
@@ -358,7 +358,7 @@ if supervisor != "Selecione...":
                     if 'perc_meta' in stats:
                         st.metric("% na Meta", f"{stats['perc_meta']:.1f}%")
                 
-                # Gráfico de distribuição
+                # Grafico de distribuicao
                 df_equipe = df[
                     (df[col_op].astype(str).str.upper() != 'EQUIPE') &
                     (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE)) &
@@ -433,7 +433,7 @@ if supervisor != "Selecione...":
                         definir_cor_kpi(row[f'{m_rank}_num'], m_rank, metas_atuais)
                     )
                 
-                # Mostrar também os últimos 5
+                # Mostrar tambem os ultimos 5
                 st.markdown("---")
                 
                 if is_menor:
@@ -452,7 +452,7 @@ if supervisor != "Selecione...":
             else:
                 st.warning(f"⚠️ Não há dados disponíveis para criar o ranking de {m_rank}")
 
-        # SAÚDE
+        # SAUDE
         with tabs[3]:
 
             st.markdown(f"### 📊 Saúde da Operação - {supervisor}")
@@ -489,7 +489,7 @@ if supervisor != "Selecione...":
                 with col3:
                     st.metric("Fora da Meta", f"{fora_meta} ({fora_meta/total*100:.1f}%)")
 
-                # Gráfico de pizza
+                # Grafico de pizza
                 fig = px.pie(
                     df_saude,
                     names='Status',
@@ -519,7 +519,7 @@ if supervisor != "Selecione...":
                     }
                 )
                 
-                # Opção de download
+                # Opcao de download
                 csv = df_display.to_csv(index=False).encode('utf-8')
                 st.download_button(
                     label="📥 Baixar relatório em CSV",
