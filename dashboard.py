@@ -81,7 +81,6 @@ def carregar_dados_aba(nome_aba):
     col_op = cols.get('operador', 'Operador')
     col_mat = cols.get('matricula', 'Matricula')
 
-    # --- KPIs básicos ---
     for m in METAS_BASE.keys():
         origem = cols.get(m.lower())
         if origem:
@@ -92,7 +91,7 @@ def carregar_dados_aba(nome_aba):
 
             df[m] = df[origem].astype(str)
 
-    # --- PAUSA TOTAL CALCULADA ---
+    # ----- PAUSA TOTAL = IMPRODUTIVA + PRODUTIVA -----
     col_imp = cols.get('pausa improdutiva')
     col_prod = cols.get('pausa produtiva')
 
@@ -105,9 +104,7 @@ def carregar_dados_aba(nome_aba):
             + df['Pausa Produtiva_num'].fillna(0)
         )
 
-        df['Pausa Total'] = df['Pausa Total_num'].apply(
-            lambda x: f"{x:.1f}%"
-        )
+        df['Pausa Total'] = df['Pausa Total_num'].apply(lambda x: f"{x:.1f}%")
 
     return df, col_op, col_mat
 
@@ -215,7 +212,7 @@ else:
             for i,(_,row) in enumerate(top.iterrows()):
                 exibir_card(f"{i+1}º {row[col_op]}", row[metrica_sel], "#28a745")
 
-        # ---------- SAÚDE (PLANILHA) ----------
+        # ---------- SAÚDE (COM MATRÍCULA) ----------
         with t4:
 
             st.subheader("Saúde da Operação")
@@ -242,9 +239,9 @@ else:
                 axis=1
             )
 
-            tabela = df_saude[[col_op, 'Valor', 'Status']].rename(
+            tabela = df_saude[[col_mat, 'Valor', 'Status']].rename(
                 columns={
-                    col_op: 'Operador',
+                    col_mat: 'Matrícula',
                     'Valor': metrica_sel
                 }
             )
