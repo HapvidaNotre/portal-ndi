@@ -17,6 +17,19 @@ st.markdown("""
     border-left: 6px solid;
     margin-bottom: 10px;
 }
+
+div.stButton > button {
+    height: 90px;
+    font-size: 20px;
+    border-radius: 12px;
+    background-color: #111827;
+    color: white;
+    font-weight: 600;
+}
+
+div.stButton > button:hover {
+    background-color: #1f2937;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -34,14 +47,16 @@ MATRICULAS_BACKOFFICE = ['1211819','1210820','1210724','1211110','1211213','1214
 
 # ---------- FUNÇÕES ----------
 def limpar_valor_numerico(valor):
-    if pd.isna(valor): return None
+    if pd.isna(valor):
+        return None
     try:
         return float(str(valor).replace('%','').replace(',','.'))
     except:
         return None
 
 def converter_tma(valor):
-    if pd.isna(valor): return None
+    if pd.isna(valor):
+        return None
     try:
         p = str(valor).split(':')
         if len(p)==3:
@@ -51,7 +66,9 @@ def converter_tma(valor):
         return None
 
 def definir_cor_kpi(valor_num, metrica):
-    if valor_num is None: return "#999"
+    if valor_num is None:
+        return "#999"
+
     conf = METAS_BASE[metrica]
     m, tol, menor = conf['valor'], conf['margem'], conf['menor_melhor']
 
@@ -81,8 +98,11 @@ def carregar_dados_aba(nome_aba):
     col_op = cols.get('operador', 'Operador')
     col_mat = cols.get('matricula', 'Matricula')
 
+    # ----- MÉTRICAS PADRÃO -----
     for m in METAS_BASE.keys():
+
         origem = cols.get(m.lower())
+
         if origem:
             if 'TMA' in m:
                 df[f'{m}_num'] = df[origem].apply(converter_tma)
@@ -91,11 +111,12 @@ def carregar_dados_aba(nome_aba):
 
             df[m] = df[origem].astype(str)
 
-    # ----- PAUSA TOTAL = IMPRODUTIVA + PRODUTIVA -----
+    # ----- CÁLCULO PAUSA TOTAL -----
     col_imp = cols.get('pausa improdutiva')
     col_prod = cols.get('pausa produtiva')
 
     if col_imp and col_prod:
+
         df['Pausa Improdutiva_num'] = df[col_imp].apply(limpar_valor_numerico)
         df['Pausa Produtiva_num'] = df[col_prod].apply(limpar_valor_numerico)
 
@@ -114,22 +135,30 @@ if 'servico' not in st.session_state:
 
 if st.session_state.servico is None:
 
-    st.title("🚀 Portal de Performance NDI")
+    st.markdown("""
+        <div style='text-align:center; padding-top:25px;'>
+            <h1 style='color:#004a99;'>🚀 Portal de Performance NDI</h1>
+            <p style='color:#6b7280; font-size:18px;'>Selecione sua operação para continuar</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.write("")
+    st.write("")
 
     c1,c2,c3 = st.columns(3)
 
     with c1:
-        if st.button("SAC NDI", use_container_width=True):
+        if st.button("🏢 SAC NDI", use_container_width=True):
             st.session_state.servico = "SAC NDI"
             st.rerun()
 
     with c2:
-        if st.button("SAC PPO", use_container_width=True):
+        if st.button("🏦 SAC PPO", use_container_width=True):
             st.session_state.servico = "SAC PPO"
             st.rerun()
 
     with c3:
-        if st.button("SAC HAPVIDA", use_container_width=True):
+        if st.button("🏥 SAC HAPVIDA", use_container_width=True):
             st.session_state.servico = "SAC HAPVIDA"
             st.rerun()
 
@@ -155,8 +184,10 @@ else:
 
         df, col_op, col_mat = carregar_dados_aba(supervisor)
 
-        df_eq = df[(df[col_op].astype(str).str.upper()!='EQUIPE') &
-                   (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE))].copy()
+        df_eq = df[
+            (df[col_op].astype(str).str.upper()!='EQUIPE') &
+            (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE))
+        ].copy()
 
         t1,t2,t3,t4 = st.tabs(["Individual","Equipe","Ranking","Saúde"])
 
@@ -170,6 +201,7 @@ else:
 
                 if not res.empty:
                     r = res.iloc[0]
+
                     st.subheader(r[col_op])
 
                     c1,c2,c3 = st.columns(3)
@@ -192,6 +224,7 @@ else:
             cols_cards = st.columns(len(METAS_BASE))
 
             for i,(metrica,conf) in enumerate(METAS_BASE.items()):
+
                 media = df_eq[f'{metrica}_num'].mean()
                 txt = f"{media:.1f}{conf['unidade']}" if pd.notna(media) else "---"
                 cor = definir_cor_kpi(media,metrica)
@@ -212,7 +245,7 @@ else:
             for i,(_,row) in enumerate(top.iterrows()):
                 exibir_card(f"{i+1}º {row[col_op]}", row[metrica_sel], "#28a745")
 
-        # ---------- SAÚDE (COM MATRÍCULA) ----------
+        # ---------- SAÚDE ----------
         with t4:
 
             st.subheader("Saúde da Operação")
@@ -224,6 +257,7 @@ else:
             df_saude = df_eq.copy()
 
             def verificar_status(valor):
+
                 if pd.isna(valor):
                     return "Sem dado"
 
@@ -234,17 +268,8 @@ else:
 
             df_saude['Status'] = df_saude[f'{metrica_sel}_num'].apply(verificar_status)
 
-            df_saude['Valor'] = df_saude.apply(
-                lambda x: x[metrica_sel] if pd.notna(x[f'{metrica_sel}_num']) else "---",
-                axis=1
-            )
-
-            tabela = df_saude[[col_mat, 'Valor', 'Status']].rename(
-                columns={
-                    col_mat: 'Matrícula',
-                    'Valor': metrica_sel
-                }
+            tabela = df_saude[[col_mat, metrica_sel, 'Status']].rename(
+                columns={col_mat: 'Matrícula'}
             )
 
             st.dataframe(tabela, use_container_width=True)
-
