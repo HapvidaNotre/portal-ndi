@@ -5,75 +5,36 @@ import time
 
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
+# ---------- SESSION (OBRIGATÓRIO VIR PRIMEIRO) ----------
+if "servico" not in st.session_state:
+    st.session_state.servico = None
+
 # ---------- CSS ----------
 st.markdown("""
 <style>
-    /* Fundo da aplicação */
-    .stApp { 
-        background-color: #f8f9fa; 
-    }
+.stApp { background-color: #f8f9fa; }
 
-    /* FORÇA A COR DO TÍTULO PARA ESCURO (Correção do Layout) */
-    h1 {
-        color: #1f3a5f !important; /* Azul escuro */
-        padding-top: 0px;
-    }
+h1 {
+    color: #1f3a5f !important;
+}
 
-    /* Estilo dos Cards */
-    .metric-card {
-        background-color: white;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 2px 2px 8px rgba(0,0,0,0.05);
-        border-left: 6px solid;
-        margin-bottom: 10px;
-    }
-    
-    /* Aumenta fonte das métricas */
-    div[data-testid="stMetricValue"] {
-        font-size: 1.2rem;
-    }
-    
-    /* Centraliza verticalmente o logo e titulo */
-    .header-container {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        padding-bottom: 20px;
-    }
+.metric-card {
+    background-color: white;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.05);
+    border-left: 6px solid;
+    margin-bottom: 10px;
+}
+
+.header-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding-bottom: 20px;
+}
 </style>
 """, unsafe_allow_html=True)
-
-# ... (Mantenha suas variáveis METAS, MATRICULAS, EQUIPES e FUNÇÕES aqui) ...
-
-# ---------- HUB (TELA INICIAL) ----------
-if st.session_state.servico is None:
-    
-    # Container para alinhar Logo + Título
-    st.markdown("""
-        <div class="header-container">
-            <div style="font-size: 40px;">🚀</div>
-            <h1 style="margin: 0;">Portal de Performance NDI</h1>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    c1, c2, c3 = st.columns(3)
-    
-    # Adicionado type="primary" em TODOS para ficarem uniformes e visíveis
-    with c1:
-        if st.button("SAC NDI", use_container_width=True, type="primary"):
-            st.session_state.servico = "SAC NDI"
-            st.rerun()
-    with c2:
-        if st.button("SAC PPO", use_container_width=True, type="primary"):
-            st.session_state.servico = "SAC PPO"
-            st.rerun()
-    with c3:
-        if st.button("SAC HAPVIDA", use_container_width=True, type="primary"):
-            st.session_state.servico = "SAC HAPVIDA"
-            st.rerun()
 
 # ---------- METAS ----------
 METAS_BASE = {
@@ -87,7 +48,6 @@ METAS_BASE = {
 
 MATRICULAS_BACKOFFICE = ['1211819','1210820','1210724','1211110','1211213','1214016','10115858','1212492','1028483']
 
-# ---------- EQUIPES ----------
 EQUIPES = {
     "SAC NDI": ["Equipe Erik","Equipe Davi","Equipe Elaine","Equipe Sayanne","Equipe Beatriz","Equipe Aline","Equipe Marcelo"],
     "SAC PPO": ["Equipe Ellen","Equipe Carla","Equipe Magno","Equipe Alex"],
@@ -135,83 +95,62 @@ def exibir_card(label, valor_display, cor):
 @st.cache_data(ttl=60)
 def carregar_dados_aba(nome_aba):
 
-    try:
-        SHEET_ID = "1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E"
-        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={nome_aba.replace(' ','%20')}"
+    SHEET_ID = "1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E"
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={nome_aba.replace(' ','%20')}"
 
-        df = pd.read_csv(url)
-        df.columns = df.columns.str.strip()
-        cols = {c.lower(): c for c in df.columns}
+    df = pd.read_csv(url)
+    df.columns = df.columns.str.strip()
+    cols = {c.lower(): c for c in df.columns}
 
-        col_op = cols.get('operador', 'Operador')
-        col_mat = cols.get('matricula', 'Matricula')
+    col_op = cols.get('operador', 'Operador')
+    col_mat = cols.get('matricula', 'Matricula')
 
-        # -------- METRICAS --------
-        for m in METAS_BASE.keys():
-            origem = cols.get(m.lower())
-            if origem:
-                if 'TMA' in m:
-                    df[f'{m}_num'] = df[origem].apply(converter_tma)
-                else:
-                    df[f'{m}_num'] = df[origem].apply(limpar_valor_numerico)
+    for m in METAS_BASE.keys():
+        origem = cols.get(m.lower())
+        if origem:
+            if 'TMA' in m:
+                df[f'{m}_num'] = df[origem].apply(converter_tma)
+            else:
+                df[f'{m}_num'] = df[origem].apply(limpar_valor_numerico)
 
-                df[m] = df[origem].astype(str)
+            df[m] = df[origem].astype(str)
 
-        # -------- PAUSA TOTAL CORRIGIDA --------
-        col_imp = cols.get('pausa improdutiva')
-        col_prod = cols.get('pausa produtiva')
+    # Pausa Total
+    col_imp = cols.get('pausa improdutiva')
+    col_prod = cols.get('pausa produtiva')
 
-        if col_imp and col_prod:
+    if col_imp and col_prod:
+        df['Pausa Total_num'] = (
+            df[col_imp].apply(limpar_valor_numerico).fillna(0) +
+            df[col_prod].apply(limpar_valor_numerico).fillna(0)
+        )
+        df['Pausa Total'] = df['Pausa Total_num'].apply(lambda x: f"{x:.1f}%")
 
-            df['Pausa Improdutiva_num'] = df[col_imp].apply(limpar_valor_numerico)
-            df['Pausa Produtiva_num'] = df[col_prod].apply(limpar_valor_numerico)
-
-            df['Pausa Total_num'] = (
-                df['Pausa Improdutiva_num'].fillna(0) +
-                df['Pausa Produtiva_num'].fillna(0)
-            )
-
-            df['Pausa Total'] = df['Pausa Total_num'].apply(lambda x: f"{x:.1f}%")
-
-        return df, col_op, col_mat
-
-    except Exception as e:
-        st.error(f"Erro ao carregar dados: {e}")
-        return pd.DataFrame(), None, None
-
-# ---------- SESSION ----------
-if 'servico' not in st.session_state:
-    st.session_state.servico = None
+    return df, col_op, col_mat
 
 # ---------- HUB ----------
 if st.session_state.servico is None:
 
-    col_logo, col_titulo = st.columns([1,8])
-
-    with col_logo:
-        st.markdown("## 🚀")
-
-    with col_titulo:
-        st.markdown("<h1>Portal de Performance NDI</h1>", unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("""
+    <div class="header-container">
+        <div style="font-size:40px;">🚀</div>
+        <h1 style="margin:0;">Portal de Performance NDI</h1>
+    </div>
+    """, unsafe_allow_html=True)
 
     c1,c2,c3 = st.columns(3)
 
-    with c1:
-        if st.button("SAC NDI", use_container_width=True):
-            st.session_state.servico = "SAC NDI"
-            st.rerun()
+    if c1.button("SAC NDI", use_container_width=True, type="primary"):
+        st.session_state.servico = "SAC NDI"
+        st.rerun()
 
-    with c2:
-        if st.button("SAC PPO", use_container_width=True):
-            st.session_state.servico = "SAC PPO"
-            st.rerun()
+    if c2.button("SAC PPO", use_container_width=True, type="primary"):
+        st.session_state.servico = "SAC PPO"
+        st.rerun()
 
-    with c3:
-        if st.button("SAC HAPVIDA", use_container_width=True):
-            st.session_state.servico = "SAC HAPVIDA"
-            st.rerun()
+    if c3.button("SAC HAPVIDA", use_container_width=True, type="primary"):
+        st.session_state.servico = "SAC HAPVIDA"
+        st.rerun()
 
 # ---------- DASHBOARD ----------
 else:
@@ -231,19 +170,15 @@ else:
     if supervisor != "Selecione...":
 
         with st.spinner("Carregando dados..."):
-            time.sleep(0.8)
+            time.sleep(0.5)
             df, col_op, col_mat = carregar_dados_aba(supervisor)
-
-        if df.empty:
-            st.warning("Nenhum dado encontrado.")
-            st.stop()
 
         df_eq = df[(df[col_op].astype(str).str.upper()!='EQUIPE') &
                    (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE))].copy()
 
         t1,t2,t3,t4 = st.tabs(["Individual","Equipe","Ranking","Saúde"])
 
-        # ---------- INDIVIDUAL ----------
+        # INDIVIDUAL
         with t1:
 
             mat = st.text_input("Matrícula")
@@ -269,9 +204,8 @@ else:
                         exibir_card("TMA Voz", r['TMA Voz'], definir_cor_kpi(r['TMA Voz_num'],'TMA Voz'))
                         exibir_card("Pesquisa", r['Pesquisa'], definir_cor_kpi(r['Pesquisa_num'],'Pesquisa'))
 
-        # ---------- EQUIPE ----------
+        # EQUIPE
         with t2:
-
             cols_cards = st.columns(len(METAS_BASE))
 
             for i,(metrica,conf) in enumerate(METAS_BASE.items()):
@@ -282,9 +216,8 @@ else:
                 with cols_cards[i]:
                     exibir_card(metrica,txt,cor)
 
-        # ---------- RANKING ----------
+        # RANKING
         with t3:
-
             metrica_sel = st.selectbox("Métrica", list(METAS_BASE.keys()))
 
             top = df_eq.sort_values(
@@ -295,26 +228,22 @@ else:
             for i,(_,row) in enumerate(top.iterrows()):
                 exibir_card(f"{i+1}º {row[col_op]}", row[metrica_sel], "#28a745")
 
-        # ---------- SAÚDE ----------
+        # SAÚDE
         with t4:
 
             st.subheader("Saúde da Operação")
 
             metrica_sel = st.selectbox("Selecione a Métrica:", list(METAS_BASE.keys()))
-
             conf = METAS_BASE[metrica_sel]
 
             df_saude = df_eq.copy()
 
             def verificar_status(valor):
-
                 if pd.isna(valor):
                     return "Sem dado"
-
                 if conf['menor_melhor']:
                     return "Meta OK" if valor <= conf['valor'] else "Fora da Meta"
-                else:
-                    return "Meta OK" if valor >= conf['valor'] else "Fora da Meta"
+                return "Meta OK" if valor >= conf['valor'] else "Fora da Meta"
 
             df_saude['Status'] = df_saude[f'{metrica_sel}_num'].apply(verificar_status)
 
@@ -330,4 +259,3 @@ else:
             st.dataframe(tabela, use_container_width=True)
 
         st.caption(f"Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
-
