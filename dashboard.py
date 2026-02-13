@@ -5,19 +5,49 @@ import time
 
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
-# ---------- SESSION (OBRIGATÓRIO VIR PRIMEIRO) ----------
-if "servico" not in st.session_state:
+# ---------- SESSION ----------
+if 'servico' not in st.session_state:
     st.session_state.servico = None
 
 # ---------- CSS ----------
 st.markdown("""
 <style>
-.stApp { background-color: #f8f9fa; }
 
-h1 {
-    color: #1f3a5f !important;
+.stApp { 
+    background-color: #f8f9fa; 
 }
 
+/* ===== BOTÕES HUB ===== */
+div.stButton > button {
+    background: linear-gradient(135deg, #0f172a, #1e3a8a);
+    color: white;
+    font-weight: 700;
+    font-size: 18px;
+    height: 65px;
+    border-radius: 12px;
+    border: none;
+    text-align: center;
+    transition: all 0.25s ease;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.15);
+}
+
+div.stButton > button p {
+    text-align: center;
+    width: 100%;
+}
+
+div.stButton > button:hover {
+    transform: translateY(-3px);
+    background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    box-shadow: 0px 8px 18px rgba(0,0,0,0.25);
+}
+
+div.stButton > button:active {
+    transform: translateY(1px);
+    box-shadow: 0px 2px 6px rgba(0,0,0,0.25);
+}
+
+/* Cards */
 .metric-card {
     background-color: white;
     padding: 15px;
@@ -33,6 +63,7 @@ h1 {
     gap: 15px;
     padding-bottom: 20px;
 }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -48,6 +79,7 @@ METAS_BASE = {
 
 MATRICULAS_BACKOFFICE = ['1211819','1210820','1210724','1211110','1211213','1214016','10115858','1212492','1028483']
 
+# ---------- EQUIPES ----------
 EQUIPES = {
     "SAC NDI": ["Equipe Erik","Equipe Davi","Equipe Elaine","Equipe Sayanne","Equipe Beatriz","Equipe Aline","Equipe Marcelo"],
     "SAC PPO": ["Equipe Ellen","Equipe Carla","Equipe Magno","Equipe Alex"],
@@ -95,62 +127,77 @@ def exibir_card(label, valor_display, cor):
 @st.cache_data(ttl=60)
 def carregar_dados_aba(nome_aba):
 
-    SHEET_ID = "1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E"
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={nome_aba.replace(' ','%20')}"
+    try:
+        SHEET_ID = "1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E"
+        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={nome_aba.replace(' ','%20')}"
 
-    df = pd.read_csv(url)
-    df.columns = df.columns.str.strip()
-    cols = {c.lower(): c for c in df.columns}
+        df = pd.read_csv(url)
+        df.columns = df.columns.str.strip()
+        cols = {c.lower(): c for c in df.columns}
 
-    col_op = cols.get('operador', 'Operador')
-    col_mat = cols.get('matricula', 'Matricula')
+        col_op = cols.get('operador', 'Operador')
+        col_mat = cols.get('matricula', 'Matricula')
 
-    for m in METAS_BASE.keys():
-        origem = cols.get(m.lower())
-        if origem:
-            if 'TMA' in m:
-                df[f'{m}_num'] = df[origem].apply(converter_tma)
-            else:
-                df[f'{m}_num'] = df[origem].apply(limpar_valor_numerico)
+        for m in METAS_BASE.keys():
+            origem = cols.get(m.lower())
+            if origem:
+                if 'TMA' in m:
+                    df[f'{m}_num'] = df[origem].apply(converter_tma)
+                else:
+                    df[f'{m}_num'] = df[origem].apply(limpar_valor_numerico)
 
-            df[m] = df[origem].astype(str)
+                df[m] = df[origem].astype(str)
 
-    # Pausa Total
-    col_imp = cols.get('pausa improdutiva')
-    col_prod = cols.get('pausa produtiva')
+        # Pausa Total = Improdutiva + Produtiva
+        col_imp = cols.get('pausa improdutiva')
+        col_prod = cols.get('pausa produtiva')
 
-    if col_imp and col_prod:
-        df['Pausa Total_num'] = (
-            df[col_imp].apply(limpar_valor_numerico).fillna(0) +
-            df[col_prod].apply(limpar_valor_numerico).fillna(0)
-        )
-        df['Pausa Total'] = df['Pausa Total_num'].apply(lambda x: f"{x:.1f}%")
+        if col_imp and col_prod:
 
-    return df, col_op, col_mat
+            df['Pausa Improdutiva_num'] = df[col_imp].apply(limpar_valor_numerico)
+            df['Pausa Produtiva_num'] = df[col_prod].apply(limpar_valor_numerico)
+
+            df['Pausa Total_num'] = (
+                df['Pausa Improdutiva_num'].fillna(0) +
+                df['Pausa Produtiva_num'].fillna(0)
+            )
+
+            df['Pausa Total'] = df['Pausa Total_num'].apply(lambda x: f"{x:.1f}%")
+
+        return df, col_op, col_mat
+
+    except:
+        return pd.DataFrame(), None, None
+
 
 # ---------- HUB ----------
 if st.session_state.servico is None:
 
     st.markdown("""
-    <div class="header-container">
-        <div style="font-size:40px;">🚀</div>
-        <h1 style="margin:0;">Portal de Performance NDI</h1>
-    </div>
+        <div class="header-container">
+            <div style="font-size: 40px;">🚀</div>
+            <h1 style="margin: 0;">Portal de Performance NDI</h1>
+        </div>
     """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
 
     c1,c2,c3 = st.columns(3)
 
-    if c1.button("SAC NDI", use_container_width=True, type="primary"):
-        st.session_state.servico = "SAC NDI"
-        st.rerun()
+    with c1:
+        if st.button("SAC NDI", use_container_width=True):
+            st.session_state.servico = "SAC NDI"
+            st.rerun()
 
-    if c2.button("SAC PPO", use_container_width=True, type="primary"):
-        st.session_state.servico = "SAC PPO"
-        st.rerun()
+    with c2:
+        if st.button("SAC PPO", use_container_width=True):
+            st.session_state.servico = "SAC PPO"
+            st.rerun()
 
-    if c3.button("SAC HAPVIDA", use_container_width=True, type="primary"):
-        st.session_state.servico = "SAC HAPVIDA"
-        st.rerun()
+    with c3:
+        if st.button("SAC HAPVIDA", use_container_width=True):
+            st.session_state.servico = "SAC HAPVIDA"
+            st.rerun()
 
 # ---------- DASHBOARD ----------
 else:
@@ -160,7 +207,6 @@ else:
         st.markdown(f"### {st.session_state.servico}")
 
         lista = ["Selecione..."] + EQUIPES.get(st.session_state.servico, [])
-
         supervisor = st.selectbox("Supervisor:", lista)
 
         if st.button("Voltar"):
@@ -170,15 +216,19 @@ else:
     if supervisor != "Selecione...":
 
         with st.spinner("Carregando dados..."):
-            time.sleep(0.5)
+            time.sleep(0.6)
             df, col_op, col_mat = carregar_dados_aba(supervisor)
+
+        if df.empty:
+            st.warning("Nenhum dado encontrado.")
+            st.stop()
 
         df_eq = df[(df[col_op].astype(str).str.upper()!='EQUIPE') &
                    (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE))].copy()
 
         t1,t2,t3,t4 = st.tabs(["Individual","Equipe","Ranking","Saúde"])
 
-        # INDIVIDUAL
+        # ---------- INDIVIDUAL ----------
         with t1:
 
             mat = st.text_input("Matrícula")
@@ -204,8 +254,9 @@ else:
                         exibir_card("TMA Voz", r['TMA Voz'], definir_cor_kpi(r['TMA Voz_num'],'TMA Voz'))
                         exibir_card("Pesquisa", r['Pesquisa'], definir_cor_kpi(r['Pesquisa_num'],'Pesquisa'))
 
-        # EQUIPE
+        # ---------- EQUIPE ----------
         with t2:
+
             cols_cards = st.columns(len(METAS_BASE))
 
             for i,(metrica,conf) in enumerate(METAS_BASE.items()):
@@ -216,8 +267,9 @@ else:
                 with cols_cards[i]:
                     exibir_card(metrica,txt,cor)
 
-        # RANKING
+        # ---------- RANKING ----------
         with t3:
+
             metrica_sel = st.selectbox("Métrica", list(METAS_BASE.keys()))
 
             top = df_eq.sort_values(
@@ -228,22 +280,26 @@ else:
             for i,(_,row) in enumerate(top.iterrows()):
                 exibir_card(f"{i+1}º {row[col_op]}", row[metrica_sel], "#28a745")
 
-        # SAÚDE
+        # ---------- SAÚDE ----------
         with t4:
 
             st.subheader("Saúde da Operação")
 
             metrica_sel = st.selectbox("Selecione a Métrica:", list(METAS_BASE.keys()))
+
             conf = METAS_BASE[metrica_sel]
 
             df_saude = df_eq.copy()
 
             def verificar_status(valor):
+
                 if pd.isna(valor):
                     return "Sem dado"
+
                 if conf['menor_melhor']:
                     return "Meta OK" if valor <= conf['valor'] else "Fora da Meta"
-                return "Meta OK" if valor >= conf['valor'] else "Fora da Meta"
+                else:
+                    return "Meta OK" if valor >= conf['valor'] else "Fora da Meta"
 
             df_saude['Status'] = df_saude[f'{metrica_sel}_num'].apply(verificar_status)
 
