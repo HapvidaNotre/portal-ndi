@@ -247,3 +247,4 @@ else:
             )
 
             st.dataframe(tabela, use_container_width=True)
+
