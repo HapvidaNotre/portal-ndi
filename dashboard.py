@@ -8,18 +8,72 @@ st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_i
 # ---------- CSS ----------
 st.markdown("""
 <style>
-.stApp { background-color: #f8f9fa; }
+    /* Fundo da aplicação */
+    .stApp { 
+        background-color: #f8f9fa; 
+    }
 
-.metric-card {
-    background-color: white;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 2px 2px 8px rgba(0,0,0,0.05);
-    border-left: 6px solid;
-    margin-bottom: 10px;
-}
+    /* FORÇA A COR DO TÍTULO PARA ESCURO (Correção do Layout) */
+    h1 {
+        color: #1f3a5f !important; /* Azul escuro */
+        padding-top: 0px;
+    }
+
+    /* Estilo dos Cards */
+    .metric-card {
+        background-color: white;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 2px 2px 8px rgba(0,0,0,0.05);
+        border-left: 6px solid;
+        margin-bottom: 10px;
+    }
+    
+    /* Aumenta fonte das métricas */
+    div[data-testid="stMetricValue"] {
+        font-size: 1.2rem;
+    }
+    
+    /* Centraliza verticalmente o logo e titulo */
+    .header-container {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding-bottom: 20px;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# ... (Mantenha suas variáveis METAS, MATRICULAS, EQUIPES e FUNÇÕES aqui) ...
+
+# ---------- HUB (TELA INICIAL) ----------
+if st.session_state.servico is None:
+    
+    # Container para alinhar Logo + Título
+    st.markdown("""
+        <div class="header-container">
+            <div style="font-size: 40px;">🚀</div>
+            <h1 style="margin: 0;">Portal de Performance NDI</h1>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    c1, c2, c3 = st.columns(3)
+    
+    # Adicionado type="primary" em TODOS para ficarem uniformes e visíveis
+    with c1:
+        if st.button("SAC NDI", use_container_width=True, type="primary"):
+            st.session_state.servico = "SAC NDI"
+            st.rerun()
+    with c2:
+        if st.button("SAC PPO", use_container_width=True, type="primary"):
+            st.session_state.servico = "SAC PPO"
+            st.rerun()
+    with c3:
+        if st.button("SAC HAPVIDA", use_container_width=True, type="primary"):
+            st.session_state.servico = "SAC HAPVIDA"
+            st.rerun()
 
 # ---------- METAS ----------
 METAS_BASE = {
@@ -276,3 +330,4 @@ else:
             st.dataframe(tabela, use_container_width=True)
 
         st.caption(f"Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+
