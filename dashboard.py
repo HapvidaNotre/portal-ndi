@@ -9,41 +9,31 @@ st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_i
 st.markdown("""
 <style>
 
-.stApp { 
-    background-color: #f8f9fa; 
-}
+.stApp { background-color: #f8f9fa; }
 
-/* ===== TITULO CENTRAL ===== */
-.titulo-central {
+/* Título central */
+.main-title {
     text-align: center;
-    font-size: 42px;
-    font-weight: 800;
     color: #1f3a5f;
-    margin-bottom: 40px;
+    font-weight: 800;
+    margin-bottom: 25px;
 }
 
-/* ===== BOTÕES ===== */
+/* Botões HUB */
 div.stButton > button {
-    background: linear-gradient(135deg, #0f172a, #1e3a8a);
+    background-color: #1e3a8a;
     color: white;
-    font-weight: 700;
-    font-size: 18px;
-    height: 65px;
+    height: 110px;
+    font-size: 20px;
+    font-weight: bold;
     border-radius: 12px;
     border: none;
-    text-align: center;
-    transition: all 0.25s ease;
-    box-shadow: 0px 4px 12px rgba(0,0,0,0.15);
+    transition: 0.3s;
 }
 
 div.stButton > button:hover {
-    transform: translateY(-3px);
-    background: linear-gradient(135deg, #1e3a8a, #2563eb);
-    box-shadow: 0px 8px 18px rgba(0,0,0,0.25);
-}
-
-div.stButton > button:active {
-    transform: translateY(1px);
+    background-color: #2563eb;
+    transform: scale(1.05);
 }
 
 /* Cards */
@@ -137,13 +127,15 @@ def carregar_dados_aba(nome_aba):
                     df[f'{m}_num'] = df[origem].apply(converter_tma)
                 else:
                     df[f'{m}_num'] = df[origem].apply(limpar_valor_numerico)
+
                 df[m] = df[origem].astype(str)
 
-        # PAUSA TOTAL
+        # ---- PAUSA TOTAL ----
         col_imp = cols.get('pausa improdutiva')
         col_prod = cols.get('pausa produtiva')
 
         if col_imp and col_prod:
+
             df['Pausa Improdutiva_num'] = df[col_imp].apply(limpar_valor_numerico)
             df['Pausa Produtiva_num'] = df[col_prod].apply(limpar_valor_numerico)
 
@@ -161,30 +153,30 @@ def carregar_dados_aba(nome_aba):
         return pd.DataFrame(), None, None
 
 # ---------- SESSION ----------
-if 'servico' not in st.session_state:
+if "servico" not in st.session_state:
     st.session_state.servico = None
+
+if "aba_ativa" not in st.session_state:
+    st.session_state.aba_ativa = "Individual"
 
 # ---------- HUB ----------
 if st.session_state.servico is None:
 
-    st.markdown('<div class="titulo-central">🚀 Portal de Performance NDI</div>', unsafe_allow_html=True)
+    st.markdown("<h1 class='main-title'>🚀 Portal de Performance NDI</h1>", unsafe_allow_html=True)
 
     c1,c2,c3 = st.columns(3)
 
-    with c1:
-        if st.button("SAC NDI", use_container_width=True):
-            st.session_state.servico = "SAC NDI"
-            st.rerun()
+    if c1.button("SAC NDI", use_container_width=True):
+        st.session_state.servico = "SAC NDI"
+        st.rerun()
 
-    with c2:
-        if st.button("SAC PPO", use_container_width=True):
-            st.session_state.servico = "SAC PPO"
-            st.rerun()
+    if c2.button("SAC PPO", use_container_width=True):
+        st.session_state.servico = "SAC PPO"
+        st.rerun()
 
-    with c3:
-        if st.button("SAC HAPVIDA", use_container_width=True):
-            st.session_state.servico = "SAC HAPVIDA"
-            st.rerun()
+    if c3.button("SAC HAPVIDA", use_container_width=True):
+        st.session_state.servico = "SAC HAPVIDA"
+        st.rerun()
 
 # ---------- DASHBOARD ----------
 else:
@@ -207,26 +199,24 @@ else:
             df, col_op, col_mat = carregar_dados_aba(supervisor)
 
         if df.empty:
-            st.warning("Nenhum dado encontrado.")
             st.stop()
 
         df_eq = df[(df[col_op].astype(str).str.upper()!='EQUIPE') &
                    (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE))].copy()
 
-        # ---------- CONTROLE DE ABAS ----------
-        if "aba_ativa" not in st.session_state:
-            st.session_state.aba_ativa = "Individual"
-
+        # ---------- CONTROLE ABAS ----------
         abas = ["Individual","Equipe","Ranking","Saúde"]
 
         aba = st.radio(
-            "",
+            "Navegação",
             abas,
             horizontal=True,
-            index=abas.index(st.session_state.aba_ativa)
+            index=abas.index(st.session_state.aba_ativa),
+            label_visibility="collapsed"
         )
 
         st.session_state.aba_ativa = aba
+        st.divider()
 
         # ---------- INDIVIDUAL ----------
         if aba == "Individual":
@@ -255,7 +245,7 @@ else:
                         exibir_card("Pesquisa", r['Pesquisa'], definir_cor_kpi(r['Pesquisa_num'],'Pesquisa'))
 
         # ---------- EQUIPE ----------
-        if aba == "Equipe":
+        elif aba == "Equipe":
 
             cols_cards = st.columns(len(METAS_BASE))
 
@@ -268,9 +258,13 @@ else:
                     exibir_card(metrica,txt,cor)
 
         # ---------- RANKING ----------
-        if aba == "Ranking":
+        elif aba == "Ranking":
 
-            metrica_sel = st.selectbox("Métrica", list(METAS_BASE.keys()))
+            metrica_sel = st.selectbox(
+                "Métrica",
+                list(METAS_BASE.keys()),
+                key="ranking_metrica"
+            )
 
             top = df_eq.sort_values(
                 by=f'{metrica_sel}_num',
@@ -281,20 +275,22 @@ else:
                 exibir_card(f"{i+1}º {row[col_op]}", row[metrica_sel], "#28a745")
 
         # ---------- SAÚDE ----------
-        if aba == "Saúde":
+        elif aba == "Saúde":
 
             st.subheader("Saúde da Operação")
 
-            metrica_sel = st.selectbox("Selecione a Métrica:", list(METAS_BASE.keys()))
+            metrica_sel = st.selectbox(
+                "Selecione a Métrica:",
+                list(METAS_BASE.keys()),
+                key="saude_metrica"
+            )
 
             conf = METAS_BASE[metrica_sel]
-
             df_saude = df_eq.copy()
 
             def verificar_status(valor):
                 if pd.isna(valor):
                     return "Sem dado"
-
                 if conf['menor_melhor']:
                     return "Meta OK" if valor <= conf['valor'] else "Fora da Meta"
                 else:
