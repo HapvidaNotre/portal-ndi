@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+from datetime import datetime
+import time
 
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
@@ -30,10 +31,14 @@ METAS_BASE = {
     'Pausa Total': {'valor': 21.75, 'margem': 3.0, 'menor_melhor': True, 'unidade': '%'}
 }
 
-MATRICULAS_BACKOFFICE = [
-    '1211819','1210820','1210724','1211110',
-    '1211213','1214016','10115858','1212492','1028483'
-]
+MATRICULAS_BACKOFFICE = ['1211819','1210820','1210724','1211110','1211213','1214016','10115858','1212492','1028483']
+
+# ---------- EQUIPES ----------
+EQUIPES = {
+    "SAC NDI": ["Equipe Erik","Equipe Davi","Equipe Elaine","Equipe Sayanne","Equipe Beatriz","Equipe Aline","Equipe Marcelo"],
+    "SAC PPO": ["Equipe Ellen","Equipe Carla","Equipe Magno","Equipe Alex"],
+    "SAC HAPVIDA": ["Equipe Hapvida"]
+}
 
 # ---------- FUNÇÕES ----------
 def limpar_valor_numerico(valor):
@@ -54,7 +59,8 @@ def converter_tma(valor):
         return None
 
 def definir_cor_kpi(valor_num, metrica):
-    if valor_num is None: return "#999"
+    if valor_num is None or pd.isna(valor_num):
+        return "#999"
 
     conf = METAS_BASE[metrica]
     m, tol, menor = conf['valor'], conf['margem'], conf['menor_melhor']
@@ -75,65 +81,83 @@ def exibir_card(label, valor_display, cor):
 @st.cache_data(ttl=60)
 def carregar_dados_aba(nome_aba):
 
-    SHEET_ID = "1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E"
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={nome_aba.replace(' ','%20')}"
-    df = pd.read_csv(url)
+    try:
+        SHEET_ID = "1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E"
+        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={nome_aba.replace(' ','%20')}"
 
-    df.columns = df.columns.str.strip()
-    cols = {c.lower(): c for c in df.columns}
+        df = pd.read_csv(url)
+        df.columns = df.columns.str.strip()
+        cols = {c.lower(): c for c in df.columns}
 
-    col_op = cols.get('operador', 'Operador')
-    col_mat = cols.get('matricula', 'Matricula')
+        col_op = cols.get('operador', 'Operador')
+        col_mat = cols.get('matricula', 'Matricula')
 
-    for m in METAS_BASE.keys():
-        origem = cols.get(m.lower())
+        # -------- METRICAS --------
+        for m in METAS_BASE.keys():
+            origem = cols.get(m.lower())
+            if origem:
+                if 'TMA' in m:
+                    df[f'{m}_num'] = df[origem].apply(converter_tma)
+                else:
+                    df[f'{m}_num'] = df[origem].apply(limpar_valor_numerico)
 
-        if origem:
-            if 'TMA' in m:
-                df[f'{m}_num'] = df[origem].apply(converter_tma)
-            else:
-                df[f'{m}_num'] = df[origem].apply(limpar_valor_numerico)
+                df[m] = df[origem].astype(str)
 
-            df[m] = df[origem].astype(str)
+        # -------- PAUSA TOTAL CORRIGIDA --------
+        col_imp = cols.get('pausa improdutiva')
+        col_prod = cols.get('pausa produtiva')
 
-    # ----- PAUSA TOTAL = IMPRODUTIVA + PRODUTIVA -----
-    col_imp = cols.get('pausa improdutiva')
-    col_prod = cols.get('pausa produtiva')
+        if col_imp and col_prod:
 
-    if col_imp and col_prod:
-        df['Pausa Improdutiva_num'] = df[col_imp].apply(limpar_valor_numerico)
-        df['Pausa Produtiva_num'] = df[col_prod].apply(limpar_valor_numerico)
+            df['Pausa Improdutiva_num'] = df[col_imp].apply(limpar_valor_numerico)
+            df['Pausa Produtiva_num'] = df[col_prod].apply(limpar_valor_numerico)
 
-        df['Pausa Total_num'] = (
-            df['Pausa Improdutiva_num'].fillna(0)
-            + df['Pausa Produtiva_num'].fillna(0)
-        )
+            df['Pausa Total_num'] = (
+                df['Pausa Improdutiva_num'].fillna(0) +
+                df['Pausa Produtiva_num'].fillna(0)
+            )
 
-        df['Pausa Total'] = df['Pausa Total_num'].apply(lambda x: f"{x:.1f}%")
+            df['Pausa Total'] = df['Pausa Total_num'].apply(lambda x: f"{x:.1f}%")
 
-    return df, col_op, col_mat
+        return df, col_op, col_mat
 
-# ---------- HUB ----------
+    except Exception as e:
+        st.error(f"Erro ao carregar dados: {e}")
+        return pd.DataFrame(), None, None
+
+# ---------- SESSION ----------
 if 'servico' not in st.session_state:
     st.session_state.servico = None
 
+# ---------- HUB ----------
 if st.session_state.servico is None:
 
-    st.title("🚀 Portal de Performance NDI")
+    col_logo, col_titulo = st.columns([1,8])
+
+    with col_logo:
+        st.markdown("## 🚀")
+
+    with col_titulo:
+        st.markdown("<h1>Portal de Performance NDI</h1>", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
 
     c1,c2,c3 = st.columns(3)
 
-    if c1.button("SAC NDI", use_container_width=True):
-        st.session_state.servico = "SAC NDI"
-        st.rerun()
+    with c1:
+        if st.button("SAC NDI", use_container_width=True):
+            st.session_state.servico = "SAC NDI"
+            st.rerun()
 
-    if c2.button("SAC PPO", use_container_width=True):
-        st.session_state.servico = "SAC PPO"
-        st.rerun()
+    with c2:
+        if st.button("SAC PPO", use_container_width=True):
+            st.session_state.servico = "SAC PPO"
+            st.rerun()
 
-    if c3.button("SAC HAPVIDA", use_container_width=True):
-        st.session_state.servico = "SAC HAPVIDA"
-        st.rerun()
+    with c3:
+        if st.button("SAC HAPVIDA", use_container_width=True):
+            st.session_state.servico = "SAC HAPVIDA"
+            st.rerun()
 
 # ---------- DASHBOARD ----------
 else:
@@ -142,25 +166,7 @@ else:
 
         st.markdown(f"### {st.session_state.servico}")
 
-        # ✅ CORREÇÃO DAS EQUIPES
-        if st.session_state.servico == "SAC NDI":
-            lista = [
-                "Selecione...",
-                "Equipe Erik","Equipe Davi","Equipe Elaine","Equipe Sayanne",
-                "Equipe Beatriz","Equipe Aline","Equipe Marcelo"
-            ]
-
-        elif st.session_state.servico == "SAC PPO":
-            lista = [
-                "Selecione...",
-                "Equipe Ellen","Equipe Carla","Equipe Magno","Equipe Alex"
-            ]
-
-        elif st.session_state.servico == "SAC HAPVIDA":
-            lista = [
-                "Selecione...",
-                "Equipe Hapvida"
-            ]
+        lista = ["Selecione..."] + EQUIPES.get(st.session_state.servico, [])
 
         supervisor = st.selectbox("Supervisor:", lista)
 
@@ -170,12 +176,16 @@ else:
 
     if supervisor != "Selecione...":
 
-        df, col_op, col_mat = carregar_dados_aba(supervisor)
+        with st.spinner("Carregando dados..."):
+            time.sleep(0.8)
+            df, col_op, col_mat = carregar_dados_aba(supervisor)
 
-        df_eq = df[
-            (df[col_op].astype(str).str.upper()!='EQUIPE') &
-            (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE))
-        ].copy()
+        if df.empty:
+            st.warning("Nenhum dado encontrado.")
+            st.stop()
+
+        df_eq = df[(df[col_op].astype(str).str.upper()!='EQUIPE') &
+                   (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE))].copy()
 
         t1,t2,t3,t4 = st.tabs(["Individual","Equipe","Ranking","Saúde"])
 
@@ -237,11 +247,13 @@ else:
             st.subheader("Saúde da Operação")
 
             metrica_sel = st.selectbox("Selecione a Métrica:", list(METAS_BASE.keys()))
+
             conf = METAS_BASE[metrica_sel]
 
             df_saude = df_eq.copy()
 
             def verificar_status(valor):
+
                 if pd.isna(valor):
                     return "Sem dado"
 
@@ -258,10 +270,9 @@ else:
             )
 
             tabela = df_saude[[col_mat, 'Valor', 'Status']].rename(
-                columns={
-                    col_mat: 'Matrícula',
-                    'Valor': metrica_sel
-                }
+                columns={col_mat: 'Matrícula','Valor': metrica_sel}
             )
 
             st.dataframe(tabela, use_container_width=True)
+
+        st.caption(f"Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
