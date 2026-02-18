@@ -113,7 +113,6 @@ def exibir_card(label, valor_display, cor):
 # ---------- CARREGAMENTO ----------
 @st.cache_data(ttl=60)
 def carregar_dados_aba(nome_aba):
-
     SHEET_ID = "1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E"
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={nome_aba.replace(' ','%20')}"
     df = pd.read_csv(url)
@@ -125,18 +124,14 @@ def carregar_dados_aba(nome_aba):
     col_mat = cols.get('matricula', 'Matricula')
 
     for m in METAS_BASE.keys():
-        # Usa buscar_coluna para encontrar o nome real da coluna com aliases
         origem = buscar_coluna(cols, m)
-
         if origem:
             if 'TMA' in m:
                 df[f'{m}_num'] = df[origem].apply(converter_tma)
             else:
                 df[f'{m}_num'] = df[origem].apply(limpar_valor_numerico)
-
             df[m] = df[origem].astype(str)
         else:
-            # Coluna não encontrada: preenche com None para não quebrar o app
             df[f'{m}_num'] = None
             df[m] = '---'
 
@@ -158,39 +153,29 @@ if 'servico' not in st.session_state:
     st.session_state.servico = None
 
 if st.session_state.servico is None:
-
     st.markdown("<h1 style='text-align:center;'>🚀 Portal de Performance NDI</h1>", unsafe_allow_html=True)
-
     c1, c2, c3 = st.columns(3)
-
     if c1.button("SAC NDI", use_container_width=True):
         st.session_state.servico = "SAC NDI"
         st.rerun()
-
     if c2.button("SAC PPO", use_container_width=True):
         st.session_state.servico = "SAC PPO"
         st.rerun()
-
     if c3.button("SAC HAPVIDA", use_container_width=True):
         st.session_state.servico = "SAC HAPVIDA"
         st.rerun()
 
 # ---------- DASHBOARD ----------
 else:
-
     with st.sidebar:
-
         st.markdown(f"### {st.session_state.servico}")
-
         if st.session_state.servico == "SAC NDI":
             lista = ["Selecione...", "Equipe Erik","Equipe Davi","Equipe Elaine","Equipe Sayanne","Equipe Beatriz","Equipe Aline","Equipe Marcelo"]
-
         elif st.session_state.servico == "SAC PPO":
             lista = ["Selecione...", "Equipe Ellen","Equipe Carla","Equipe Magno","Equipe Alex"]
-
         else:
             lista = ["Selecione...", "Equipe Hapvida"]
-
+        
         supervisor = st.selectbox("Supervisor:", lista)
 
         if st.button("Voltar"):
@@ -198,10 +183,12 @@ else:
             st.rerun()
 
     if supervisor != "Selecione...":
-
         df, col_op, col_mat = carregar_dados_aba(supervisor)
 
-        # Filtra linhas de totais/cabeçalhos e backoffice
+        # Captura a linha de resumo (Média/Equipe) que já vem da planilha
+        df_resumo = df[df[col_op].astype(str).str.upper().str.contains('EQUIPE|TOTAL|MÉDIA|MEDIA', na=False)].copy()
+
+        # Filtra apenas operadores para Ranking e Individual
         df_eq = df[
             (~df[col_op].astype(str).str.upper().str.contains('EQUIPE|TOTAL|MÉDIA|MEDIA|SUPERVISOR', na=False)) &
             (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE))
@@ -209,115 +196,92 @@ else:
 
         # ---------- MENU SUPERIOR ----------
         st.markdown("### 📊 Painel de Análise")
-
         if "aba_ativa" not in st.session_state:
             st.session_state.aba_ativa = "Individual"
 
         c1, c2, c3, c4 = st.columns(4)
-
         if c1.button("Individual", use_container_width=True):
             st.session_state.aba_ativa = "Individual"
             st.rerun()
-
         if c2.button("Equipe", use_container_width=True):
             st.session_state.aba_ativa = "Equipe"
             st.rerun()
-
         if c3.button("Ranking", use_container_width=True):
             st.session_state.aba_ativa = "Ranking"
             st.rerun()
-
         if c4.button("Saúde", use_container_width=True):
             st.session_state.aba_ativa = "Saúde"
             st.rerun()
 
         aba = st.session_state.aba_ativa
-
         st.divider()
 
         # ---------- INDIVIDUAL ----------
         if aba == "Individual":
-
             mat = st.text_input("Matrícula")
-
             if mat:
                 res = df[df[col_mat].astype(str) == mat]
-
                 if not res.empty:
                     r = res.iloc[0]
-
                     st.subheader(r[col_op])
-
                     c1, c2, c3 = st.columns(3)
-
                     with c1:
-                        exibir_card("Aderência",      r['Aderencia'],   definir_cor_kpi(r['Aderencia_num'],   'Aderencia'))
-                        exibir_card("Silêncio",        r['Silencio'],    definir_cor_kpi(r['Silencio_num'],    'Silencio'))
-
+                        exibir_card("Aderência", r['Aderencia'], definir_cor_kpi(r['Aderencia_num'], 'Aderencia'))
+                        exibir_card("Silêncio", r['Silencio'], definir_cor_kpi(r['Silencio_num'], 'Silencio'))
                     with c2:
-                        exibir_card("Resolutividade",  r['Resolutividade'], definir_cor_kpi(r['Resolutividade_num'], 'Resolutividade'))
-                        exibir_card("Pausa Total",     r['Pausa Total'], definir_cor_kpi(r['Pausa Total_num'], 'Pausa Total'))
-
+                        exibir_card("Resolutividade", r['Resolutividade'], definir_cor_kpi(r['Resolutividade_num'], 'Resolutividade'))
+                        exibir_card("Pausa Total", r['Pausa Total'], definir_cor_kpi(r['Pausa Total_num'], 'Pausa Total'))
                     with c3:
-                        exibir_card("TMA Voz",         r['TMA Voz'],     definir_cor_kpi(r['TMA Voz_num'],    'TMA Voz'))
-                        exibir_card("Pesquisa",        r['Pesquisa'],    definir_cor_kpi(r['Pesquisa_num'],   'Pesquisa'))
-
+                        exibir_card("TMA Voz", r['TMA Voz'], definir_cor_kpi(r['TMA Voz_num'], 'TMA Voz'))
+                        exibir_card("Pesquisa", r['Pesquisa'], definir_cor_kpi(r['Pesquisa_num'], 'Pesquisa'))
                 else:
                     st.warning("Matrícula não encontrada.")
 
         # ---------- EQUIPE ----------
         if aba == "Equipe":
-
             cols_cards = st.columns(len(METAS_BASE))
-
-            for i, (metrica, conf) in enumerate(METAS_BASE.items()):
-                # Usa apenas linhas com valor numérico válido para calcular a média
-                serie = df_eq[f'{metrica}_num'].dropna()
-                media = serie.mean() if not serie.empty else None
-                txt = f"{media:.1f}{conf['unidade']}" if media is not None else "---"
-                cor = definir_cor_kpi(media, metrica)
-
-                with cols_cards[i]:
-                    exibir_card(metrica, txt, cor)
+            
+            if not df_resumo.empty:
+                linha_oficial = df_resumo.iloc[0]
+                for i, (metrica, conf) in enumerate(METAS_BASE.items()):
+                    # Puxa o valor formatado e o numérico direto da linha oficial da planilha
+                    valor_txt = linha_oficial[metrica]
+                    valor_num = linha_oficial[f'{metrica}_num']
+                    cor = definir_cor_kpi(valor_num, metrica)
+                    
+                    with cols_cards[i]:
+                        exibir_card(metrica, valor_txt, cor)
+            else:
+                st.warning("Não foi possível localizar a linha de média/equipe na planilha.")
 
         # ---------- RANKING ----------
         if aba == "Ranking":
-
             metrica_sel = st.selectbox("Métrica", list(METAS_BASE.keys()))
-
             top = df_eq.dropna(subset=[f'{metrica_sel}_num']).sort_values(
                 by=f'{metrica_sel}_num',
                 ascending=METAS_BASE[metrica_sel]['menor_melhor']
             ).head(5)
-
             for i, (_, row) in enumerate(top.iterrows()):
                 exibir_card(f"{i+1}º {row[col_op]}", row[metrica_sel], "#28a745")
 
         # ---------- SAÚDE ----------
         if aba == "Saúde":
-
             metrica_sel = st.selectbox("Selecione a Métrica:", list(METAS_BASE.keys()))
             conf = METAS_BASE[metrica_sel]
-
             df_saude = df_eq.copy()
 
             def verificar_status(valor):
-                if pd.isna(valor):
-                    return "Sem dado"
+                if pd.isna(valor): return "Sem dado"
                 if conf['menor_melhor']:
                     return "Meta OK" if valor <= conf['valor'] else "Fora da Meta"
-                else:
-                    return "Meta OK" if valor >= conf['valor'] else "Fora da Meta"
+                return "Meta OK" if valor >= conf['valor'] else "Fora da Meta"
 
             df_saude['Status'] = df_saude[f'{metrica_sel}_num'].apply(verificar_status)
-
             df_saude['Valor'] = df_saude.apply(
                 lambda x: x[metrica_sel] if pd.notna(x[f'{metrica_sel}_num']) else "---",
                 axis=1
             )
-
             tabela = df_saude[[col_mat, 'Valor', 'Status']].rename(
                 columns={col_mat: 'Matrícula', 'Valor': metrica_sel}
             )
-
             st.dataframe(tabela, use_container_width=True)
