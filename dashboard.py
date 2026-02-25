@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import time
 
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
@@ -42,8 +43,55 @@ div.stButton > button:hover {
     margin-bottom: 10px;
 }
 
+/* SPLASH */
+.splash-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 0 40px 0;
+}
+
+.splash-title {
+    color: #0b2a6f;
+    font-size: 26px;
+    font-weight: 800;
+    margin-top: 20px;
+    letter-spacing: 1px;
+}
+
+.splash-sub {
+    color: #888;
+    font-size: 14px;
+    margin-top: 6px;
+}
+
 </style>
 """, unsafe_allow_html=True)
+
+# ---------- SPLASH SCREEN ----------
+if 'splash_done' not in st.session_state:
+    st.session_state.splash_done = False
+
+if not st.session_state.splash_done:
+    col_left, col_center, col_right = st.columns([1, 2, 1])
+    with col_center:
+        st.markdown("<div class='splash-container'>", unsafe_allow_html=True)
+        st.image(
+            "https://raw.githubusercontent.com/HapvidaNotre/portal-ndi/main/logo-hapvida-escudo-2048.png",
+            width=160
+        )
+        st.markdown("<p class='splash-title'>Portal de Performance NDI</p>", unsafe_allow_html=True)
+        st.markdown("<p class='splash-sub'>Carregando...</p>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        barra = st.progress(0)
+        for i in range(1, 101):
+            time.sleep(0.02)  # 2 segundos no total
+            barra.progress(i)
+
+    st.session_state.splash_done = True
+    st.rerun()
 
 # ---------- METAS ----------
 METAS_BASE = {
@@ -244,7 +292,6 @@ else:
             if not df_resumo.empty:
                 linha_oficial = df_resumo.iloc[0]
                 for i, (metrica, conf) in enumerate(METAS_BASE.items()):
-                    # Puxa o valor formatado e o numérico direto da linha oficial da planilha
                     valor_txt = linha_oficial[metrica]
                     valor_num = linha_oficial[f'{metrica}_num']
                     cor = definir_cor_kpi(valor_num, metrica)
