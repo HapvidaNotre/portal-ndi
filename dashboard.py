@@ -74,20 +74,25 @@ if 'splash_done' not in st.session_state:
     st.session_state.splash_done = False
 
 if not st.session_state.splash_done:
+    st.markdown("""
+    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;
+                padding: 80px 0 20px 0; text-align:center;">
+        <img src="https://raw.githubusercontent.com/HapvidaNotre/portal-ndi/main/logo-hapvida-escudo-2048.png"
+             width="160" style="margin-bottom:20px;" />
+        <p style="background: linear-gradient(135deg, #0b2a6f, #1a6fc4);
+                  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+                  font-size:28px; font-weight:900; letter-spacing:1px; margin:0;">
+            Portal de Performance NDI
+        </p>
+        <p style="color:#888; font-size:14px; margin-top:8px;">Carregando...</p>
+    </div>
+    """, unsafe_allow_html=True)
+
     col_left, col_center, col_right = st.columns([1, 2, 1])
     with col_center:
-        st.markdown("<div class='splash-container'>", unsafe_allow_html=True)
-        st.image(
-            "https://raw.githubusercontent.com/HapvidaNotre/portal-ndi/main/logo-hapvida-escudo-2048.png",
-            width=160
-        )
-        st.markdown("<p class='splash-title'>Portal de Performance NDI</p>", unsafe_allow_html=True)
-        st.markdown("<p class='splash-sub'>Carregando...</p>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
         barra = st.progress(0)
         for i in range(1, 101):
-            time.sleep(0.02)  # 2 segundos no total
+            time.sleep(0.02)
             barra.progress(i)
 
     st.session_state.splash_done = True
@@ -201,7 +206,15 @@ if 'servico' not in st.session_state:
     st.session_state.servico = None
 
 if st.session_state.servico is None:
-    st.markdown("<h1 style='text-align:center;'>🚀 Portal de Performance NDI</h1>", unsafe_allow_html=True)
+    st.markdown("""
+    <h1 style='text-align:center;
+               background: linear-gradient(135deg, #0b2a6f, #1a6fc4);
+               -webkit-background-clip: text;
+               -webkit-text-fill-color: transparent;
+               font-size:36px; font-weight:900;'>
+        🚀 Portal de Performance NDI
+    </h1>
+    """, unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
     if c1.button("SAC NDI", use_container_width=True):
         st.session_state.servico = "SAC NDI"
