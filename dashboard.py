@@ -207,12 +207,13 @@ if 'servico' not in st.session_state:
 
 if st.session_state.servico is None:
     st.markdown("""
-    <h1 style='text-align:center;
-               background: linear-gradient(135deg, #0b2a6f, #1a6fc4);
-               -webkit-background-clip: text;
-               -webkit-text-fill-color: transparent;
-               font-size:36px; font-weight:900;'>
-        🚀 Portal de Performance NDI
+    <h1 style='text-align:center; font-size:36px; font-weight:900; margin:0;'>
+        <span style='-webkit-text-fill-color: initial;'>🚀</span>
+        <span style='background: linear-gradient(135deg, #0b2a6f, #1a6fc4);
+                     -webkit-background-clip: text;
+                     -webkit-text-fill-color: transparent;'>
+            Portal de Performance NDI
+        </span>
     </h1>
     """, unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
