@@ -163,13 +163,8 @@ def exibir_card(label, valor_display, cor):
     </div>
     """, unsafe_allow_html=True)
 
-# ---------- CARREGAMENTO ----------
-@st.cache_data(ttl=60)
-def carregar_dados_aba(nome_aba):
-    SHEET_ID = "1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E"
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={nome_aba.replace(' ','%20')}"
-    df = pd.read_csv(url)
-
+# ---------- PROCESSAMENTO COMUM ----------
+def _processar_df(df):
     df.columns = df.columns.str.strip()
     cols = {c.lower(): c for c in df.columns}
 
@@ -188,10 +183,8 @@ def carregar_dados_aba(nome_aba):
             df[f'{m}_num'] = None
             df[m] = '---'
 
-    # ----- PAUSA TOTAL -----
     col_imp  = cols.get('pausa improdutiva')
     col_prod = cols.get('pausa produtiva')
-
     if col_imp and col_prod:
         df['Pausa Total_num'] = (
             df[col_imp].apply(limpar_valor_numerico).fillna(0)
@@ -200,6 +193,102 @@ def carregar_dados_aba(nome_aba):
         df['Pausa Total'] = df['Pausa Total_num'].apply(lambda x: f"{x:.1f}%")
 
     return df, col_op, col_mat
+
+# ---------- CARREGAMENTO (Google Sheets) ----------
+@st.cache_data(ttl=60)
+def carregar_dados_aba(nome_aba):
+    SHEET_ID = "1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E"
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={nome_aba.replace(' ','%20')}"
+    df = pd.read_csv(url)
+    return _processar_df(df)
+
+# ---------- CARREGAMENTO (Upload Excel BI) ----------
+def processar_excel_bi(arquivo):
+    df = pd.read_excel(arquivo, dtype=str)
+    return _processar_df(df)
+
+# ---------- HELPER: painel de análise ----------
+def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa"):
+    df_resumo = df[df[col_op].astype(str).str.upper().str.contains('EQUIPE|TOTAL|MÉDIA|MEDIA', na=False)].copy()
+    df_eq = df[
+        (~df[col_op].astype(str).str.upper().str.contains('EQUIPE|TOTAL|MÉDIA|MEDIA|SUPERVISOR', na=False)) &
+        (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE))
+    ].copy()
+
+    st.markdown("### 📊 Painel de Análise")
+    if chave_aba not in st.session_state:
+        st.session_state[chave_aba] = "Individual"
+
+    c1, c2, c3, c4 = st.columns(4)
+    if c1.button("Individual", use_container_width=True, key=f"btn_ind_{chave_aba}"):
+        st.session_state[chave_aba] = "Individual"; st.rerun()
+    if c2.button("Equipe", use_container_width=True, key=f"btn_eq_{chave_aba}"):
+        st.session_state[chave_aba] = "Equipe"; st.rerun()
+    if c3.button("Ranking", use_container_width=True, key=f"btn_rk_{chave_aba}"):
+        st.session_state[chave_aba] = "Ranking"; st.rerun()
+    if c4.button("Saúde", use_container_width=True, key=f"btn_sa_{chave_aba}"):
+        st.session_state[chave_aba] = "Saúde"; st.rerun()
+
+    aba = st.session_state[chave_aba]
+    st.divider()
+
+    if aba == "Individual":
+        mat = st.text_input("Matrícula")
+        if mat:
+            res = df[df[col_mat].astype(str) == mat]
+            if not res.empty:
+                r = res.iloc[0]
+                st.subheader(r[col_op])
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    exibir_card("Aderência",      r['Aderencia'],   definir_cor_kpi(r['Aderencia_num'],   'Aderencia'))
+                    exibir_card("Silêncio",        r['Silencio'],    definir_cor_kpi(r['Silencio_num'],    'Silencio'))
+                with c2:
+                    exibir_card("Resolutividade",  r['Resolutividade'], definir_cor_kpi(r['Resolutividade_num'], 'Resolutividade'))
+                    exibir_card("Pausa Total",     r['Pausa Total'], definir_cor_kpi(r['Pausa Total_num'], 'Pausa Total'))
+                with c3:
+                    exibir_card("TMA Voz",         r['TMA Voz'],    definir_cor_kpi(r['TMA Voz_num'],     'TMA Voz'))
+                    exibir_card("Pesquisa",        r['Pesquisa'],   definir_cor_kpi(r['Pesquisa_num'],    'Pesquisa'))
+            else:
+                st.warning("Matrícula não encontrada.")
+
+    if aba == "Equipe":
+        cols_cards = st.columns(len(METAS_BASE))
+        if not df_resumo.empty:
+            linha_oficial = df_resumo.iloc[0]
+            for i, (metrica, _) in enumerate(METAS_BASE.items()):
+                with cols_cards[i]:
+                    exibir_card(metrica, linha_oficial[metrica], definir_cor_kpi(linha_oficial[f'{metrica}_num'], metrica))
+        else:
+            st.warning("Não foi possível localizar a linha de média/equipe na planilha.")
+
+    if aba == "Ranking":
+        metrica_sel = st.selectbox("Métrica", list(METAS_BASE.keys()))
+        top = df_eq.dropna(subset=[f'{metrica_sel}_num']).sort_values(
+            by=f'{metrica_sel}_num', ascending=METAS_BASE[metrica_sel]['menor_melhor']
+        ).head(5)
+        for i, (_, row) in enumerate(top.iterrows()):
+            exibir_card(f"{i+1}º {row[col_op]}", row[metrica_sel], "#28a745")
+
+    if aba == "Saúde":
+        metrica_sel = st.selectbox("Selecione a Métrica:", list(METAS_BASE.keys()))
+        conf_s = METAS_BASE[metrica_sel]
+        df_saude = df_eq.copy()
+
+        def verificar_status(valor):
+            if pd.isna(valor): return "Sem dado"
+            if conf_s['menor_melhor']:
+                return "Meta OK" if valor <= conf_s['valor'] else "Fora da Meta"
+            return "Meta OK" if valor >= conf_s['valor'] else "Fora da Meta"
+
+        df_saude['Status'] = df_saude[f'{metrica_sel}_num'].apply(verificar_status)
+        df_saude['Valor'] = df_saude.apply(
+            lambda x: x[metrica_sel] if pd.notna(x[f'{metrica_sel}_num']) else "---", axis=1
+        )
+        tabela = df_saude[[col_mat, 'Valor', 'Status']].rename(
+            columns={col_mat: 'Matrícula', 'Valor': metrica_sel}
+        )
+        st.dataframe(tabela, use_container_width=True)
 
 # ---------- HUB ----------
 if 'servico' not in st.session_state:
@@ -234,120 +323,94 @@ if st.session_state.servico is None:
 
 # ---------- DASHBOARD ----------
 else:
-    with st.sidebar:
-        st.markdown(f"### {st.session_state.servico}")
-        if st.session_state.servico == "SAC NDI":
-            lista = ["Selecione...", "Equipe Erik","Equipe Davi","Equipe Elaine","Equipe Sayanne","Equipe Beatriz","Equipe Aline","Equipe Marcelo"]
-        elif st.session_state.servico == "SAC PPO":
-            lista = ["Selecione...", "Equipe Ellen","Equipe Carla","Equipe Magno","Equipe Alex"]
+
+    # ══════════════════════════════════════════════════
+    # ÁREA DA SUPERVISÃO
+    # ══════════════════════════════════════════════════
+    if st.session_state.servico == "Supervisor":
+
+        SUPERVISORES = {
+            "SAC NDI":     ["Erik","Davi","Elaine","Sayanne","Beatriz","Aline","Marcelo"],
+            "SAC PPO":     ["Ellen","Carla","Magno","Alex"],
+            "SAC HAPVIDA": ["Hapvida"],
+        }
+
+        if 'supervisor_dados' not in st.session_state:
+            st.session_state.supervisor_dados = {}
+
+        with st.sidebar:
+            st.markdown("### 📋 Área da Supervisão")
+
+            servico_sup = st.selectbox("Serviço:", ["Selecione..."] + list(SUPERVISORES.keys()))
+            nomes_disp  = SUPERVISORES.get(servico_sup, []) if servico_sup != "Selecione..." else []
+            nome_sup    = st.selectbox("Seu nome:", ["Selecione..."] + nomes_disp)
+
+            if st.button("Voltar"):
+                st.session_state.servico = None
+                st.rerun()
+
+        if servico_sup == "Selecione..." or nome_sup == "Selecione...":
+            st.info("👈 Selecione seu serviço e nome na barra lateral para continuar.")
         else:
-            lista = ["Selecione...", "Equipe Hapvida"]
-        
-        supervisor = st.selectbox("Supervisor:", lista)
+            chave = f"{nome_sup}_{servico_sup}"
+            dados_salvos = st.session_state.supervisor_dados.get(chave)
 
-        if st.button("Voltar"):
-            st.session_state.servico = None
-            st.rerun()
+            st.markdown(f"### 👤 {nome_sup} — {servico_sup}")
 
-    if supervisor != "Selecione...":
-        df, col_op, col_mat = carregar_dados_aba(supervisor)
+            # Upload sempre visível; novo arquivo substitui os dados congelados
+            arquivo = st.file_uploader(
+                "📂 Enviar planilha do BI (.xlsx)  —  um novo upload substitui os dados atuais",
+                type=["xlsx"],
+                key=f"upload_{chave}"
+            )
 
-        # Captura a linha de resumo (Média/Equipe) que já vem da planilha
-        df_resumo = df[df[col_op].astype(str).str.upper().str.contains('EQUIPE|TOTAL|MÉDIA|MEDIA', na=False)].copy()
+            if arquivo is not None:
+                with st.spinner("Processando planilha..."):
+                    try:
+                        df_bi, col_op_bi, col_mat_bi = processar_excel_bi(arquivo)
+                        st.session_state.supervisor_dados[chave] = {
+                            'df': df_bi,
+                            'col_op': col_op_bi,
+                            'col_mat': col_mat_bi,
+                            'arquivo': arquivo.name,
+                        }
+                        st.success(f"✅ Planilha **{arquivo.name}** carregada com sucesso!")
+                        dados_salvos = st.session_state.supervisor_dados[chave]
+                    except Exception as e:
+                        st.error(f"Erro ao processar o arquivo: {e}")
 
-        # Filtra apenas operadores para Ranking e Individual
-        df_eq = df[
-            (~df[col_op].astype(str).str.upper().str.contains('EQUIPE|TOTAL|MÉDIA|MEDIA|SUPERVISOR', na=False)) &
-            (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE))
-        ].copy()
+            if dados_salvos:
+                st.caption(f"📌 Dados congelados do arquivo: **{dados_salvos['arquivo']}** — faça um novo upload para atualizar.")
+                st.divider()
+                exibir_painel(dados_salvos['df'], dados_salvos['col_op'], dados_salvos['col_mat'], chave_aba=f"aba_{chave}")
+            elif arquivo is None:
+                st.markdown("""
+                <div style='text-align:center; padding: 60px 0; color:#888;'>
+                    <p style='font-size:48px;'>📊</p>
+                    <p style='font-size:16px;'>Nenhuma planilha carregada ainda.<br>
+                    Envie o arquivo <b>.xlsx</b> exportado pelo BI para visualizar os dados da sua equipe.</p>
+                </div>
+                """, unsafe_allow_html=True)
 
-        # ---------- MENU SUPERIOR ----------
-        st.markdown("### 📊 Painel de Análise")
-        if "aba_ativa" not in st.session_state:
-            st.session_state.aba_ativa = "Individual"
-
-        c1, c2, c3, c4 = st.columns(4)
-        if c1.button("Individual", use_container_width=True):
-            st.session_state.aba_ativa = "Individual"
-            st.rerun()
-        if c2.button("Equipe", use_container_width=True):
-            st.session_state.aba_ativa = "Equipe"
-            st.rerun()
-        if c3.button("Ranking", use_container_width=True):
-            st.session_state.aba_ativa = "Ranking"
-            st.rerun()
-        if c4.button("Saúde", use_container_width=True):
-            st.session_state.aba_ativa = "Saúde"
-            st.rerun()
-
-        aba = st.session_state.aba_ativa
-        st.divider()
-
-        # ---------- INDIVIDUAL ----------
-        if aba == "Individual":
-            mat = st.text_input("Matrícula")
-            if mat:
-                res = df[df[col_mat].astype(str) == mat]
-                if not res.empty:
-                    r = res.iloc[0]
-                    st.subheader(r[col_op])
-                    c1, c2, c3 = st.columns(3)
-                    with c1:
-                        exibir_card("Aderência", r['Aderencia'], definir_cor_kpi(r['Aderencia_num'], 'Aderencia'))
-                        exibir_card("Silêncio", r['Silencio'], definir_cor_kpi(r['Silencio_num'], 'Silencio'))
-                    with c2:
-                        exibir_card("Resolutividade", r['Resolutividade'], definir_cor_kpi(r['Resolutividade_num'], 'Resolutividade'))
-                        exibir_card("Pausa Total", r['Pausa Total'], definir_cor_kpi(r['Pausa Total_num'], 'Pausa Total'))
-                    with c3:
-                        exibir_card("TMA Voz", r['TMA Voz'], definir_cor_kpi(r['TMA Voz_num'], 'TMA Voz'))
-                        exibir_card("Pesquisa", r['Pesquisa'], definir_cor_kpi(r['Pesquisa_num'], 'Pesquisa'))
-                else:
-                    st.warning("Matrícula não encontrada.")
-
-        # ---------- EQUIPE ----------
-        if aba == "Equipe":
-            cols_cards = st.columns(len(METAS_BASE))
-            
-            if not df_resumo.empty:
-                linha_oficial = df_resumo.iloc[0]
-                for i, (metrica, conf) in enumerate(METAS_BASE.items()):
-                    valor_txt = linha_oficial[metrica]
-                    valor_num = linha_oficial[f'{metrica}_num']
-                    cor = definir_cor_kpi(valor_num, metrica)
-                    
-                    with cols_cards[i]:
-                        exibir_card(metrica, valor_txt, cor)
+    # ══════════════════════════════════════════════════
+    # SAC NDI / SAC PPO / SAC HAPVIDA  (Google Sheets)
+    # ══════════════════════════════════════════════════
+    else:
+        with st.sidebar:
+            st.markdown(f"### {st.session_state.servico}")
+            if st.session_state.servico == "SAC NDI":
+                lista = ["Selecione...", "Equipe Erik","Equipe Davi","Equipe Elaine","Equipe Sayanne","Equipe Beatriz","Equipe Aline","Equipe Marcelo"]
+            elif st.session_state.servico == "SAC PPO":
+                lista = ["Selecione...", "Equipe Ellen","Equipe Carla","Equipe Magno","Equipe Alex"]
             else:
-                st.warning("Não foi possível localizar a linha de média/equipe na planilha.")
+                lista = ["Selecione...", "Equipe Hapvida"]
 
-        # ---------- RANKING ----------
-        if aba == "Ranking":
-            metrica_sel = st.selectbox("Métrica", list(METAS_BASE.keys()))
-            top = df_eq.dropna(subset=[f'{metrica_sel}_num']).sort_values(
-                by=f'{metrica_sel}_num',
-                ascending=METAS_BASE[metrica_sel]['menor_melhor']
-            ).head(5)
-            for i, (_, row) in enumerate(top.iterrows()):
-                exibir_card(f"{i+1}º {row[col_op]}", row[metrica_sel], "#28a745")
+            supervisor = st.selectbox("Supervisor:", lista)
 
-        # ---------- SAÚDE ----------
-        if aba == "Saúde":
-            metrica_sel = st.selectbox("Selecione a Métrica:", list(METAS_BASE.keys()))
-            conf = METAS_BASE[metrica_sel]
-            df_saude = df_eq.copy()
+            if st.button("Voltar"):
+                st.session_state.servico = None
+                st.rerun()
 
-            def verificar_status(valor):
-                if pd.isna(valor): return "Sem dado"
-                if conf['menor_melhor']:
-                    return "Meta OK" if valor <= conf['valor'] else "Fora da Meta"
-                return "Meta OK" if valor >= conf['valor'] else "Fora da Meta"
-
-            df_saude['Status'] = df_saude[f'{metrica_sel}_num'].apply(verificar_status)
-            df_saude['Valor'] = df_saude.apply(
-                lambda x: x[metrica_sel] if pd.notna(x[f'{metrica_sel}_num']) else "---",
-                axis=1
-            )
-            tabela = df_saude[[col_mat, 'Valor', 'Status']].rename(
-                columns={col_mat: 'Matrícula', 'Valor': metrica_sel}
-            )
-            st.dataframe(tabela, use_container_width=True)
+        if supervisor != "Selecione...":
+            df, col_op, col_mat = carregar_dados_aba(supervisor)
+            exibir_painel(df, col_op, col_mat)
