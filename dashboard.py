@@ -110,12 +110,14 @@ METAS_BASE = {
 
 # Aliases para nomes alternativos de colunas na planilha
 ALIAS_COLUNAS = {
-    'tma voz': ['tma voz', 'tma', 'tma_voz', 'tempo medio de atendimento', 'tempo médio de atendimento'],
-    'pesquisa': ['pesquisa', 'nota pesquisa', 'nota_pesquisa', 'nps', 'nota de pesquisa'],
-    'aderencia': ['aderencia', 'aderência', 'adh', 'adherencia'],
+    'tma voz': ['tma voz', 'tma', 'tma_voz', 'tempo medio de atendimento',
+                'tempo médio de atendimento', 'tma volumetria voz'],
+    'pesquisa': ['pesquisa', 'nota pesquisa', 'nota_pesquisa', 'nps',
+                 'nota de pesquisa', 'nota pesquisa voz'],
+    'aderencia': ['aderencia', 'aderência', 'adh', 'adherencia', 'aderencia (%)'],
     'resolutividade': ['resolutividade', 'resolutividade%', 'resolut'],
     'silencio': ['silencio', 'silêncio', 'silencio%'],
-    'pausa total': ['pausa total'],
+    'pausa total': ['pausa total', '% pausa improdutiva', 'pausa improdutiva'],
 }
 
 MATRICULAS_BACKOFFICE = ['1211819','1210820','1210724','1211110','1211213','1214016','10115858','1212492','1028483']
@@ -183,14 +185,21 @@ def _processar_df(df):
             df[f'{m}_num'] = None
             df[m] = '---'
 
-    col_imp  = cols.get('pausa improdutiva')
+    col_imp  = cols.get('pausa improdutiva') or cols.get('% pausa improdutiva')
     col_prod = cols.get('pausa produtiva')
+
     if col_imp and col_prod:
         df['Pausa Total_num'] = (
             df[col_imp].apply(limpar_valor_numerico).fillna(0)
             + df[col_prod].apply(limpar_valor_numerico).fillna(0)
         )
         df['Pausa Total'] = df['Pausa Total_num'].apply(lambda x: f"{x:.1f}%")
+    elif col_imp:
+        # BI exporta apenas improdutiva — usa direto como Pausa Total
+        df['Pausa Total_num'] = df[col_imp].apply(limpar_valor_numerico)
+        df['Pausa Total'] = df['Pausa Total_num'].apply(
+            lambda x: f"{x:.1f}%" if x is not None else "---"
+        )
 
     return df, col_op, col_mat
 
@@ -203,8 +212,26 @@ def carregar_dados_aba(nome_aba):
     return _processar_df(df)
 
 # ---------- CARREGAMENTO (Upload Excel BI) ----------
+# Colunas do BI que vêm como frações decimais (0.0–1.0) e precisam virar %
+_COLUNAS_FRACAO = {'aderencia (%)', '% pausa improdutiva', 'absenteismo'}
+
 def processar_excel_bi(arquivo):
     df = pd.read_excel(arquivo, dtype=str)
+    df.columns = df.columns.str.strip()
+
+    # Converte colunas de fração decimal → porcentagem
+    df_num = pd.read_excel(arquivo)
+    df_num.columns = df_num.columns.str.strip()
+    for col in df_num.columns:
+        if col.lower() in _COLUNAS_FRACAO:
+            df[col] = (df_num[col] * 100).round(2).astype(str)
+
+    # Se não há "Pausa Produtiva" separada, cria coluna auxiliar zerada
+    # para que _processar_df possa somar improdutiva + 0 = total
+    cols_lower = {c.lower() for c in df.columns}
+    if 'pausa produtiva' not in cols_lower and '% pausa improdutiva' in cols_lower:
+        df['Pausa Produtiva'] = '0'
+
     return _processar_df(df)
 
 # ---------- HELPER: painel de análise ----------
