@@ -228,7 +228,7 @@ if st.session_state.servico is None:
         st.rerun()
 
     _, c_sup, _ = st.columns([1, 1, 1])
-    if c_sup.button("Supervisor", use_container_width=True):
+    if c_sup.button("ÁREA DA SUPERVISÃO", use_container_width=True):
         st.session_state.servico = "Supervisor"
         st.rerun()
 
