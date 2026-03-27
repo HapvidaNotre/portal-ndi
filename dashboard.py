@@ -7,43 +7,344 @@ st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_i
 # ---------- CSS ----------
 st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 
-.stApp { background-color: #f8f9fa; }
+/* ═══════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════ */
+:root {
+    --navy:       #0b2a6f;
+    --navy-mid:   #0f3891;
+    --blue:       #1a6fc4;
+    --blue-light: #3b8de0;
+    --accent:     #00c2ff;
+    --bg:         #f0f4fa;
+    --bg-card:    #ffffff;
+    --text-dark:  #0d1b3e;
+    --text-mid:   #4a5c7a;
+    --text-muted: #8a9bb5;
+    --border:     #dce6f7;
+    --shadow-sm:  0 2px 8px rgba(11,42,111,0.07);
+    --shadow-md:  0 6px 24px rgba(11,42,111,0.12);
+    --shadow-lg:  0 16px 48px rgba(11,42,111,0.18);
+    --radius-sm:  10px;
+    --radius-md:  16px;
+    --radius-lg:  24px;
+}
 
-/* BOTÕES HUB */
-div.stButton > button {
-    background-color: #0b2a6f;
-    color: white;
-    height: 70px;
-    font-size: 18px;
-    font-weight: bold;
+/* ═══════════════════════════════
+   BASE
+═══════════════════════════════ */
+html, body, .stApp {
+    background-color: var(--bg) !important;
+    font-family: 'DM Sans', sans-serif !important;
+}
+
+/* Remove padding padrão do Streamlit no topo */
+.block-container { padding-top: 1.5rem !important; }
+
+/* ═══════════════════════════════
+   HUB — HEADER
+═══════════════════════════════ */
+.hub-wrapper {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 16px;
+}
+
+.hub-header {
+    background: linear-gradient(135deg, var(--navy) 0%, #0f3891 55%, #1a6fc4 100%);
+    border-radius: var(--radius-lg);
+    padding: 44px 48px 40px 48px;
+    margin-bottom: 36px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+.hub-header::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 280px; height: 280px;
+    background: radial-gradient(circle, rgba(0,194,255,0.18) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.hub-header::after {
+    content: '';
+    position: absolute;
+    bottom: -80px; left: 30%;
+    width: 360px; height: 200px;
+    background: radial-gradient(ellipse, rgba(255,255,255,0.05) 0%, transparent 65%);
+    pointer-events: none;
+}
+
+.hub-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.85);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: 100px;
+    margin-bottom: 18px;
+}
+
+.hub-badge-dot {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--accent);
+    animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.hub-title {
+    color: #ffffff;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0 0 10px 0;
+    letter-spacing: -0.5px;
+}
+
+.hub-title span {
+    color: var(--accent);
+}
+
+.hub-subtitle {
+    color: rgba(255,255,255,0.62);
+    font-size: 14px;
+    font-weight: 400;
+    margin: 0;
+    letter-spacing: 0.2px;
+}
+
+.hub-meta {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+}
+
+.hub-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: rgba(255,255,255,0.55);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.hub-meta-item strong {
+    color: rgba(255,255,255,0.88);
+    font-weight: 600;
+}
+
+/* ═══════════════════════════════
+   HUB — SECTION LABEL
+═══════════════════════════════ */
+.hub-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    padding-left: 2px;
+}
+
+/* ═══════════════════════════════
+   HUB — SERVICE CARDS
+═══════════════════════════════ */
+.hub-card {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 24px 22px 22px 22px;
+    cursor: pointer;
+    transition: all 0.22s ease;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.hub-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 3px;
+    background: linear-gradient(90deg, var(--navy), var(--blue));
+    opacity: 0;
+    transition: opacity 0.22s ease;
+}
+
+.hub-card:hover {
+    border-color: var(--blue-light);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-3px);
+}
+
+.hub-card:hover::before {
+    opacity: 1;
+}
+
+.hub-card-icon {
+    width: 44px; height: 44px;
     border-radius: 12px;
-    transition: 0.3s;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    margin-bottom: 16px;
+}
+
+.hub-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin: 0 0 6px 0;
+    letter-spacing: -0.2px;
+}
+
+.hub-card-desc {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin: 0 0 18px 0;
+}
+
+.hub-card-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--blue);
+    letter-spacing: 0.2px;
+}
+
+/* ═══════════════════════════════
+   HUB — SUPERVISOR CARD (destaque)
+═══════════════════════════════ */
+.hub-card-supervisor {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+    border-color: transparent;
+    color: white;
+}
+
+.hub-card-supervisor::before {
+    background: linear-gradient(90deg, var(--accent), var(--blue-light));
+}
+
+.hub-card-supervisor:hover {
+    border-color: transparent;
+    box-shadow: var(--shadow-lg);
+}
+
+.hub-card-supervisor .hub-card-title { color: #ffffff; }
+.hub-card-supervisor .hub-card-desc  { color: rgba(255,255,255,0.58); }
+.hub-card-supervisor .hub-card-cta   { color: var(--accent); }
+
+.hub-card-supervisor .hub-card-icon {
+    background: rgba(255,255,255,0.1);
+}
+
+/* ═══════════════════════════════
+   HUB — FOOTER
+═══════════════════════════════ */
+.hub-footer {
+    margin-top: 40px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    font-weight: 400;
+    letter-spacing: 0.2px;
+    padding-bottom: 24px;
+}
+
+/* ═══════════════════════════════
+   BOTÕES MENU INTERNO
+═══════════════════════════════ */
+div.stButton > button {
+    background-color: var(--navy);
+    color: white;
+    height: 52px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    border: none;
+    transition: all 0.2s ease;
+    font-family: 'DM Sans', sans-serif;
+    letter-spacing: 0.2px;
 }
 
 div.stButton > button:hover {
-    background-color: #1341a3;
-    transform: scale(1.03);
+    background-color: var(--navy-mid);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
 }
 
-/* BOTÕES MENU */
-.menu-btn button {
-    height: 55px;
-    font-weight: 700;
-    border-radius: 10px;
+div.stButton > button:active {
+    transform: translateY(0);
 }
 
-/* CARDS */
+/* ═══════════════════════════════
+   METRIC CARDS (painéis internos)
+═══════════════════════════════ */
 .metric-card {
     background-color: white;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 2px 2px 8px rgba(0,0,0,0.05);
-    border-left: 6px solid;
+    padding: 16px 18px;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+    border-left: 5px solid;
     margin-bottom: 10px;
+    transition: box-shadow 0.2s;
 }
 
-/* SPLASH */
+.metric-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+/* ═══════════════════════════════
+   SIDEBAR
+═══════════════════════════════ */
+section[data-testid="stSidebar"] {
+    background: var(--navy) !important;
+}
+
+section[data-testid="stSidebar"] * {
+    color: rgba(255,255,255,0.85) !important;
+}
+
+section[data-testid="stSidebar"] .stSelectbox label,
+section[data-testid="stSidebar"] .stButton > button {
+    color: white !important;
+}
+
+section[data-testid="stSidebar"] .stButton > button {
+    background: rgba(255,255,255,0.1) !important;
+    border: 1px solid rgba(255,255,255,0.2) !important;
+}
+
+section[data-testid="stSidebar"] .stButton > button:hover {
+    background: rgba(255,255,255,0.18) !important;
+}
+
+/* ═══════════════════════════════
+   SPLASH
+═══════════════════════════════ */
 .splash-container {
     display: flex;
     flex-direction: column;
@@ -53,7 +354,7 @@ div.stButton > button:hover {
 }
 
 .splash-title {
-    color: #0b2a6f;
+    color: var(--navy);
     font-size: 26px;
     font-weight: 800;
     margin-top: 20px;
@@ -65,6 +366,12 @@ div.stButton > button:hover {
     font-size: 14px;
     margin-top: 6px;
 }
+
+/* ═══════════════════════════════
+   MISC REFINEMENTS
+═══════════════════════════════ */
+h3 { font-family: 'DM Sans', sans-serif !important; }
+.stProgress > div > div { background-color: var(--blue) !important; }
 
 </style>
 """, unsafe_allow_html=True)
@@ -322,31 +629,101 @@ if 'servico' not in st.session_state:
     st.session_state.servico = None
 
 if st.session_state.servico is None:
-    st.markdown("""
-    <h1 style='text-align:center; font-size:36px; font-weight:900; margin:0;'>
-        <span style='-webkit-text-fill-color: initial;'>🚀</span>
-        <span style='background: linear-gradient(135deg, #0b2a6f, #1a6fc4);
-                     -webkit-background-clip: text;
-                     -webkit-text-fill-color: transparent;'>
-            Portal de Performance NDI
-        </span>
-    </h1>
-    """, unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    if c1.button("SAC NDI", use_container_width=True):
-        st.session_state.servico = "SAC NDI"
-        st.rerun()
-    if c2.button("SAC PPO", use_container_width=True):
-        st.session_state.servico = "SAC PPO"
-        st.rerun()
-    if c3.button("SAC HAPVIDA", use_container_width=True):
-        st.session_state.servico = "SAC HAPVIDA"
-        st.rerun()
 
-    _, c_sup, _ = st.columns([1, 1, 1])
-    if c_sup.button("ÁREA DA SUPERVISÃO", use_container_width=True):
-        st.session_state.servico = "Supervisor"
-        st.rerun()
+    # ── HEADER ──────────────────────────────────────────────
+    st.markdown("""
+    <div class="hub-wrapper">
+      <div class="hub-header">
+        <div class="hub-badge">
+          <span class="hub-badge-dot"></span>
+          Sistema Ativo
+        </div>
+        <h1 class="hub-title">Portal de Performance <span>NDI</span></h1>
+        <p class="hub-subtitle">
+          Acompanhe KPIs, rankings e saúde operacional das equipes em tempo real.
+        </p>
+        <div class="hub-meta">
+          <div class="hub-meta-item">🏥 <strong>Hapvida NotreDame Intermédica</strong></div>
+          <div class="hub-meta-item">📋 <strong>3</strong> serviços monitorados</div>
+          <div class="hub-meta-item">⚡ Atualização a cada 60s</div>
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── CARDS SAC ────────────────────────────────────────────
+    st.markdown('<p class="hub-section-label">Central de Atendimento ao Cliente</p>', unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3, gap="medium")
+
+    with col1:
+        st.markdown("""
+        <div class="hub-card">
+          <div class="hub-card-icon" style="background:#e8f0fc;">💙</div>
+          <p class="hub-card-title">SAC NDI</p>
+          <p class="hub-card-desc">Indicadores e ranking da equipe de atendimento NDI. Consulta individual e visão de equipe.</p>
+          <span class="hub-card-cta">Acessar → </span>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Entrar no SAC NDI", key="btn_ndi", use_container_width=True):
+            st.session_state.servico = "SAC NDI"
+            st.rerun()
+
+    with col2:
+        st.markdown("""
+        <div class="hub-card">
+          <div class="hub-card-icon" style="background:#eaf4fe;">🩵</div>
+          <p class="hub-card-title">SAC PPO</p>
+          <p class="hub-card-desc">Performance e métricas do atendimento PPO. Aderência, TMA, pesquisa e mais.</p>
+          <span class="hub-card-cta">Acessar → </span>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Entrar no SAC PPO", key="btn_ppo", use_container_width=True):
+            st.session_state.servico = "SAC PPO"
+            st.rerun()
+
+    with col3:
+        st.markdown("""
+        <div class="hub-card">
+          <div class="hub-card-icon" style="background:#e6f7ff;">💎</div>
+          <p class="hub-card-title">SAC Hapvida</p>
+          <p class="hub-card-desc">Painel integrado com os dados do SAC Hapvida. Saúde da equipe e ranking por métrica.</p>
+          <span class="hub-card-cta">Acessar → </span>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Entrar no SAC Hapvida", key="btn_hap", use_container_width=True):
+            st.session_state.servico = "SAC HAPVIDA"
+            st.rerun()
+
+    # ── CARD SUPERVISÃO ──────────────────────────────────────
+    st.markdown('<p class="hub-section-label" style="margin-top:28px;">Gestão</p>', unsafe_allow_html=True)
+
+    _, col_sup, _ = st.columns([0.5, 2, 0.5])
+    with col_sup:
+        st.markdown("""
+        <div class="hub-card hub-card-supervisor">
+          <div style="display:flex; align-items:center; gap:14px; margin-bottom:14px;">
+            <div class="hub-card-icon">🎯</div>
+            <div>
+              <p class="hub-card-title">Área da Supervisão</p>
+              <p class="hub-card-desc" style="margin:0;">
+                Importe planilhas do BI e analise a performance completa da sua equipe — individual, ranking e saúde operacional.
+              </p>
+            </div>
+          </div>
+          <span class="hub-card-cta">Acessar painel gerencial → </span>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Entrar na Área da Supervisão", key="btn_sup", use_container_width=True):
+            st.session_state.servico = "Supervisor"
+            st.rerun()
+
+    # ── FOOTER ────────────────────────────────────────────────
+    st.markdown("""
+    <div class="hub-footer">
+        Portal de Performance NDI &nbsp;·&nbsp; Hapvida NotreDame Intermédica &nbsp;·&nbsp; Uso interno
+    </div>
+    """, unsafe_allow_html=True)
 
 # ---------- DASHBOARD ----------
 else:
