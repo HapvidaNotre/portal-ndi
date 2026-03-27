@@ -7,310 +7,64 @@ st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_i
 # ---------- CSS ----------
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&display=swap');
 
-/* ═══════════════════════════════════════
-   DESIGN TOKENS
-═══════════════════════════════════════ */
-:root {
-    --navy:        #0a2558;
-    --navy-mid:    #0d3080;
-    --blue:        #1662b8;
-    --blue-lt:     #2f80ed;
-    --accent:      #00b8e6;
-    --bg:          #eef2f9;
-    --bg-2:        #e6ecf8;
-    --white:       #ffffff;
-    --text-1:      #0c1a38;
-    --text-2:      #3d5070;
-    --text-3:      #8096b8;
-    --border:      #d4dff2;
-    --border-hover:#2f80ed;
-    --sh-xs: 0 1px 4px rgba(10,37,88,0.06);
-    --sh-sm: 0 3px 12px rgba(10,37,88,0.09);
-    --sh-md: 0 8px 28px rgba(10,37,88,0.14);
-    --sh-lg: 0 20px 56px rgba(10,37,88,0.22);
-    --r-sm: 10px;
-    --r-md: 16px;
-    --r-lg: 22px;
-}
+.stApp { background-color: #f8f9fa; }
 
-/* ═══════════════════════════════════════
-   BASE
-═══════════════════════════════════════ */
-html, body, .stApp {
-    background: var(--bg) !important;
-    font-family: 'DM Sans', system-ui, sans-serif !important;
-}
-.block-container {
-    padding-top: 1.25rem !important;
-    max-width: 1080px !important;
-}
-
-/* ═══════════════════════════════════════
-   HUB — HERO HEADER
-═══════════════════════════════════════ */
-.hub-hero {
-    background: linear-gradient(130deg, #081e4a 0%, #0d2f7c 45%, #1662b8 100%);
-    border-radius: var(--r-lg);
-    padding: 40px 44px 36px;
-    margin-bottom: 32px;
-    position: relative;
-    overflow: hidden;
-    box-shadow: var(--sh-lg);
-}
-.hub-hero::before {
-    content: '';
-    position: absolute;
-    top: -80px; right: -80px;
-    width: 320px; height: 320px;
-    background: radial-gradient(circle, rgba(0,184,230,0.16) 0%, transparent 68%);
-    pointer-events: none;
-}
-.hub-hero::after {
-    content: '';
-    position: absolute;
-    bottom: -60px; left: 25%;
-    width: 400px; height: 180px;
-    background: radial-gradient(ellipse, rgba(255,255,255,0.04) 0%, transparent 60%);
-    pointer-events: none;
-}
-.hero-chip {
-    display: inline-flex; align-items: center; gap: 7px;
-    background: rgba(255,255,255,0.10);
-    border: 1px solid rgba(255,255,255,0.18);
-    color: rgba(255,255,255,0.78);
-    font-size: 10.5px; font-weight: 700;
-    letter-spacing: 1.8px; text-transform: uppercase;
-    padding: 5px 13px; border-radius: 100px;
-    margin-bottom: 20px;
-}
-.hero-dot {
-    width: 7px; height: 7px;
-    background: var(--accent); border-radius: 50%;
-    box-shadow: 0 0 8px var(--accent);
-    animation: blink 2.2s ease-in-out infinite;
-}
-@keyframes blink { 0%,100%{opacity:1} 55%{opacity:0.3} }
-
-.hero-title {
-    color: #fff; font-size: 30px; font-weight: 800;
-    line-height: 1.18; margin: 0 0 9px;
-    letter-spacing: -0.6px;
-}
-.hero-title em { font-style:normal; color: var(--accent); }
-.hero-sub {
-    color: rgba(255,255,255,0.55); font-size: 13.5px;
-    font-weight: 400; margin: 0; line-height: 1.5;
-}
-.hero-stats {
-    display: flex; align-items: center; gap: 28px;
-    margin-top: 28px; padding-top: 22px;
-    border-top: 1px solid rgba(255,255,255,0.10);
-}
-.hero-stat {
-    color: rgba(255,255,255,0.45); font-size: 11.5px; font-weight: 500;
-}
-.hero-stat strong { color: rgba(255,255,255,0.86); font-weight: 700; }
-
-/* ═══════════════════════════════════════
-   HUB — SECTION LABEL
-═══════════════════════════════════════ */
-.hub-label {
-    font-size: 10.5px; font-weight: 800;
-    letter-spacing: 2px; text-transform: uppercase;
-    color: var(--text-3); margin-bottom: 12px;
-    padding-left: 1px;
-}
-
-/* ═══════════════════════════════════════
-   HUB — CARD TOP (HTML parte de cima)
-   O botão st.button é a parte de baixo
-═══════════════════════════════════════ */
-.ct {
-    background: var(--white);
-    border: 1.5px solid var(--border);
-    border-bottom: none;
-    border-radius: var(--r-md) var(--r-md) 0 0;
-    padding: 22px 20px 18px;
-    transition: border-color 0.18s, background 0.18s;
-    position: relative;
-}
-/* Linha colorida de acento no topo do card — aparece no hover */
-.ct::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; height: 3px;
-    border-radius: var(--r-md) var(--r-md) 0 0;
-    background: linear-gradient(90deg, var(--navy), var(--blue-lt));
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-.ct:hover { border-color: var(--border-hover); }
-.ct:hover::before { opacity: 1; }
-
-/* Ícone dentro do card */
-.ct-icon {
-    width: 42px; height: 42px; border-radius: 11px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 19px; margin-bottom: 14px;
-    flex-shrink: 0;
-}
-.ct-title {
-    font-size: 14.5px; font-weight: 800; color: var(--text-1);
-    margin: 0 0 5px; letter-spacing: -0.2px;
-}
-.ct-desc {
-    font-size: 12px; color: var(--text-3);
-    line-height: 1.55; margin: 0;
-}
-/* Variante escura para Supervisão */
-.ct-dark {
-    background: linear-gradient(135deg, #081e4a 0%, #0d2f7c 55%, #1662b8 100%);
-    border-color: transparent;
-}
-.ct-dark::before {
-    background: linear-gradient(90deg, var(--accent), var(--blue-lt));
-}
-.ct-dark:hover { border-color: transparent; }
-.ct-dark .ct-title { color: #fff; }
-.ct-dark .ct-desc  { color: rgba(255,255,255,0.52); }
-
-/* ═══════════════════════════════════════
-   BOTÃO COMO PARTE INFERIOR DO CARD
-   CSS :has() elimina o gap e conecta
-═══════════════════════════════════════ */
-
-/* Zera margem do element-container do card-top */
-[data-testid="column"] .element-container:has(.ct) {
-    margin-bottom: 0 !important;
-    padding-bottom: 0 !important;
-}
-/* Puxa o próximo elemento (o botão) para colar */
-[data-testid="column"] .element-container:has(.ct) + .element-container {
-    margin-top: -2px !important;
-}
-
-/* Estiliza o botão como base do card — variante clara (SAC) */
-[data-testid="column"] .element-container:has(.ct:not(.ct-dark)) + .element-container .stButton > button {
-    background: #f4f8fe !important;
-    color: var(--blue) !important;
-    border: 1.5px solid var(--border) !important;
-    border-top: none !important;
-    border-radius: 0 0 var(--r-md) var(--r-md) !important;
-    height: 46px !important;
-    font-size: 12.5px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.3px !important;
-    box-shadow: 0 8px 22px rgba(10,37,88,0.09) !important;
-    transition: all 0.18s ease !important;
-}
-[data-testid="column"] .element-container:has(.ct:not(.ct-dark)) + .element-container .stButton > button:hover {
-    background: #e8f0fb !important;
-    color: var(--navy) !important;
-    border-color: var(--border-hover) !important;
-    box-shadow: 0 10px 30px rgba(10,37,88,0.15) !important;
-    transform: none !important;
-}
-
-/* Estiliza o botão da variante escura (Supervisão) */
-[data-testid="column"] .element-container:has(.ct-dark) + .element-container .stButton > button {
-    background: rgba(0, 184, 230, 0.12) !important;
-    color: var(--accent) !important;
-    border: 1.5px solid rgba(255,255,255,0.12) !important;
-    border-top: none !important;
-    border-radius: 0 0 var(--r-md) var(--r-md) !important;
-    height: 46px !important;
-    font-size: 12.5px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.3px !important;
-    box-shadow: 0 12px 32px rgba(10,37,88,0.26) !important;
-    transition: all 0.18s ease !important;
-}
-[data-testid="column"] .element-container:has(.ct-dark) + .element-container .stButton > button:hover {
-    background: rgba(0,184,230,0.2) !important;
-    box-shadow: 0 16px 42px rgba(10,37,88,0.34) !important;
-    transform: none !important;
-}
-
-/* ═══════════════════════════════════════
-   BOTÕES INTERNOS (painéis de dados)
-═══════════════════════════════════════ */
+/* BOTÕES HUB */
 div.stButton > button {
-    background-color: var(--navy);
+    background-color: #0b2a6f;
     color: white;
-    height: 50px;
-    font-size: 13.5px;
-    font-weight: 600;
-    border-radius: var(--r-sm);
-    border: none;
-    transition: all 0.18s ease;
-    font-family: 'DM Sans', sans-serif;
-    letter-spacing: 0.2px;
+    height: 70px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 12px;
+    transition: 0.3s;
 }
+
 div.stButton > button:hover {
-    background-color: var(--navy-mid);
-    box-shadow: var(--sh-md);
-    transform: translateY(-1px);
+    background-color: #1341a3;
+    transform: scale(1.03);
 }
-div.stButton > button:active { transform: translateY(0); }
 
-/* ═══════════════════════════════════════
-   METRIC CARDS (painéis internos)
-═══════════════════════════════════════ */
+/* BOTÕES MENU */
+.menu-btn button {
+    height: 55px;
+    font-weight: 700;
+    border-radius: 10px;
+}
+
+/* CARDS */
 .metric-card {
-    background: var(--white);
-    padding: 15px 17px;
-    border-radius: var(--r-sm);
-    box-shadow: var(--sh-xs);
-    border-left: 5px solid;
+    background-color: white;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.05);
+    border-left: 6px solid;
     margin-bottom: 10px;
-    transition: box-shadow 0.18s;
-}
-.metric-card:hover { box-shadow: var(--sh-sm); }
-
-/* ═══════════════════════════════════════
-   SIDEBAR
-═══════════════════════════════════════ */
-section[data-testid="stSidebar"] {
-    background: var(--navy) !important;
-}
-section[data-testid="stSidebar"] * { color: rgba(255,255,255,0.82) !important; }
-section[data-testid="stSidebar"] .stButton > button {
-    background: rgba(255,255,255,0.09) !important;
-    border: 1px solid rgba(255,255,255,0.16) !important;
-    color: white !important;
-}
-section[data-testid="stSidebar"] .stButton > button:hover {
-    background: rgba(255,255,255,0.16) !important;
 }
 
-/* ═══════════════════════════════════════
-   FOOTER HUB
-═══════════════════════════════════════ */
-.hub-footer {
-    margin-top: 44px; padding-bottom: 24px;
-    text-align: center;
-    color: var(--text-3); font-size: 11px;
-    letter-spacing: 0.3px;
-}
-
-/* ═══════════════════════════════════════
-   SPLASH
-═══════════════════════════════════════ */
+/* SPLASH */
 .splash-container {
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    padding: 80px 0 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 0 40px 0;
 }
-.splash-title { color: var(--navy); font-size: 26px; font-weight: 800; margin-top: 20px; }
-.splash-sub   { color: #888; font-size: 14px; margin-top: 6px; }
 
-/* ═══════════════════════════════════════
-   MISC
-═══════════════════════════════════════ */
-h3 { font-family: 'DM Sans', sans-serif !important; }
-.stProgress > div > div { background-color: var(--blue) !important; }
+.splash-title {
+    color: #0b2a6f;
+    font-size: 26px;
+    font-weight: 800;
+    margin-top: 20px;
+    letter-spacing: 1px;
+}
+
+.splash-sub {
+    color: #888;
+    font-size: 14px;
+    margin-top: 6px;
+}
 
 </style>
 """, unsafe_allow_html=True)
@@ -568,98 +322,31 @@ if 'servico' not in st.session_state:
     st.session_state.servico = None
 
 if st.session_state.servico is None:
-
-    # ── HERO ────────────────────────────────────────────────────
     st.markdown("""
-    <div class="hub-hero">
-      <div class="hero-chip">
-        <span class="hero-dot"></span>
-        Hapvida NotreDame Intermédica
-      </div>
-      <h1 class="hero-title">Portal de Performance <em>NDI</em></h1>
-      <p class="hero-sub">
-        Monitoramento de KPIs, rankings e saúde operacional das equipes de atendimento.
-      </p>
-      <div class="hero-stats">
-        <span class="hero-stat">📋 <strong>3</strong> serviços ativos</span>
-        <span class="hero-stat">🔄 Atualização <strong>a cada 60s</strong></span>
-        <span class="hero-stat">📊 <strong>6</strong> métricas monitoradas</span>
-      </div>
-    </div>
+    <h1 style='text-align:center; font-size:36px; font-weight:900; margin:0;'>
+        <span style='-webkit-text-fill-color: initial;'>🚀</span>
+        <span style='background: linear-gradient(135deg, #0b2a6f, #1a6fc4);
+                     -webkit-background-clip: text;
+                     -webkit-text-fill-color: transparent;'>
+            Portal de Performance NDI
+        </span>
+    </h1>
     """, unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
+    if c1.button("SAC NDI", use_container_width=True):
+        st.session_state.servico = "SAC NDI"
+        st.rerun()
+    if c2.button("SAC PPO", use_container_width=True):
+        st.session_state.servico = "SAC PPO"
+        st.rerun()
+    if c3.button("SAC HAPVIDA", use_container_width=True):
+        st.session_state.servico = "SAC HAPVIDA"
+        st.rerun()
 
-    # ── SECTION: SAC ────────────────────────────────────────────
-    st.markdown('<p class="hub-label">Central de Atendimento ao Cliente</p>', unsafe_allow_html=True)
-
-    c1, c2, c3 = st.columns(3, gap="medium")
-
-    with c1:
-        st.markdown("""
-        <div class="ct">
-          <div class="ct-icon" style="background:#dbeafe;">💙</div>
-          <p class="ct-title">SAC NDI</p>
-          <p class="ct-desc">
-            Consulta individual por matrícula, visão de equipe, ranking e saúde operacional por métrica.
-          </p>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Acessar SAC NDI →", key="btn_ndi", use_container_width=True):
-            st.session_state.servico = "SAC NDI"; st.rerun()
-
-    with c2:
-        st.markdown("""
-        <div class="ct">
-          <div class="ct-icon" style="background:#d1fae5;">🩵</div>
-          <p class="ct-title">SAC PPO</p>
-          <p class="ct-desc">
-            Performance e métricas do atendimento PPO. Aderência, TMA, pesquisa, silêncio e pausas.
-          </p>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Acessar SAC PPO →", key="btn_ppo", use_container_width=True):
-            st.session_state.servico = "SAC PPO"; st.rerun()
-
-    with c3:
-        st.markdown("""
-        <div class="ct">
-          <div class="ct-icon" style="background:#ede9fe;">💎</div>
-          <p class="ct-title">SAC Hapvida</p>
-          <p class="ct-desc">
-            Painel integrado do SAC Hapvida. Ranking por métrica e mapa de saúde da equipe.
-          </p>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Acessar SAC Hapvida →", key="btn_hap", use_container_width=True):
-            st.session_state.servico = "SAC HAPVIDA"; st.rerun()
-
-    # ── SECTION: SUPERVISÃO ─────────────────────────────────────
-    st.markdown('<p class="hub-label" style="margin-top:30px;">Gestão</p>', unsafe_allow_html=True)
-
-    _, c_sup, _ = st.columns([0.3, 2.4, 0.3])
-    with c_sup:
-        st.markdown("""
-        <div class="ct ct-dark">
-          <div style="display:flex; align-items:center; gap:18px;">
-            <div class="ct-icon" style="background:rgba(255,255,255,0.10);">🎯</div>
-            <div>
-              <p class="ct-title">Área da Supervisão</p>
-              <p class="ct-desc">
-                Importe planilhas exportadas pelo BI e analise a performance completa da equipe —
-                consulta individual, ranking e saúde operacional.
-              </p>
-            </div>
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Entrar na Área da Supervisão →", key="btn_sup", use_container_width=True):
-            st.session_state.servico = "Supervisor"; st.rerun()
-
-    # ── FOOTER ──────────────────────────────────────────────────
-    st.markdown("""
-    <div class="hub-footer">
-        Portal de Performance NDI &nbsp;·&nbsp; Hapvida NotreDame Intermédica &nbsp;·&nbsp; Uso interno
-    </div>
-    """, unsafe_allow_html=True)
+    _, c_sup, _ = st.columns([1, 1, 1])
+    if c_sup.button("ÁREA DA SUPERVISÃO", use_container_width=True):
+        st.session_state.servico = "Supervisor"
+        st.rerun()
 
 # ---------- DASHBOARD ----------
 else:
