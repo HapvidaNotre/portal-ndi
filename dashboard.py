@@ -468,7 +468,7 @@ def gestor_alterar_senha(matricula: str, senha_nova: str) -> bool:
         return False
 
 # ---------- HELPER: painel de análise ----------
-def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa"):
+def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None):
     df_eq = df[
         (~df[col_op].astype(str).str.upper().str.contains('EQUIPE|TOTAL|MÉDIA|MEDIA|SUPERVISOR', na=False)) &
         (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE))
@@ -522,9 +522,14 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa"):
 
     # ── INDIVIDUAL ──────────────────────────────────────
     if aba == "Individual":
-        mat = st.text_input("🔍 Digite a Matrícula do Operador", placeholder="Ex: 1035323")
-        if mat:
-            res = df[df[col_mat].astype(str) == mat.strip()]
+        # Se a matrícula já foi identificada externamente, usa direto sem mostrar o campo de busca
+        if mat_operador:
+            mat = mat_operador
+        else:
+            mat = st.text_input("🔍 Digite a Matrícula do Operador", placeholder="Ex: 1035323")
+
+        def _renderizar_operador(mat_busca):
+            res = df[df[col_mat].astype(str) == mat_busca.strip()]
             if not res.empty:
                 r = res.iloc[0]
                 st.markdown(f"""
@@ -571,7 +576,10 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa"):
                         exibir_card(label, r[key], definir_cor_kpi(r.get(f'{key}_num'), key_meta))
             else:
                 st.warning("⚠️ Matrícula não encontrada.")
-        else:
+
+        if mat:
+            _renderizar_operador(mat)
+        elif not mat_operador:
             st.markdown("""
             <div style='text-align:center; padding:50px 0; color:#bbb;'>
                 <p style='font-size:40px; margin:0;'>🔍</p>
@@ -1105,4 +1113,4 @@ else:
             if df.empty:
                 st.warning("Nenhum dado disponível ainda. Aguarde o gestor enviar a planilha.")
             else:
-                exibir_painel(df, col_op, col_mat, chave_aba=f"aba_op_{mat_input}")
+                exibir_painel(df, col_op, col_mat, chave_aba=f"aba_op_{mat_input}", mat_operador=mat_input)
