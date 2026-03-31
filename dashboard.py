@@ -481,14 +481,14 @@ if st.session_state.servico is None:
             </p>
         """, unsafe_allow_html=True)
 
-        if st.button("🏥  SAC NDI", use_container_width=True):
+        if st.button("SAC NDI", use_container_width=True):
             st.session_state.servico = "SAC NDI"; st.rerun()
-        if st.button("📋  SAC PPO", use_container_width=True):
+        if st.button("SAC PPO", use_container_width=True):
             st.session_state.servico = "SAC PPO"; st.rerun()
-        if st.button("💙  SAC HAPVIDA", use_container_width=True):
+        if st.button("SAC HAPVIDA", use_container_width=True):
             st.session_state.servico = "SAC HAPVIDA"; st.rerun()
         st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
-        if st.button("🗂️  ÁREA DO GESTOR", use_container_width=True):
+        if st.button("ÁREA DO GESTOR", use_container_width=True):
             st.session_state.servico = "Supervisor"; st.rerun()
 
     # ── LADO DIREITO: fundo azul + logo ───────────────────────
