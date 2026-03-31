@@ -175,10 +175,54 @@ def definir_cor_kpi(valor_num, metrica):
     return "#28a745" if valor_num >= m else ("#ffc107" if valor_num >= m - tol else "#dc3545")
 
 def exibir_card(label, valor_display, cor):
+    cor_bg = {
+        "#28a745": "rgba(40,167,69,0.08)",
+        "#ffc107": "rgba(255,193,7,0.10)",
+        "#dc3545": "rgba(220,53,69,0.08)",
+        "#999":    "rgba(150,150,150,0.07)",
+    }.get(cor, "rgba(150,150,150,0.07)")
+
     st.markdown(f"""
-    <div class="metric-card" style="border-left-color:{cor};">
-        <p style="margin:0;font-size:11px;color:#666;font-weight:bold;text-transform:uppercase;">{label}</p>
-        <h4 style="margin:5px 0 0 0;color:#1f3a5f;font-weight:800;">{valor_display}</h4>
+    <div style="
+        background: white;
+        border-radius: 14px;
+        padding: 16px 14px 14px 14px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        border-top: 4px solid {cor};
+        text-align: center;
+        min-height: 90px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    ">
+        <p style="margin:0; font-size:10px; color:#888; font-weight:700;
+                  text-transform:uppercase; letter-spacing:0.8px; line-height:1.3;">{label}</p>
+        <p style="margin:0; font-size:22px; font-weight:900; color:#0b2a6f; line-height:1.1;">{valor_display}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+def exibir_card_ranking(pos, nome, valor, cor):
+    icone = ["🥇","🥈","🥉","4º","5º"][pos] if pos < 3 else f"{pos+1}º"
+    st.markdown(f"""
+    <div style="
+        background: white;
+        border-radius: 12px;
+        padding: 14px 18px;
+        margin-bottom: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        border-left: 5px solid {cor};
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    ">
+        <span style="font-size:22px; min-width:30px;">{icone}</span>
+        <div style="flex:1;">
+            <p style="margin:0; font-size:13px; font-weight:700; color:#1f3a5f;">{nome}</p>
+        </div>
+        <p style="margin:0; font-size:18px; font-weight:900; color:{cor};">{valor}</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -342,109 +386,211 @@ def carregar_dados_supervisor(supervisor: str, servico: str):
 
 # ---------- HELPER: painel de análise ----------
 def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa"):
-    # Para dados vindos do Supabase não há linha de resumo — df_resumo fica vazio
-    df_resumo = df[df[col_op].astype(str).str.upper().str.contains('EQUIPE|TOTAL|MÉDIA|MEDIA', na=False)].copy()
     df_eq = df[
         (~df[col_op].astype(str).str.upper().str.contains('EQUIPE|TOTAL|MÉDIA|MEDIA|SUPERVISOR', na=False)) &
         (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE))
     ].copy()
 
-    st.markdown("### 📊 Painel de Análise")
+    # ── CSS das abas ───────────────────────────────────
+    st.markdown("""
+    <style>
+    div[data-testid="stButton"] > button[kind="secondary"] {
+        background: white !important;
+        color: #0b2a6f !important;
+        border: 2px solid #dce6f7 !important;
+        border-radius: 10px !important;
+        font-weight: 700 !important;
+        font-size: 14px !important;
+        transition: all 0.2s !important;
+    }
+    div[data-testid="stButton"] > button[kind="secondary"]:hover {
+        background: #0b2a6f !important;
+        color: white !important;
+        border-color: #0b2a6f !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
     if chave_aba not in st.session_state:
         st.session_state[chave_aba] = "Individual"
 
+    aba = st.session_state[chave_aba]
+
+    # Cabeçalho com abas
+    st.markdown(f"""
+    <div style="display:flex; align-items:center; justify-content:space-between;
+                margin-bottom: 4px;">
+        <p style="margin:0; font-size:18px; font-weight:800; color:#0b2a6f;">📊 Painel de Análise</p>
+        <p style="margin:0; font-size:12px; color:#aaa;">{len(df_eq)} operadores carregados</p>
+    </div>
+    """, unsafe_allow_html=True)
+
     c1, c2, c3, c4 = st.columns(4)
-    if c1.button("Individual", use_container_width=True, key=f"btn_ind_{chave_aba}"):
+    if c1.button("👤 Individual", use_container_width=True, key=f"btn_ind_{chave_aba}"):
         st.session_state[chave_aba] = "Individual"; st.rerun()
-    if c2.button("Equipe",     use_container_width=True, key=f"btn_eq_{chave_aba}"):
+    if c2.button("👥 Equipe",     use_container_width=True, key=f"btn_eq_{chave_aba}"):
         st.session_state[chave_aba] = "Equipe";     st.rerun()
-    if c3.button("Ranking",    use_container_width=True, key=f"btn_rk_{chave_aba}"):
+    if c3.button("🏆 Ranking",    use_container_width=True, key=f"btn_rk_{chave_aba}"):
         st.session_state[chave_aba] = "Ranking";    st.rerun()
-    if c4.button("Saúde",      use_container_width=True, key=f"btn_sa_{chave_aba}"):
+    if c4.button("🩺 Saúde",      use_container_width=True, key=f"btn_sa_{chave_aba}"):
         st.session_state[chave_aba] = "Saúde";      st.rerun()
 
-    aba = st.session_state[chave_aba]
-    st.divider()
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
     # ── INDIVIDUAL ──────────────────────────────────────
     if aba == "Individual":
-        mat = st.text_input("Matrícula")
+        mat = st.text_input("🔍 Digite a Matrícula do Operador", placeholder="Ex: 1035323")
         if mat:
-            res = df[df[col_mat].astype(str) == mat]
+            res = df[df[col_mat].astype(str) == mat.strip()]
             if not res.empty:
                 r = res.iloc[0]
-                st.subheader(r[col_op])
-                # Linha 1: métricas originais
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    exibir_card("Aderência",     r['Aderencia'],     definir_cor_kpi(r['Aderencia_num'],     'Aderencia'))
-                    exibir_card("Silêncio",       r['Silencio'],      definir_cor_kpi(r['Silencio_num'],      'Silencio'))
-                with c2:
-                    exibir_card("Resolutividade", r['Resolutividade'],definir_cor_kpi(r['Resolutividade_num'],'Resolutividade'))
-                    exibir_card("Pausa Total",    r['Pausa Total'],   definir_cor_kpi(r['Pausa Total_num'],   'Pausa Total'))
-                with c3:
-                    exibir_card("TMA Voz",        r['TMA Voz'],       definir_cor_kpi(r['TMA Voz_num'],       'TMA Voz'))
-                    exibir_card("Pesquisa",        r['Pesquisa'],      definir_cor_kpi(r['Pesquisa_num'],      'Pesquisa'))
-                # Linha 2: novas métricas
-                st.markdown("#### Métricas Adicionais")
-                c4, c5, c6, c7 = st.columns(4)
-                with c4:
-                    exibir_card("Absenteísmo",  r['Absenteismo'],  definir_cor_kpi(r['Absenteismo_num'],  'Absenteismo'))
-                with c5:
-                    exibir_card("Produtividade",r['Produtividade'],definir_cor_kpi(r['Produtividade_num'],'Produtividade'))
-                with c6:
-                    exibir_card("Transf",       r['Transf'],       definir_cor_kpi(r['Transf_num'],       'Transf'))
-                with c7:
-                    exibir_card("ShortCall",    r['ShortCall'],    definir_cor_kpi(r['ShortCall_num'],    'ShortCall'))
+                st.markdown(f"""
+                <div style="background:linear-gradient(135deg,#0b2a6f,#1a6fc4);
+                            border-radius:14px; padding:18px 22px; margin:10px 0 18px 0;
+                            display:flex; align-items:center; gap:14px;">
+                    <span style="font-size:32px;">👤</span>
+                    <div>
+                        <p style="margin:0; color:rgba(255,255,255,0.65); font-size:11px;
+                                  letter-spacing:2px; text-transform:uppercase;">Operador</p>
+                        <p style="margin:0; color:white; font-size:20px; font-weight:900;">{r[col_op]}</p>
+                        <p style="margin:0; color:rgba(255,255,255,0.5); font-size:12px;">Matrícula {r[col_mat]}</p>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                # Linha 1 — 5 métricas principais
+                metricas_l1 = [
+                    ("Aderência",      'Aderencia'),
+                    ("Resolutividade", 'Resolutividade'),
+                    ("TMA Voz",        'TMA Voz'),
+                    ("Pesquisa",       'Pesquisa'),
+                    ("Silêncio",       'Silencio'),
+                ]
+                cols = st.columns(5)
+                for idx, (label, key) in enumerate(metricas_l1):
+                    with cols[idx]:
+                        exibir_card(label, r[key], definir_cor_kpi(r[f'{key}_num'], key.replace(' ','') if key != 'TMA Voz' else 'TMA Voz'))
+
+                st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+
+                # Linha 2 — 5 métricas adicionais
+                metricas_l2 = [
+                    ("Absenteísmo",   'Absenteismo'),
+                    ("Produtividade", 'Produtividade'),
+                    ("Transf",        'Transf'),
+                    ("ShortCall",     'ShortCall'),
+                    ("Pausa Total",   'Pausa Total'),
+                ]
+                cols2 = st.columns(5)
+                for idx, (label, key) in enumerate(metricas_l2):
+                    key_meta = key.replace(' ','') if ' ' not in key or key == 'Pausa Total' else key
+                    with cols2[idx]:
+                        exibir_card(label, r[key], definir_cor_kpi(r.get(f'{key}_num'), key_meta))
             else:
-                st.warning("Matrícula não encontrada.")
+                st.warning("⚠️ Matrícula não encontrada.")
+        else:
+            st.markdown("""
+            <div style='text-align:center; padding:50px 0; color:#bbb;'>
+                <p style='font-size:40px; margin:0;'>🔍</p>
+                <p style='font-size:15px; margin-top:10px;'>Digite a matrícula para ver os KPIs do operador</p>
+            </div>
+            """, unsafe_allow_html=True)
 
     # ── EQUIPE ──────────────────────────────────────────
     if aba == "Equipe":
         if not df_eq.empty:
-            st.markdown("**Médias da equipe**")
-            metricas_eq = list(METAS_BASE.keys())
-            cols_eq = st.columns(len(metricas_eq))
-            for i, metrica in enumerate(metricas_eq):
+            st.markdown(f"<p style='color:#888; font-size:13px; margin:0 0 12px 0;'>Médias consolidadas de <b>{len(df_eq)}</b> operadores</p>", unsafe_allow_html=True)
+
+            metricas_todos = list(METAS_BASE.keys())
+            # Primeira linha: 5 métricas
+            row1 = metricas_todos[:5]
+            row2 = metricas_todos[5:]
+
+            cols1 = st.columns(5)
+            for i, metrica in enumerate(row1):
                 col_num = f'{metrica}_num'
                 media = df_eq[col_num].mean() if col_num in df_eq.columns else None
                 conf  = METAS_BASE[metrica]
                 display = f"{media:.2f}{conf['unidade']}" if media is not None and not pd.isna(media) else '---'
-                with cols_eq[i]:
+                with cols1[i]:
                     exibir_card(metrica, display, definir_cor_kpi(media, metrica))
+
+            st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+
+            cols2 = st.columns(5)
+            for i, metrica in enumerate(row2):
+                col_num = f'{metrica}_num'
+                media = df_eq[col_num].mean() if col_num in df_eq.columns else None
+                conf  = METAS_BASE[metrica]
+                display = f"{media:.2f}{conf['unidade']}" if media is not None and not pd.isna(media) else '---'
+                with cols2[i]:
+                    exibir_card(metrica, display, definir_cor_kpi(media, metrica))
+
+            # Legenda de cores
+            st.markdown("""
+            <div style="display:flex; gap:18px; margin-top:14px; justify-content:center;">
+                <span style="font-size:12px; color:#28a745; font-weight:700;">● Dentro da meta</span>
+                <span style="font-size:12px; color:#ffc107; font-weight:700;">● Atenção</span>
+                <span style="font-size:12px; color:#dc3545; font-weight:700;">● Fora da meta</span>
+            </div>
+            """, unsafe_allow_html=True)
         else:
             st.warning("Nenhum operador encontrado para calcular médias.")
 
     # ── RANKING ─────────────────────────────────────────
     if aba == "Ranking":
-        metrica_sel = st.selectbox("Métrica", list(METAS_BASE.keys()))
+        col_sel, col_vazio = st.columns([2, 3])
+        with col_sel:
+            metrica_sel = st.selectbox("Selecionar métrica:", list(METAS_BASE.keys()))
+
         top = df_eq.dropna(subset=[f'{metrica_sel}_num']).sort_values(
             by=f'{metrica_sel}_num', ascending=METAS_BASE[metrica_sel]['menor_melhor']
-        ).head(5)
-        for i, (_, row) in enumerate(top.iterrows()):
-            exibir_card(f"{i+1}º {row[col_op]}", row[metrica_sel], "#28a745")
+        ).head(10)
+
+        if top.empty:
+            st.info("Sem dados suficientes para este ranking.")
+        else:
+            st.markdown(f"<p style='color:#888; font-size:13px; margin:8px 0 12px 0;'>Top {len(top)} — <b>{metrica_sel}</b></p>", unsafe_allow_html=True)
+            for i, (_, row) in enumerate(top.iterrows()):
+                cor = definir_cor_kpi(row[f'{metrica_sel}_num'], metrica_sel)
+                exibir_card_ranking(i, row[col_op], row[metrica_sel], cor)
 
     # ── SAÚDE ────────────────────────────────────────────
     if aba == "Saúde":
-        metrica_sel = st.selectbox("Selecione a Métrica:", list(METAS_BASE.keys()))
-        conf_s  = METAS_BASE[metrica_sel]
+        col_sel2, _ = st.columns([2, 3])
+        with col_sel2:
+            metrica_sel = st.selectbox("Selecione a Métrica:", list(METAS_BASE.keys()))
+
+        conf_s   = METAS_BASE[metrica_sel]
         df_saude = df_eq.copy()
 
         def verificar_status(valor):
             if pd.isna(valor): return "Sem dado"
             if conf_s['menor_melhor']:
-                return "Meta OK" if valor <= conf_s['valor'] else "Fora da Meta"
-            return "Meta OK" if valor >= conf_s['valor'] else "Fora da Meta"
+                return "✅ Meta OK" if valor <= conf_s['valor'] else ("⚠️ Atenção" if valor <= conf_s['valor'] + conf_s['margem'] else "❌ Fora da Meta")
+            return "✅ Meta OK" if valor >= conf_s['valor'] else ("⚠️ Atenção" if valor >= conf_s['valor'] - conf_s['margem'] else "❌ Fora da Meta")
 
         df_saude['Status'] = df_saude[f'{metrica_sel}_num'].apply(verificar_status)
         df_saude['Valor']  = df_saude.apply(
             lambda x: x[metrica_sel] if pd.notna(x[f'{metrica_sel}_num']) else "---", axis=1
         )
+
+        # Resumo rápido
+        total = len(df_saude)
+        ok    = (df_saude['Status'] == "✅ Meta OK").sum()
+        at    = (df_saude['Status'] == "⚠️ Atenção").sum()
+        out   = (df_saude['Status'] == "❌ Fora da Meta").sum()
+        c1s, c2s, c3s = st.columns(3)
+        with c1s: exibir_card("✅ Na Meta",     f"{ok}/{total}",  "#28a745")
+        with c2s: exibir_card("⚠️ Atenção",    f"{at}/{total}",  "#ffc107")
+        with c3s: exibir_card("❌ Fora da Meta",f"{out}/{total}", "#dc3545")
+
+        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+
         tabela = df_saude[[col_mat, col_op, 'Valor', 'Status']].rename(
             columns={col_mat: 'Matrícula', col_op: 'Operador', 'Valor': metrica_sel}
-        )
-        st.dataframe(tabela, use_container_width=True)
+        ).reset_index(drop=True)
+        st.dataframe(tabela, use_container_width=True, hide_index=True)
 
 # ---------- HUB ----------
 if 'servico' not in st.session_state:
