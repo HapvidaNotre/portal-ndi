@@ -727,7 +727,7 @@ if st.session_state.servico is None:
     <style>
 
     /* Zera padding global da tela principal */
-    .stApp { background-color: #f0f4fb !important; }
+    .stApp { background: linear-gradient(160deg, #0b2a6f 0%, #1a6fc4 100%) !important; }
     section.main > div.block-container {
         padding: 0 !important;
         max-width: 100% !important;
@@ -746,14 +746,30 @@ if st.session_state.servico is None:
         gap: 0 !important;
     }
 
-    /* Coluna ESQUERDA (1ª coluna) */
+    /* Coluna ESQUERDA — efeito glassmorphism */
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) {
-        background-color: #ffffff !important;
+        background: rgba(255, 255, 255, 0.12) !important;
+        backdrop-filter: blur(24px) saturate(180%) !important;
+        -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.25) !important;
+        box-shadow: 4px 0 40px rgba(0, 0, 0, 0.15) !important;
         padding: 60px 50px 60px 50px !important;
         height: 100vh !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: center !important;
+    }
+
+    /* Ajusta texto da coluna esquerda para contraste no fundo escuro */
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) p,
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) span,
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) label {
+        color: rgba(255, 255, 255, 0.85) !important;
+    }
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) h1,
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) h2,
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) h3 {
+        color: #ffffff !important;
     }
 
     /* Coluna DIREITA (2ª coluna) */
@@ -769,9 +785,9 @@ if st.session_state.servico is None:
 
     /* Botões do HUB */
     div[data-testid="stButton"] > button {
-        background-color: #ffffff !important;
-        color: #0b2a6f !important;
-        border: 2px solid #c5d5f0 !important;
+        background: rgba(255, 255, 255, 0.15) !important;
+        color: #ffffff !important;
+        border: 1.5px solid rgba(255, 255, 255, 0.35) !important;
         height: 62px !important;
         font-size: 15px !important;
         font-weight: 700 !important;
@@ -779,16 +795,17 @@ if st.session_state.servico is None:
         width: 100% !important;
         margin-bottom: 4px !important;
         letter-spacing: 0.4px !important;
-        box-shadow: 0 2px 8px rgba(11,42,111,0.08) !important;
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
         transition: all 0.22s ease !important;
     }
 
     div[data-testid="stButton"] > button:hover {
-        background-color: #0b2a6f !important;
-        color: #ffffff !important;
-        border-color: #0b2a6f !important;
+        background: rgba(255, 255, 255, 0.28) !important;
+        border-color: rgba(255, 255, 255, 0.6) !important;
         transform: translateY(-3px) scale(1.02) !important;
-        box-shadow: 0 10px 28px rgba(11,42,111,0.25) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
     }
 
     div[data-testid="stButton"] > button:active {
@@ -804,15 +821,15 @@ if st.session_state.servico is None:
     # ── LADO ESQUERDO: título + botões ────────────────────────
     with col_left:
         st.markdown("""
-            <p style="font-size:11px; font-weight:700; color:#1a6fc4;
+            <p style="font-size:11px; font-weight:700; color:rgba(255,255,255,0.7);
                       letter-spacing:3px; text-transform:uppercase; margin:0 0 12px 0;">
                 HAPVIDA NOTREDAME INTERMÉDICA
             </p>
-            <p style="font-size:28px; font-weight:900; color:#0b2a6f;
+            <p style="font-size:28px; font-weight:900; color:#ffffff;
                       margin:0 0 6px 0; line-height:1.2;">
                 Portal de<br>Performance NDI
             </p>
-            <p style="font-size:13px; color:#999; margin:0 0 40px 0;">
+            <p style="font-size:13px; color:rgba(255,255,255,0.55); margin:0 0 40px 0;">
                 Selecione como deseja acessar
             </p>
         """, unsafe_allow_html=True)
