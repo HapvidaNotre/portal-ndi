@@ -825,10 +825,9 @@ else:
         </p>
         """, unsafe_allow_html=True)
 
-        col_in, col_btn, _ = st.columns([2, 1, 3])
-        with col_in:
+        col_inp, _ = st.columns([2, 4])
+        with col_inp:
             mat_input = st.text_input("Matrícula", placeholder="Ex: 1035323", label_visibility="collapsed")
-        with col_btn:
             buscar = st.button("🔍 Buscar", use_container_width=True)
 
         if buscar and mat_input:
