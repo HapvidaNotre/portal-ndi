@@ -798,16 +798,23 @@ if st.session_state.servico is None:
         box-shadow: 0 4px 18px rgba(11, 42, 111, 0.3) !important;
         transition: all 0.22s ease !important;
     }
+    div[data-testid="stButton"] > button *,
     div[data-testid="stButton"] > button p,
     div[data-testid="stButton"] > button span,
-    div[data-testid="stButton"] > button div {
+    div[data-testid="stButton"] > button div,
+    div[data-testid="stButton"] > button label {
         color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
     }
 
     div[data-testid="stButton"] > button:hover {
         background: #1341a3 !important;
         transform: translateY(-3px) scale(1.02) !important;
         box-shadow: 0 10px 30px rgba(11, 42, 111, 0.35) !important;
+    }
+    div[data-testid="stButton"] > button:hover * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
     }
 
     div[data-testid="stButton"] > button:active {
