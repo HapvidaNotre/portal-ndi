@@ -276,9 +276,7 @@ def upsert_supabase(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool
         for rec in registros
     ]
 
-    # Deduplica pelo conflict key antes de enviar
-    # Evita erro "ON CONFLICT DO UPDATE command cannot affect row a second time"
-    # quando a mesma matrícula aparece duplicada no arquivo
+    # Deduplica pelo conflict key — evita erro 'ON CONFLICT DO UPDATE command cannot affect row a second time'
     seen = {}
     for rec in registros_limpos:
         key = (rec.get('matricula'), rec.get('supervisor'), rec.get('servico'))
@@ -609,33 +607,22 @@ else:
                         sucesso = upsert_supabase(df_bi_raw, nome_sup, servico_sup)
 
                         if sucesso:
-                            # Invalida cache para forçar releitura imediata
+                            # Invalida cache do Supabase
                             carregar_dados_supervisor.clear()
-
-                            df_bi, col_op_bi, col_mat_bi = carregar_dados_supervisor(nome_sup, servico_sup)
-
-                            st.session_state.supervisor_dados[chave] = {
-                                'df':      df_bi,
-                                'col_op':  col_op_bi,
-                                'col_mat': col_mat_bi,
-                                'arquivo': arquivo.name,
-                            }
-                            st.success(f"✅ **{arquivo.name}** processado e salvo com sucesso!")
-                            dados_salvos = st.session_state.supervisor_dados[chave]
+                            st.success(f"✅ **{arquivo.name}** enviado e salvo com sucesso! Os dados já estão disponíveis para os operadores.")
 
                     except Exception as e:
                         st.error(f"Erro ao processar o arquivo: {e}")
 
-            if dados_salvos:
-                st.caption(f"📌 Última atualização: **{dados_salvos['arquivo']}** — faça um novo upload para atualizar.")
-                st.divider()
-                exibir_painel(dados_salvos['df'], dados_salvos['col_op'], dados_salvos['col_mat'], chave_aba=f"aba_{chave}")
-            elif arquivo is None:
+            if arquivo is None:
                 st.markdown("""
                 <div style='text-align:center; padding: 60px 0; color:#888;'>
-                    <p style='font-size:48px;'>📊</p>
-                    <p style='font-size:16px;'>Nenhuma planilha carregada ainda.<br>
-                    Envie o arquivo <b>.xlsx</b> exportado pelo BI para visualizar os dados da sua equipe.</p>
+                    <p style='font-size:48px;'>📤</p>
+                    <p style='font-size:16px;'>Nenhuma planilha enviada ainda.<br>
+                    Envie o arquivo <b>.xlsx</b> exportado pelo BI para atualizar os dados da equipe no sistema.</p>
+                    <p style='font-size:13px; color:#aaa; margin-top:12px;'>
+                        Após o upload, os dados ficam disponíveis para acesso via <b>SAC NDI / SAC PPO / SAC HAPVIDA</b>.
+                    </p>
                 </div>
                 """, unsafe_allow_html=True)
 
