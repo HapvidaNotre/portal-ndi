@@ -45,6 +45,14 @@ div.stButton > button:hover {
     margin-bottom: 10px;
 }
 
+/* ALERTAS — garante texto legivel independente do tema */
+[data-testid="stAlert"] p,
+[data-testid="stAlert"] div,
+[data-testid="stAlert"] span,
+.stAlert p, .stAlert div {
+    color: #1a1a1a !important;
+}
+
 /* SPLASH */
 .splash-container {
     display: flex;
@@ -233,6 +241,15 @@ def _limpar_num(val):
     except:
         return None
 
+def _limpar_matricula(val):
+    s = str(val).strip()
+    # float-like string → remove .0
+    if '.' in s:
+        partes = s.split('.')
+        if partes[1].strip('0') == '':
+            s = partes[0]
+    return s if s not in ('', 'nan', 'None', 'nan.0') else None
+
 def _converter_tma(val):
     try:
         partes = str(val).strip().split(':')
@@ -284,6 +301,8 @@ def upsert_supabase(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool
                 val = row[col_real]
                 if col_db == 'tma_voz':
                     rec[col_db] = _converter_tma(val)
+                elif col_db == 'matricula':
+                    rec[col_db] = _limpar_matricula(val)
                 elif col_db in ('operador',):
                     rec[col_db] = str(val).strip() if not pd.isna(val) else None
                 else:
@@ -396,10 +415,12 @@ def carregar_dados_supervisor(supervisor: str, servico: str):
 def buscar_supervisor_por_matricula(matricula: str):
     """Dado uma matrícula, retorna (supervisor, servico) registrado no Supabase."""
     supabase = conectar_supabase()
+    # Limpa possível .0 digitado ou copiado
+    mat_clean = _limpar_matricula(matricula) or matricula.strip()
     res = (
         supabase.table("performance_operadores")
         .select("supervisor,servico,operador")
-        .eq("matricula", matricula.strip())
+        .eq("matricula", mat_clean)
         .limit(1)
         .execute()
     )
