@@ -830,15 +830,17 @@ if st.session_state.servico is None:
     # ── LADO ESQUERDO: título + botões ────────────────────────
     with col_left:
         st.markdown("""
-            <p style="font-size:11px; font-weight:700; color:#1a6fc4;
-                      letter-spacing:3px; text-transform:uppercase; margin:0 0 12px 0;">
-                HAPVIDA NOTREDAME INTERMÉDICA
+            <p style="font-size:10px; font-weight:800; color:#1a6fc4;
+                      letter-spacing:4px; text-transform:uppercase; margin:0 0 18px 0;
+                      border-left: 3px solid #1a6fc4; padding-left: 10px;">
+                Hapvida Notredame Intermédica
             </p>
-            <p style="font-size:28px; font-weight:900; color:#0b2a6f;
-                      margin:0 0 6px 0; line-height:1.2;">
-                Portal de<br>Performance NDI
+            <p style="font-size:32px; font-weight:900; color:#0b2a6f;
+                      margin:0 0 10px 0; line-height:1.15; letter-spacing:-0.5px;">
+                Portal de<br>Performance <span style="color:#1a6fc4;">NDI</span>
             </p>
-            <p style="font-size:13px; color:#4a6080; margin:0 0 40px 0;">
+            <p style="font-size:13px; color:#6b82a0; margin:0 0 40px 0;
+                      font-weight:500; letter-spacing:0.3px;">
                 Selecione como deseja acessar
             </p>
         """, unsafe_allow_html=True)
