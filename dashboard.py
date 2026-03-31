@@ -164,13 +164,13 @@ _MAP_COLUNAS_BI = {
     # Resolutividade
     'resolutividade':      'resolutividade',
     '(%) resolutividade':  'resolutividade',
-    # Pausas
+    # Pausas — colunas de % têm prioridade sobre colunas de tempo (HH:MM:SS)
+    '% pausa produtiva':   'pausa_produtiva',
     'pausa produtiva':     'pausa_produtiva',
     'pausas produtivas':   'pausa_produtiva',
-    '% pausa produtiva':   'pausa_produtiva',
+    '% pausa improdutiva': 'pausa_improdutiva',
     'pausa improdutiva':   'pausa_improdutiva',
     'pausas improdutivas': 'pausa_improdutiva',
-    '% pausa improdutiva': 'pausa_improdutiva',
     'pausa total':         'pausa_total',
 }
 
@@ -571,9 +571,8 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
                 ]
                 cols2 = st.columns(5)
                 for idx, (label, key) in enumerate(metricas_l2):
-                    key_meta = key.replace(' ','') if ' ' not in key or key == 'Pausa Total' else key
                     with cols2[idx]:
-                        exibir_card(label, r[key], definir_cor_kpi(r.get(f'{key}_num'), key_meta))
+                        exibir_card(label, r[key], definir_cor_kpi(r.get(f'{key}_num'), key))
             else:
                 st.warning("⚠️ Matrícula não encontrada.")
 
