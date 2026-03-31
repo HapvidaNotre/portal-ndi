@@ -862,6 +862,16 @@ if st.session_state.servico is None:
                           letter-spacing:3px; text-transform:uppercase; margin:0;">
                     Portal de Performance
                 </p>
+                <div style="text-align:center; margin-top:-10px;">
+                    <p style="color:rgba(255,255,255,0.35); font-size:10px;
+                              letter-spacing:2px; text-transform:uppercase; margin:0 0 4px 0;">
+                        Desenvolvido por
+                    </p>
+                    <p style="color:rgba(255,255,255,0.75); font-size:13px;
+                              font-weight:700; letter-spacing:1px; margin:0;">
+                        Sup. Erik Coelho
+                    </p>
+                </div>
             </div>
         """, unsafe_allow_html=True)
 
