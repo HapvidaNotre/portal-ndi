@@ -125,23 +125,44 @@ MATRICULAS_BACKOFFICE = ['1211819','1210820','1210724','1211110','1211213','1214
 
 # Mapeamento coluna Excel (lowercase) → coluna no Supabase
 _MAP_COLUNAS_BI = {
-    'operador':          'operador',
-    'matricula':         'matricula',
-    'aderencia':         'aderencia',
-    'aderencia (%)':     'aderencia',
-    'absenteismo':       'absenteismo',
-    'produtividade':     'produtividade',
-    'transf':            'transf',
-    'tma voz':           'tma_voz',
-    'shortcall':         'shortcall',
-    'silencio':          'silencio',
-    'silêncio':          'silencio',
-    'pesquisa':          'pesquisa',
-    'resolutividade':    'resolutividade',
-    'pausa produtiva':   'pausa_produtiva',
-    'pausa improdutiva': 'pausa_improdutiva',
+    'operador':            'operador',
+    'matricula':           'matricula',
+    # Aderência
+    'aderencia':           'aderencia',
+    'aderencia (%)':       'aderencia',
+    '(%) aderencia':       'aderencia',
+    # Absenteísmo
+    'absenteismo':         'absenteismo',
+    '(%) absenteismo':     'absenteismo',
+    # Produtividade
+    'produtividade':       'produtividade',
+    '(%) produtividade':   'produtividade',
+    # Transf
+    'transf':              'transf',
+    '(%) transf':          'transf',
+    # TMA Voz
+    'tma voz':             'tma_voz',
+    # ShortCall
+    'shortcall':           'shortcall',
+    '(%) shortcall':       'shortcall',
+    # Silêncio
+    'silencio':            'silencio',
+    'silêncio':            'silencio',
+    'silencio (%)':        'silencio',
+    'silêncio (%)':        'silencio',
+    # Pesquisa
+    'pesquisa':            'pesquisa',
+    # Resolutividade
+    'resolutividade':      'resolutividade',
+    '(%) resolutividade':  'resolutividade',
+    # Pausas
+    'pausa produtiva':     'pausa_produtiva',
+    'pausas produtivas':   'pausa_produtiva',
+    '% pausa produtiva':   'pausa_produtiva',
+    'pausa improdutiva':   'pausa_improdutiva',
+    'pausas improdutivas': 'pausa_improdutiva',
     '% pausa improdutiva': 'pausa_improdutiva',
-    'pausa total':       'pausa_total',
+    'pausa total':         'pausa_total',
 }
 
 # ---------- FUNÇÕES UTILITÁRIAS ----------
@@ -178,9 +199,17 @@ def _converter_tma(val):
 
 # ---------- UPSERT SUPABASE ----------
 # Colunas do BI que vêm como frações decimais (0.0–1.0) e precisam virar %
-_COLUNAS_FRACAO = {'aderencia (%)', '% pausa improdutiva', 'absenteismo', 'produtividade',
-                   'transf', 'shortcall', 'silencio', 'silêncio', 'pausa produtiva',
-                   'pausa improdutiva', 'pausa total'}
+_COLUNAS_FRACAO = {
+    'aderencia (%)', '(%) aderencia',
+    '% pausa improdutiva', '(%) pausa improdutiva', 'pausas improdutivas',
+    '% pausa produtiva', '(%) pausa produtiva', 'pausas produtivas',
+    'absenteismo', '(%) absenteismo',
+    'produtividade', '(%) produtividade',
+    'transf', '(%) transf',
+    'shortcall', '(%) shortcall',
+    'silencio', 'silêncio', 'silencio (%)', 'silêncio (%)',
+    'resolutividade', '(%) resolutividade',
+}
 
 def upsert_supabase(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool:
     """Processa o Excel bruto e faz upsert no Supabase por matrícula+supervisor+serviço."""
@@ -230,8 +259,25 @@ def upsert_supabase(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool
         st.warning("Nenhum registro válido encontrado no arquivo.")
         return False
 
+    # Sanitiza NaN/inf → None para evitar erro JSON do Supabase
+    import math
+    def _sanitize(v):
+        if v is None:
+            return None
+        try:
+            if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                return None
+        except Exception:
+            pass
+        return v
+
+    registros_limpos = [
+        {k: _sanitize(v) for k, v in rec.items()}
+        for rec in registros
+    ]
+
     supabase.table("performance_operadores").upsert(
-        registros,
+        registros_limpos,
         on_conflict="matricula,supervisor,servico"
     ).execute()
 
