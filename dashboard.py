@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import time
+from supabase import create_client, Client
 
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
 
@@ -98,61 +99,56 @@ if not st.session_state.splash_done:
     st.session_state.splash_done = True
     st.rerun()
 
+# ---------- SUPABASE ----------
+@st.cache_resource
+def conectar_supabase() -> Client:
+    return create_client(
+        st.secrets["supabase"]["url"],
+        st.secrets["supabase"]["key"]
+    )
+
 # ---------- METAS ----------
 METAS_BASE = {
-    'Aderencia': {'valor': 85.0, 'margem': 5.0, 'menor_melhor': False, 'unidade': '%'},
-    'Resolutividade': {'valor': 75.0, 'margem': 5.0, 'menor_melhor': False, 'unidade': '%'},
-    'TMA Voz': {'valor': 8.0, 'margem': 1.0, 'menor_melhor': True, 'unidade': ' min'},
-    'Pesquisa': {'valor': 4.5, 'margem': 0.5, 'menor_melhor': False, 'unidade': ''},
-    'Silencio': {'valor': 15.0, 'margem': 5.0, 'menor_melhor': True, 'unidade': '%'},
-    'Pausa Total': {'valor': 21.75, 'margem': 3.0, 'menor_melhor': True, 'unidade': '%'}
-}
-
-# Aliases para nomes alternativos de colunas na planilha
-ALIAS_COLUNAS = {
-    'tma voz': ['tma voz', 'tma', 'tma_voz', 'tempo medio de atendimento',
-                'tempo médio de atendimento', 'tma volumetria voz'],
-    'pesquisa': ['pesquisa', 'nota pesquisa', 'nota_pesquisa', 'nps',
-                 'nota de pesquisa', 'nota pesquisa voz'],
-    'aderencia': ['aderencia', 'aderência', 'adh', 'adherencia', 'aderencia (%)'],
-    'resolutividade': ['resolutividade', 'resolutividade%', 'resolut'],
-    'silencio': ['silencio', 'silêncio', 'silencio%'],
-    'pausa total': ['pausa total', '% pausa improdutiva', 'pausa improdutiva'],
+    'Aderencia':     {'valor': 85.0,  'margem': 5.0, 'menor_melhor': False, 'unidade': '%'},
+    'Resolutividade':{'valor': 75.0,  'margem': 5.0, 'menor_melhor': False, 'unidade': '%'},
+    'TMA Voz':       {'valor': 8.0,   'margem': 1.0, 'menor_melhor': True,  'unidade': ' min'},
+    'Pesquisa':      {'valor': 4.5,   'margem': 0.5, 'menor_melhor': False, 'unidade': ''},
+    'Silencio':      {'valor': 15.0,  'margem': 5.0, 'menor_melhor': True,  'unidade': '%'},
+    'Pausa Total':   {'valor': 21.75, 'margem': 3.0, 'menor_melhor': True,  'unidade': '%'},
+    'Absenteismo':   {'valor': 5.0,   'margem': 1.0, 'menor_melhor': True,  'unidade': '%'},
+    'Produtividade': {'valor': 80.0,  'margem': 5.0, 'menor_melhor': False, 'unidade': '%'},
+    'Transf':        {'valor': 10.0,  'margem': 2.0, 'menor_melhor': True,  'unidade': '%'},
+    'ShortCall':     {'valor': 5.0,   'margem': 1.0, 'menor_melhor': True,  'unidade': '%'},
 }
 
 MATRICULAS_BACKOFFICE = ['1211819','1210820','1210724','1211110','1211213','1214016','10115858','1212492','1028483']
 
-# ---------- FUNÇÕES ----------
-def buscar_coluna(cols_dict, metrica):
-    """Busca o nome real da coluna na planilha usando aliases."""
-    aliases = ALIAS_COLUNAS.get(metrica.lower(), [metrica.lower()])
-    for alias in aliases:
-        if alias in cols_dict:
-            return cols_dict[alias]
-    return None
+# Mapeamento coluna Excel (lowercase) → coluna no Supabase
+_MAP_COLUNAS_BI = {
+    'operador':          'operador',
+    'matricula':         'matricula',
+    'aderencia':         'aderencia',
+    'aderencia (%)':     'aderencia',
+    'absenteismo':       'absenteismo',
+    'produtividade':     'produtividade',
+    'transf':            'transf',
+    'tma voz':           'tma_voz',
+    'shortcall':         'shortcall',
+    'silencio':          'silencio',
+    'silêncio':          'silencio',
+    'pesquisa':          'pesquisa',
+    'resolutividade':    'resolutividade',
+    'pausa produtiva':   'pausa_produtiva',
+    'pausa improdutiva': 'pausa_improdutiva',
+    '% pausa improdutiva': 'pausa_improdutiva',
+    'pausa total':       'pausa_total',
+}
 
-def limpar_valor_numerico(valor):
-    if pd.isna(valor): return None
-    try:
-        return float(str(valor).replace('%','').replace(',','.').strip())
-    except:
-        return None
-
-def converter_tma(valor):
-    if pd.isna(valor): return None
-    try:
-        p = str(valor).strip().split(':')
-        if len(p) == 3:
-            return int(p[0]) * 60 + int(p[1]) + int(p[2]) / 60
-        return float(str(valor).replace(',','.'))
-    except:
-        return None
-
+# ---------- FUNÇÕES UTILITÁRIAS ----------
 def definir_cor_kpi(valor_num, metrica):
-    if valor_num is None: return "#999"
+    if valor_num is None or pd.isna(valor_num): return "#999"
     conf = METAS_BASE[metrica]
     m, tol, menor = conf['valor'], conf['margem'], conf['menor_melhor']
-
     if menor:
         return "#28a745" if valor_num <= m else ("#ffc107" if valor_num <= m + tol else "#dc3545")
     return "#28a745" if valor_num >= m else ("#ffc107" if valor_num >= m - tol else "#dc3545")
@@ -165,77 +161,135 @@ def exibir_card(label, valor_display, cor):
     </div>
     """, unsafe_allow_html=True)
 
-# ---------- PROCESSAMENTO COMUM ----------
-def _processar_df(df):
-    df.columns = df.columns.str.strip()
-    cols = {c.lower(): c for c in df.columns}
+def _limpar_num(val):
+    try:
+        return float(str(val).replace('%','').replace(',','.').strip())
+    except:
+        return None
 
-    col_op  = cols.get('operador',  'Operador')
-    col_mat = cols.get('matricula', 'Matricula')
+def _converter_tma(val):
+    try:
+        partes = str(val).strip().split(':')
+        if len(partes) == 3:
+            return int(partes[0]) * 60 + int(partes[1]) + int(partes[2]) / 60
+        return _limpar_num(val)
+    except:
+        return None
 
-    for m in METAS_BASE.keys():
-        origem = buscar_coluna(cols, m)
-        if origem:
-            if 'TMA' in m:
-                df[f'{m}_num'] = df[origem].apply(converter_tma)
-            else:
-                df[f'{m}_num'] = df[origem].apply(limpar_valor_numerico)
-            df[m] = df[origem].astype(str)
-        else:
-            df[f'{m}_num'] = None
-            df[m] = '---'
-
-    col_imp  = cols.get('pausa improdutiva') or cols.get('% pausa improdutiva')
-    col_prod = cols.get('pausa produtiva')
-
-    if col_imp and col_prod:
-        df['Pausa Total_num'] = (
-            df[col_imp].apply(limpar_valor_numerico).fillna(0)
-            + df[col_prod].apply(limpar_valor_numerico).fillna(0)
-        )
-        df['Pausa Total'] = df['Pausa Total_num'].apply(lambda x: f"{x:.1f}%")
-    elif col_imp:
-        # BI exporta apenas improdutiva — usa direto como Pausa Total
-        df['Pausa Total_num'] = df[col_imp].apply(limpar_valor_numerico)
-        df['Pausa Total'] = df['Pausa Total_num'].apply(
-            lambda x: f"{x:.1f}%" if x is not None else "---"
-        )
-
-    return df, col_op, col_mat
-
-# ---------- CARREGAMENTO (Google Sheets) ----------
-@st.cache_data(ttl=60)
-def carregar_dados_aba(nome_aba):
-    SHEET_ID = "1uOREvgGXscOpmtWK7SQ3oCI67pDQOmZWcOaxg0E025E"
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={nome_aba.replace(' ','%20')}"
-    df = pd.read_csv(url)
-    return _processar_df(df)
-
-# ---------- CARREGAMENTO (Upload Excel BI) ----------
+# ---------- UPSERT SUPABASE ----------
 # Colunas do BI que vêm como frações decimais (0.0–1.0) e precisam virar %
-_COLUNAS_FRACAO = {'aderencia (%)', '% pausa improdutiva', 'absenteismo'}
+_COLUNAS_FRACAO = {'aderencia (%)', '% pausa improdutiva', 'absenteismo', 'produtividade',
+                   'transf', 'shortcall', 'silencio', 'silêncio', 'pausa produtiva',
+                   'pausa improdutiva', 'pausa total'}
 
-def processar_excel_bi(arquivo):
-    df = pd.read_excel(arquivo, dtype=str)
-    df.columns = df.columns.str.strip()
+def upsert_supabase(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool:
+    """Processa o Excel bruto e faz upsert no Supabase por matrícula+supervisor+serviço."""
+    supabase = conectar_supabase()
+
+    df_raw = df_raw.copy()
+    df_raw.columns = df_raw.columns.str.strip()
 
     # Converte colunas de fração decimal → porcentagem
-    df_num = pd.read_excel(arquivo)
-    df_num.columns = df_num.columns.str.strip()
+    df_num = df_raw.copy()
     for col in df_num.columns:
         if col.lower() in _COLUNAS_FRACAO:
-            df[col] = (df_num[col] * 100).round(2).astype(str)
+            try:
+                df_raw[col] = (pd.to_numeric(df_num[col], errors='coerce') * 100).round(2).astype(str)
+            except:
+                pass
 
-    # Se não há "Pausa Produtiva" separada, cria coluna auxiliar zerada
-    # para que _processar_df possa somar improdutiva + 0 = total
-    cols_lower = {c.lower() for c in df.columns}
-    if 'pausa produtiva' not in cols_lower and '% pausa improdutiva' in cols_lower:
-        df['Pausa Produtiva'] = '0'
+    cols_lower = {c.lower(): c for c in df_raw.columns}
+    registros = []
 
-    return _processar_df(df)
+    for _, row in df_raw.iterrows():
+        rec = {'supervisor': supervisor, 'servico': servico}
+
+        for col_excel, col_db in _MAP_COLUNAS_BI.items():
+            col_real = cols_lower.get(col_excel)
+            if col_real and col_db not in rec:
+                val = row[col_real]
+                if col_db == 'tma_voz':
+                    rec[col_db] = _converter_tma(val)
+                elif col_db in ('operador',):
+                    rec[col_db] = str(val).strip() if not pd.isna(val) else None
+                else:
+                    rec[col_db] = _limpar_num(val)
+
+        # Recalcula pausa total
+        prod   = rec.get('pausa_produtiva')   or 0
+        improd = rec.get('pausa_improdutiva') or 0
+        rec['pausa_total'] = round((prod or 0) + (improd or 0), 2)
+
+        rec['atualizado_em'] = pd.Timestamp.now(tz='UTC').isoformat()
+
+        mat = rec.get('matricula')
+        if mat and str(mat).strip() not in ('', 'nan', 'None'):
+            registros.append(rec)
+
+    if not registros:
+        st.warning("Nenhum registro válido encontrado no arquivo.")
+        return False
+
+    supabase.table("performance_operadores").upsert(
+        registros,
+        on_conflict="matricula,supervisor,servico"
+    ).execute()
+
+    return True
+
+# ---------- LEITURA DO SUPABASE ----------
+@st.cache_data(ttl=60)
+def carregar_dados_supervisor(supervisor: str, servico: str):
+    """Lê dados do Supabase para o supervisor/serviço e retorna df no padrão do sistema."""
+    supabase = conectar_supabase()
+
+    res = (
+        supabase.table("performance_operadores")
+        .select("*")
+        .eq("supervisor", supervisor)
+        .eq("servico", servico)
+        .execute()
+    )
+
+    if not res.data:
+        return pd.DataFrame(), 'Operador', 'Matricula'
+
+    df = pd.DataFrame(res.data)
+
+    # Renomeia colunas do banco → padrão do sistema
+    df = df.rename(columns={
+        'operador':          'Operador',
+        'matricula':         'Matricula',
+        'aderencia':         'Aderencia_num',
+        'absenteismo':       'Absenteismo_num',
+        'produtividade':     'Produtividade_num',
+        'transf':            'Transf_num',
+        'tma_voz':           'TMA Voz_num',
+        'shortcall':         'ShortCall_num',
+        'silencio':          'Silencio_num',
+        'pesquisa':          'Pesquisa_num',
+        'resolutividade':    'Resolutividade_num',
+        'pausa_produtiva':   'Pausa Produtiva_num',
+        'pausa_improdutiva': 'Pausa Improdutiva_num',
+        'pausa_total':       'Pausa Total_num',
+    })
+
+    # Garante colunas de display formatadas para cada métrica
+    for metrica, conf in METAS_BASE.items():
+        col_num = f'{metrica}_num'
+        if col_num in df.columns:
+            df[metrica] = df[col_num].apply(
+                lambda x: f"{x}{conf['unidade']}" if pd.notna(x) else '---'
+            )
+        else:
+            df[metrica] = '---'
+            df[col_num] = None
+
+    return df, 'Operador', 'Matricula'
 
 # ---------- HELPER: painel de análise ----------
 def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa"):
+    # Para dados vindos do Supabase não há linha de resumo — df_resumo fica vazio
     df_resumo = df[df[col_op].astype(str).str.upper().str.contains('EQUIPE|TOTAL|MÉDIA|MEDIA', na=False)].copy()
     df_eq = df[
         (~df[col_op].astype(str).str.upper().str.contains('EQUIPE|TOTAL|MÉDIA|MEDIA|SUPERVISOR', na=False)) &
@@ -243,22 +297,24 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa"):
     ].copy()
 
     st.markdown("### 📊 Painel de Análise")
+
     if chave_aba not in st.session_state:
         st.session_state[chave_aba] = "Individual"
 
     c1, c2, c3, c4 = st.columns(4)
     if c1.button("Individual", use_container_width=True, key=f"btn_ind_{chave_aba}"):
         st.session_state[chave_aba] = "Individual"; st.rerun()
-    if c2.button("Equipe", use_container_width=True, key=f"btn_eq_{chave_aba}"):
-        st.session_state[chave_aba] = "Equipe"; st.rerun()
-    if c3.button("Ranking", use_container_width=True, key=f"btn_rk_{chave_aba}"):
-        st.session_state[chave_aba] = "Ranking"; st.rerun()
-    if c4.button("Saúde", use_container_width=True, key=f"btn_sa_{chave_aba}"):
-        st.session_state[chave_aba] = "Saúde"; st.rerun()
+    if c2.button("Equipe",     use_container_width=True, key=f"btn_eq_{chave_aba}"):
+        st.session_state[chave_aba] = "Equipe";     st.rerun()
+    if c3.button("Ranking",    use_container_width=True, key=f"btn_rk_{chave_aba}"):
+        st.session_state[chave_aba] = "Ranking";    st.rerun()
+    if c4.button("Saúde",      use_container_width=True, key=f"btn_sa_{chave_aba}"):
+        st.session_state[chave_aba] = "Saúde";      st.rerun()
 
     aba = st.session_state[chave_aba]
     st.divider()
 
+    # ── INDIVIDUAL ──────────────────────────────────────
     if aba == "Individual":
         mat = st.text_input("Matrícula")
         if mat:
@@ -266,29 +322,48 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa"):
             if not res.empty:
                 r = res.iloc[0]
                 st.subheader(r[col_op])
+                # Linha 1: métricas originais
                 c1, c2, c3 = st.columns(3)
                 with c1:
-                    exibir_card("Aderência",      r['Aderencia'],   definir_cor_kpi(r['Aderencia_num'],   'Aderencia'))
-                    exibir_card("Silêncio",        r['Silencio'],    definir_cor_kpi(r['Silencio_num'],    'Silencio'))
+                    exibir_card("Aderência",     r['Aderencia'],     definir_cor_kpi(r['Aderencia_num'],     'Aderencia'))
+                    exibir_card("Silêncio",       r['Silencio'],      definir_cor_kpi(r['Silencio_num'],      'Silencio'))
                 with c2:
-                    exibir_card("Resolutividade",  r['Resolutividade'], definir_cor_kpi(r['Resolutividade_num'], 'Resolutividade'))
-                    exibir_card("Pausa Total",     r['Pausa Total'], definir_cor_kpi(r['Pausa Total_num'], 'Pausa Total'))
+                    exibir_card("Resolutividade", r['Resolutividade'],definir_cor_kpi(r['Resolutividade_num'],'Resolutividade'))
+                    exibir_card("Pausa Total",    r['Pausa Total'],   definir_cor_kpi(r['Pausa Total_num'],   'Pausa Total'))
                 with c3:
-                    exibir_card("TMA Voz",         r['TMA Voz'],    definir_cor_kpi(r['TMA Voz_num'],     'TMA Voz'))
-                    exibir_card("Pesquisa",        r['Pesquisa'],   definir_cor_kpi(r['Pesquisa_num'],    'Pesquisa'))
+                    exibir_card("TMA Voz",        r['TMA Voz'],       definir_cor_kpi(r['TMA Voz_num'],       'TMA Voz'))
+                    exibir_card("Pesquisa",        r['Pesquisa'],      definir_cor_kpi(r['Pesquisa_num'],      'Pesquisa'))
+                # Linha 2: novas métricas
+                st.markdown("#### Métricas Adicionais")
+                c4, c5, c6, c7 = st.columns(4)
+                with c4:
+                    exibir_card("Absenteísmo",  r['Absenteismo'],  definir_cor_kpi(r['Absenteismo_num'],  'Absenteismo'))
+                with c5:
+                    exibir_card("Produtividade",r['Produtividade'],definir_cor_kpi(r['Produtividade_num'],'Produtividade'))
+                with c6:
+                    exibir_card("Transf",       r['Transf'],       definir_cor_kpi(r['Transf_num'],       'Transf'))
+                with c7:
+                    exibir_card("ShortCall",    r['ShortCall'],    definir_cor_kpi(r['ShortCall_num'],    'ShortCall'))
             else:
                 st.warning("Matrícula não encontrada.")
 
+    # ── EQUIPE ──────────────────────────────────────────
     if aba == "Equipe":
-        cols_cards = st.columns(len(METAS_BASE))
-        if not df_resumo.empty:
-            linha_oficial = df_resumo.iloc[0]
-            for i, (metrica, _) in enumerate(METAS_BASE.items()):
-                with cols_cards[i]:
-                    exibir_card(metrica, linha_oficial[metrica], definir_cor_kpi(linha_oficial[f'{metrica}_num'], metrica))
+        if not df_eq.empty:
+            st.markdown("**Médias da equipe**")
+            metricas_eq = list(METAS_BASE.keys())
+            cols_eq = st.columns(len(metricas_eq))
+            for i, metrica in enumerate(metricas_eq):
+                col_num = f'{metrica}_num'
+                media = df_eq[col_num].mean() if col_num in df_eq.columns else None
+                conf  = METAS_BASE[metrica]
+                display = f"{media:.2f}{conf['unidade']}" if media is not None and not pd.isna(media) else '---'
+                with cols_eq[i]:
+                    exibir_card(metrica, display, definir_cor_kpi(media, metrica))
         else:
-            st.warning("Não foi possível localizar a linha de média/equipe na planilha.")
+            st.warning("Nenhum operador encontrado para calcular médias.")
 
+    # ── RANKING ─────────────────────────────────────────
     if aba == "Ranking":
         metrica_sel = st.selectbox("Métrica", list(METAS_BASE.keys()))
         top = df_eq.dropna(subset=[f'{metrica_sel}_num']).sort_values(
@@ -297,9 +372,10 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa"):
         for i, (_, row) in enumerate(top.iterrows()):
             exibir_card(f"{i+1}º {row[col_op]}", row[metrica_sel], "#28a745")
 
+    # ── SAÚDE ────────────────────────────────────────────
     if aba == "Saúde":
         metrica_sel = st.selectbox("Selecione a Métrica:", list(METAS_BASE.keys()))
-        conf_s = METAS_BASE[metrica_sel]
+        conf_s  = METAS_BASE[metrica_sel]
         df_saude = df_eq.copy()
 
         def verificar_status(valor):
@@ -309,11 +385,11 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa"):
             return "Meta OK" if valor >= conf_s['valor'] else "Fora da Meta"
 
         df_saude['Status'] = df_saude[f'{metrica_sel}_num'].apply(verificar_status)
-        df_saude['Valor'] = df_saude.apply(
+        df_saude['Valor']  = df_saude.apply(
             lambda x: x[metrica_sel] if pd.notna(x[f'{metrica_sel}_num']) else "---", axis=1
         )
-        tabela = df_saude[[col_mat, 'Valor', 'Status']].rename(
-            columns={col_mat: 'Matrícula', 'Valor': metrica_sel}
+        tabela = df_saude[[col_mat, col_op, 'Valor', 'Status']].rename(
+            columns={col_mat: 'Matrícula', col_op: 'Operador', 'Valor': metrica_sel}
         )
         st.dataframe(tabela, use_container_width=True)
 
@@ -333,20 +409,16 @@ if st.session_state.servico is None:
     </h1>
     """, unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
-    if c1.button("SAC NDI", use_container_width=True):
-        st.session_state.servico = "SAC NDI"
-        st.rerun()
-    if c2.button("SAC PPO", use_container_width=True):
-        st.session_state.servico = "SAC PPO"
-        st.rerun()
+    if c1.button("SAC NDI",     use_container_width=True):
+        st.session_state.servico = "SAC NDI";     st.rerun()
+    if c2.button("SAC PPO",     use_container_width=True):
+        st.session_state.servico = "SAC PPO";     st.rerun()
     if c3.button("SAC HAPVIDA", use_container_width=True):
-        st.session_state.servico = "SAC HAPVIDA"
-        st.rerun()
+        st.session_state.servico = "SAC HAPVIDA"; st.rerun()
 
     _, c_sup, _ = st.columns([1, 1, 1])
     if c_sup.button("ÁREA DA SUPERVISÃO", use_container_width=True):
-        st.session_state.servico = "Supervisor"
-        st.rerun()
+        st.session_state.servico = "Supervisor"; st.rerun()
 
 # ---------- DASHBOARD ----------
 else:
@@ -367,11 +439,9 @@ else:
 
         with st.sidebar:
             st.markdown("### 📋 Área da Supervisão")
-
             servico_sup = st.selectbox("Serviço:", ["Selecione..."] + list(SUPERVISORES.keys()))
             nomes_disp  = SUPERVISORES.get(servico_sup, []) if servico_sup != "Selecione..." else []
             nome_sup    = st.selectbox("Seu nome:", ["Selecione..."] + nomes_disp)
-
             if st.button("Voltar"):
                 st.session_state.servico = None
                 st.rerun()
@@ -379,12 +449,11 @@ else:
         if servico_sup == "Selecione..." or nome_sup == "Selecione...":
             st.info("👈 Selecione seu serviço e nome na barra lateral para continuar.")
         else:
-            chave = f"{nome_sup}_{servico_sup}"
+            chave       = f"{nome_sup}_{servico_sup}"
             dados_salvos = st.session_state.supervisor_dados.get(chave)
 
             st.markdown(f"### 👤 {nome_sup} — {servico_sup}")
 
-            # Upload sempre visível; novo arquivo substitui os dados congelados
             arquivo = st.file_uploader(
                 "📂 Enviar planilha do BI (.xlsx)  —  um novo upload substitui os dados atuais",
                 type=["xlsx"],
@@ -392,22 +461,33 @@ else:
             )
 
             if arquivo is not None:
-                with st.spinner("Processando planilha..."):
+                with st.spinner("Processando e enviando para o banco..."):
                     try:
-                        df_bi, col_op_bi, col_mat_bi = processar_excel_bi(arquivo)
-                        st.session_state.supervisor_dados[chave] = {
-                            'df': df_bi,
-                            'col_op': col_op_bi,
-                            'col_mat': col_mat_bi,
-                            'arquivo': arquivo.name,
-                        }
-                        st.success(f"✅ Planilha **{arquivo.name}** carregada com sucesso!")
-                        dados_salvos = st.session_state.supervisor_dados[chave]
+                        df_bi_raw = pd.read_excel(arquivo, dtype=str)
+
+                        # Upsert no Supabase
+                        sucesso = upsert_supabase(df_bi_raw, nome_sup, servico_sup)
+
+                        if sucesso:
+                            # Invalida cache para forçar releitura imediata
+                            carregar_dados_supervisor.clear()
+
+                            df_bi, col_op_bi, col_mat_bi = carregar_dados_supervisor(nome_sup, servico_sup)
+
+                            st.session_state.supervisor_dados[chave] = {
+                                'df':      df_bi,
+                                'col_op':  col_op_bi,
+                                'col_mat': col_mat_bi,
+                                'arquivo': arquivo.name,
+                            }
+                            st.success(f"✅ **{arquivo.name}** processado e salvo com sucesso!")
+                            dados_salvos = st.session_state.supervisor_dados[chave]
+
                     except Exception as e:
                         st.error(f"Erro ao processar o arquivo: {e}")
 
             if dados_salvos:
-                st.caption(f"📌 Dados congelados do arquivo: **{dados_salvos['arquivo']}** — faça um novo upload para atualizar.")
+                st.caption(f"📌 Última atualização: **{dados_salvos['arquivo']}** — faça um novo upload para atualizar.")
                 st.divider()
                 exibir_painel(dados_salvos['df'], dados_salvos['col_op'], dados_salvos['col_mat'], chave_aba=f"aba_{chave}")
             elif arquivo is None:
@@ -420,24 +500,26 @@ else:
                 """, unsafe_allow_html=True)
 
     # ══════════════════════════════════════════════════
-    # SAC NDI / SAC PPO / SAC HAPVIDA  (Google Sheets)
+    # SAC NDI / SAC PPO / SAC HAPVIDA  (Supabase)
     # ══════════════════════════════════════════════════
     else:
         with st.sidebar:
             st.markdown(f"### {st.session_state.servico}")
             if st.session_state.servico == "SAC NDI":
-                lista = ["Selecione...", "Equipe Erik","Equipe Davi","Equipe Elaine","Equipe Sayanne","Equipe Beatriz","Equipe Aline","Equipe Marcelo"]
+                lista_sup = ["Selecione...","Erik","Davi","Elaine","Sayanne","Beatriz","Aline","Marcelo"]
             elif st.session_state.servico == "SAC PPO":
-                lista = ["Selecione...", "Equipe Ellen","Equipe Carla","Equipe Magno","Equipe Alex"]
+                lista_sup = ["Selecione...","Ellen","Carla","Magno","Alex"]
             else:
-                lista = ["Selecione...", "Equipe Hapvida"]
+                lista_sup = ["Selecione...","Hapvida"]
 
-            supervisor = st.selectbox("Supervisor:", lista)
-
+            supervisor = st.selectbox("Supervisor:", lista_sup)
             if st.button("Voltar"):
                 st.session_state.servico = None
                 st.rerun()
 
         if supervisor != "Selecione...":
-            df, col_op, col_mat = carregar_dados_aba(supervisor)
-            exibir_painel(df, col_op, col_mat)
+            df, col_op, col_mat = carregar_dados_supervisor(supervisor, st.session_state.servico)
+            if df.empty:
+                st.warning("Nenhum dado encontrado para este supervisor. Aguarde o upload da planilha pelo supervisor.")
+            else:
+                exibir_painel(df, col_op, col_mat)
