@@ -401,9 +401,10 @@ def carregar_dados_supervisor(supervisor: str, servico: str):
     # Garante colunas de display formatadas para cada métrica
     for metrica, conf in METAS_BASE.items():
         col_num = f'{metrica}_num'
+        unidade = conf['unidade']  # captura local para evitar bug de closure no lambda
         if col_num in df.columns:
             df[metrica] = df[col_num].apply(
-                lambda x: f"{x}{conf['unidade']}" if pd.notna(x) else '---'
+                lambda x, u=unidade: f"{x:.2f}{u}" if pd.notna(x) else '---'
             )
         else:
             df[metrica] = '---'
