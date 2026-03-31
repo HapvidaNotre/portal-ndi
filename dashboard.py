@@ -733,11 +733,24 @@ if st.session_state.servico is None:
         max-width: 100% !important;
     }
 
+    /* Impede scroll na tela do HUB */
+    html, body, .stApp {
+        height: 100vh !important;
+        overflow: hidden !important;
+    }
+
+    /* Container horizontal ocupa exatamente a viewport */
+    [data-testid="stHorizontalBlock"] {
+        height: 100vh !important;
+        margin: 0 !important;
+        gap: 0 !important;
+    }
+
     /* Coluna ESQUERDA (1ª coluna) */
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) {
         background-color: #ffffff !important;
         padding: 60px 50px 60px 50px !important;
-        min-height: 100vh !important;
+        height: 100vh !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: center !important;
@@ -747,7 +760,7 @@ if st.session_state.servico is None:
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) {
         background: linear-gradient(160deg, #0b2a6f 0%, #1a6fc4 100%) !important;
         padding: 40px !important;
-        min-height: 100vh !important;
+        height: 100vh !important;
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
