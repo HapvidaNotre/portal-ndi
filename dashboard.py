@@ -18,6 +18,13 @@ header[data-testid="stHeader"] {
     display: none !important;
 }
 
+/* Remove espaço vazio no topo */
+.stApp > div:first-child { margin-top: 0 !important; }
+section.main > div.block-container {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}
+
 /* BOTÕES HUB */
 div.stButton > button {
     background-color: #0b2a6f;
