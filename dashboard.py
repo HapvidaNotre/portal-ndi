@@ -748,10 +748,10 @@ if st.session_state.servico is None:
 
     /* Coluna ESQUERDA — glassmorphism branco */
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) {
-        background: rgba(255, 255, 255, 0.82) !important;
-        backdrop-filter: blur(28px) saturate(200%) !important;
-        -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.6) !important;
+        background: rgba(255, 255, 255, 0.97) !important;
+        backdrop-filter: blur(28px) saturate(160%) !important;
+        -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
+        border-right: 1px solid rgba(200, 215, 235, 0.8) !important;
         box-shadow: 4px 0 40px rgba(0, 0, 0, 0.12) !important;
         padding: 60px 50px 60px 50px !important;
         height: 100vh !important;
@@ -785,27 +785,24 @@ if st.session_state.servico is None:
 
     /* Botões do HUB — azul sólido com efeito glass */
     div[data-testid="stButton"] > button {
-        background: rgba(11, 42, 111, 0.88) !important;
+        background: #0b2a6f !important;
         color: #ffffff !important;
-        border: 1.5px solid rgba(11, 42, 111, 0.3) !important;
+        border: none !important;
         height: 62px !important;
         font-size: 15px !important;
         font-weight: 700 !important;
         border-radius: 12px !important;
         width: 100% !important;
         margin-bottom: 4px !important;
-        letter-spacing: 0.4px !important;
-        backdrop-filter: blur(8px) !important;
-        -webkit-backdrop-filter: blur(8px) !important;
-        box-shadow: 0 4px 18px rgba(11, 42, 111, 0.18) !important;
+        letter-spacing: 0.8px !important;
+        box-shadow: 0 4px 18px rgba(11, 42, 111, 0.3) !important;
         transition: all 0.22s ease !important;
     }
 
     div[data-testid="stButton"] > button:hover {
-        background: rgba(11, 42, 111, 1) !important;
-        border-color: rgba(26, 111, 196, 0.6) !important;
+        background: #1341a3 !important;
         transform: translateY(-3px) scale(1.02) !important;
-        box-shadow: 0 10px 30px rgba(11, 42, 111, 0.28) !important;
+        box-shadow: 0 10px 30px rgba(11, 42, 111, 0.35) !important;
     }
 
     div[data-testid="stButton"] > button:active {
@@ -829,7 +826,7 @@ if st.session_state.servico is None:
                       margin:0 0 6px 0; line-height:1.2;">
                 Portal de<br>Performance NDI
             </p>
-            <p style="font-size:13px; color:#7a90aa; margin:0 0 40px 0;">
+            <p style="font-size:13px; color:#4a6080; margin:0 0 40px 0;">
                 Selecione como deseja acessar
             </p>
         """, unsafe_allow_html=True)
