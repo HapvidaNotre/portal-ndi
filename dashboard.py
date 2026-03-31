@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import time
+import hashlib
 from supabase import create_client, Client
 
 st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_icon="🚀")
@@ -407,6 +408,44 @@ def buscar_supervisor_por_matricula(matricula: str):
         return d.get('supervisor'), d.get('servico'), d.get('operador')
     return None, None, None
 
+# ---------- AUTH GESTORES ----------
+def _hash_senha(matricula: str, senha: str) -> str:
+    raw = f"{matricula}:{senha}:ndi_portal_2025"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+def gestor_buscar(matricula: str):
+    supabase = conectar_supabase()
+    try:
+        res = supabase.table("gestores_auth").select("*").eq("matricula", matricula.strip()).limit(1).execute()
+        return res.data[0] if res.data else None
+    except Exception:
+        return None
+
+def gestor_cadastrar(matricula: str, nome: str, servico: str, senha: str) -> bool:
+    supabase = conectar_supabase()
+    try:
+        supabase.table("gestores_auth").insert({
+            "matricula": matricula.strip(),
+            "nome":      nome,
+            "servico":   servico,
+            "senha_hash": _hash_senha(matricula, senha),
+        }).execute()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao cadastrar: {e}")
+        return False
+
+def gestor_alterar_senha(matricula: str, senha_nova: str) -> bool:
+    supabase = conectar_supabase()
+    try:
+        supabase.table("gestores_auth").update(
+            {"senha_hash": _hash_senha(matricula, senha_nova)}
+        ).eq("matricula", matricula.strip()).execute()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao alterar senha: {e}")
+        return False
+
 # ---------- HELPER: painel de análise ----------
 def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa"):
     df_eq = df[
@@ -737,7 +776,7 @@ if st.session_state.servico is None:
 else:
 
     # ══════════════════════════════════════════════════
-    # ÁREA DA SUPERVISÃO
+    # ÁREA DA SUPERVISÃO — com autenticação
     # ══════════════════════════════════════════════════
     if st.session_state.servico == "Supervisor":
 
@@ -747,57 +786,227 @@ else:
             "SAC HAPVIDA": ["Hapvida"],
         }
 
-        if 'supervisor_dados' not in st.session_state:
-            st.session_state.supervisor_dados = {}
+        # Inicializa estados de autenticação
+        for _k, _v in [('gestor_logado', False), ('gestor_matricula', ''),
+                        ('gestor_nome', ''), ('gestor_servico', ''),
+                        ('gestor_tela', 'login')]:
+            if _k not in st.session_state:
+                st.session_state[_k] = _v
 
+        # ── Sidebar ────────────────────────────────────────────
         with st.sidebar:
-            st.markdown("### 📋 Área da Supervisão")
-            servico_sup = st.selectbox("Serviço:", ["Selecione..."] + list(SUPERVISORES.keys()))
-            nomes_disp  = SUPERVISORES.get(servico_sup, []) if servico_sup != "Selecione..." else []
-            nome_sup    = st.selectbox("Seu nome:", ["Selecione..."] + nomes_disp)
-            if st.button("Voltar"):
+            st.markdown("### 🗂️ Área do Gestor")
+            if st.session_state.gestor_logado:
+                st.markdown(f"**{st.session_state.gestor_nome}**")
+                st.caption(f"{st.session_state.gestor_servico}")
+                st.divider()
+                if st.button("🔒 Sair da conta"):
+                    for _k in ('gestor_logado','gestor_matricula','gestor_nome','gestor_servico'):
+                        st.session_state[_k] = '' if _k != 'gestor_logado' else False
+                    st.session_state.gestor_tela = 'login'
+                    st.rerun()
+            if st.button("← Voltar ao início"):
+                for _k in ('gestor_logado','gestor_matricula','gestor_nome','gestor_servico'):
+                    st.session_state[_k] = '' if _k != 'gestor_logado' else False
+                st.session_state.gestor_tela = 'login'
                 st.session_state.servico = None
                 st.rerun()
 
-        if servico_sup == "Selecione..." or nome_sup == "Selecione...":
-            st.info("👈 Selecione seu serviço e nome na barra lateral para continuar.")
-        else:
-            chave       = f"{nome_sup}_{servico_sup}"
-            dados_salvos = st.session_state.supervisor_dados.get(chave)
+        # ══════════════════════════════════════════════════
+        # NÃO LOGADO — telas de login / cadastro
+        # ══════════════════════════════════════════════════
+        if not st.session_state.gestor_logado:
 
-            st.markdown(f"### 👤 {nome_sup} — {servico_sup}")
+            # CSS do painel de login
+            st.markdown("""
+            <style>
+            .login-box {
+                max-width: 420px;
+                margin: 60px auto 0 auto;
+                background: white;
+                border-radius: 18px;
+                padding: 40px 36px 32px 36px;
+                box-shadow: 0 8px 40px rgba(11,42,111,0.12);
+            }
+            </style>
+            """, unsafe_allow_html=True)
+
+            _, col_center, _ = st.columns([1, 2, 1])
+            with col_center:
+
+                # ── TELA DE LOGIN ─────────────────────────────
+                if st.session_state.gestor_tela == 'login':
+                    st.markdown("""
+                    <div style="text-align:center; margin-bottom:28px;">
+                        <p style="font-size:36px; margin:0;">🗂️</p>
+                        <p style="font-size:22px; font-weight:900; color:#0b2a6f; margin:4px 0 4px 0;">Área do Gestor</p>
+                        <p style="font-size:13px; color:#999; margin:0;">Acesse com sua matrícula e senha</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    mat_login  = st.text_input("Matrícula", placeholder="Ex: 1035323", key="login_mat")
+                    sen_login  = st.text_input("Senha", type="password", placeholder="Sua senha", key="login_sen")
+
+                    col_a, col_b = st.columns(2)
+                    entrar  = col_a.button("✅ Entrar",           use_container_width=True)
+                    cadastro = col_b.button("📝 Primeiro acesso", use_container_width=True)
+
+                    if entrar:
+                        if not mat_login or not sen_login:
+                            st.warning("Preencha matrícula e senha.")
+                        else:
+                            gestor = gestor_buscar(mat_login)
+                            if gestor is None:
+                                st.error("Matrícula não cadastrada. Clique em **Primeiro acesso** para criar sua conta.")
+                            elif gestor['senha_hash'] != _hash_senha(mat_login, sen_login):
+                                st.error("Senha incorreta.")
+                            else:
+                                st.session_state.gestor_logado   = True
+                                st.session_state.gestor_matricula = mat_login
+                                st.session_state.gestor_nome     = gestor['nome']
+                                st.session_state.gestor_servico  = gestor['servico']
+                                st.rerun()
+
+                    if cadastro:
+                        st.session_state.gestor_tela = 'cadastro'
+                        st.rerun()
+
+                # ── TELA DE CADASTRO (primeiro acesso) ────────
+                elif st.session_state.gestor_tela == 'cadastro':
+                    st.markdown("""
+                    <div style="text-align:center; margin-bottom:24px;">
+                        <p style="font-size:32px; margin:0;">📝</p>
+                        <p style="font-size:20px; font-weight:900; color:#0b2a6f; margin:4px 0 4px 0;">Criar conta</p>
+                        <p style="font-size:13px; color:#999; margin:0;">Preencha seus dados para o primeiro acesso</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    mat_cad  = st.text_input("Sua Matrícula",  placeholder="Ex: 1035323",  key="cad_mat")
+                    svc_cad  = st.selectbox("Serviço",         list(SUPERVISORES.keys()),   key="cad_svc")
+                    nomes_c  = SUPERVISORES.get(svc_cad, [])
+                    nom_cad  = st.selectbox("Seu nome",        nomes_c,                     key="cad_nom")
+                    sen_cad  = st.text_input("Criar senha",    type="password", placeholder="Mínimo 6 caracteres", key="cad_sen")
+                    sen_cad2 = st.text_input("Confirmar senha",type="password", placeholder="Repita a senha",      key="cad_sen2")
+
+                    col_c, col_d = st.columns(2)
+                    salvar  = col_c.button("✅ Criar conta",  use_container_width=True)
+                    voltar  = col_d.button("← Voltar",        use_container_width=True)
+
+                    if voltar:
+                        st.session_state.gestor_tela = 'login'
+                        st.rerun()
+
+                    if salvar:
+                        if not mat_cad or not sen_cad:
+                            st.warning("Preencha todos os campos.")
+                        elif len(sen_cad) < 6:
+                            st.warning("A senha deve ter no mínimo 6 caracteres.")
+                        elif sen_cad != sen_cad2:
+                            st.error("As senhas não coincidem.")
+                        elif gestor_buscar(mat_cad) is not None:
+                            st.error("Esta matrícula já possui cadastro. Volte e faça login.")
+                        else:
+                            ok = gestor_cadastrar(mat_cad, nom_cad, svc_cad, sen_cad)
+                            if ok:
+                                st.success("✅ Conta criada! Fazendo login...")
+                                time.sleep(1)
+                                st.session_state.gestor_logado    = True
+                                st.session_state.gestor_matricula = mat_cad
+                                st.session_state.gestor_nome      = nom_cad
+                                st.session_state.gestor_servico   = svc_cad
+                                st.session_state.gestor_tela      = 'login'
+                                st.rerun()
+
+                # ── TELA DE ALTERAR SENHA ─────────────────────
+                elif st.session_state.gestor_tela == 'alterar_senha':
+                    st.markdown("""
+                    <div style="text-align:center; margin-bottom:24px;">
+                        <p style="font-size:32px; margin:0;">🔑</p>
+                        <p style="font-size:20px; font-weight:900; color:#0b2a6f; margin:4px 0;">Alterar senha</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    sen_at   = st.text_input("Senha atual",    type="password", key="alt_at")
+                    sen_nova = st.text_input("Nova senha",     type="password", placeholder="Mínimo 6 caracteres", key="alt_nova")
+                    sen_nov2 = st.text_input("Confirmar nova", type="password", key="alt_nov2")
+
+                    col_e, col_f = st.columns(2)
+                    confirmar = col_e.button("✅ Confirmar", use_container_width=True)
+                    can_alt   = col_f.button("← Cancelar",  use_container_width=True)
+
+                    if can_alt:
+                        st.session_state.gestor_tela = 'logado'
+                        st.rerun()
+                    if confirmar:
+                        gestor = gestor_buscar(st.session_state.gestor_matricula)
+                        if gestor and gestor['senha_hash'] != _hash_senha(st.session_state.gestor_matricula, sen_at):
+                            st.error("Senha atual incorreta.")
+                        elif len(sen_nova) < 6:
+                            st.warning("A nova senha deve ter no mínimo 6 caracteres.")
+                        elif sen_nova != sen_nov2:
+                            st.error("As senhas não coincidem.")
+                        else:
+                            if gestor_alterar_senha(st.session_state.gestor_matricula, sen_nova):
+                                st.success("✅ Senha alterada com sucesso!")
+                                time.sleep(1)
+                                st.session_state.gestor_tela = 'logado'
+                                st.rerun()
+
+        # ══════════════════════════════════════════════════
+        # LOGADO — área de upload
+        # ══════════════════════════════════════════════════
+        else:
+            nome_sup    = st.session_state.gestor_nome
+            servico_sup = st.session_state.gestor_servico
+
+            # Banner do gestor logado
+            st.markdown(f"""
+            <div style="background:linear-gradient(135deg,#0b2a6f,#1a6fc4);
+                        border-radius:14px; padding:18px 24px; margin-bottom:24px;
+                        display:flex; align-items:center; justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:14px;">
+                    <span style="font-size:28px;">🗂️</span>
+                    <div>
+                        <p style="margin:0; color:rgba(255,255,255,0.6); font-size:11px;
+                                  letter-spacing:2px; text-transform:uppercase;">Gestor logado</p>
+                        <p style="margin:0; color:white; font-size:18px; font-weight:900;">{nome_sup}</p>
+                        <p style="margin:0; color:rgba(255,255,255,0.65); font-size:12px;">{servico_sup}</p>
+                    </div>
+                </div>
+                <p style="margin:0; color:rgba(255,255,255,0.45); font-size:11px;">Mat. {st.session_state.gestor_matricula}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Botão alterar senha
+            col_alt, _ = st.columns([1, 4])
+            if col_alt.button("🔑 Alterar senha"):
+                st.session_state.gestor_tela = 'alterar_senha'
+                st.session_state.gestor_logado = False
+                st.rerun()
+
+            st.divider()
 
             arquivo = st.file_uploader(
                 "📂 Enviar planilha do BI (.xlsx)  —  um novo upload substitui os dados atuais",
                 type=["xlsx"],
-                key=f"upload_{chave}"
+                key=f"upload_{nome_sup}_{servico_sup}"
             )
 
             if arquivo is not None:
                 with st.spinner("Processando e enviando para o banco..."):
                     try:
                         df_bi_raw = pd.read_excel(arquivo, dtype=str)
-
-                        # Upsert no Supabase
                         sucesso = upsert_supabase(df_bi_raw, nome_sup, servico_sup)
-
                         if sucesso:
-                            # Invalida cache do Supabase
                             carregar_dados_supervisor.clear()
-                            st.success(f"✅ **{arquivo.name}** enviado e salvo com sucesso! Os dados já estão disponíveis para os operadores.")
-
+                            st.success(f"✅ **{arquivo.name}** enviado com sucesso! Dados disponíveis para os operadores.")
                     except Exception as e:
                         st.error(f"Erro ao processar o arquivo: {e}")
-
-            if arquivo is None:
+            else:
                 st.markdown("""
-                <div style='text-align:center; padding: 60px 0; color:#888;'>
-                    <p style='font-size:48px;'>📤</p>
-                    <p style='font-size:16px;'>Nenhuma planilha enviada ainda.<br>
-                    Envie o arquivo <b>.xlsx</b> exportado pelo BI para atualizar os dados da equipe no sistema.</p>
-                    <p style='font-size:13px; color:#aaa; margin-top:12px;'>
-                        Após o upload, os dados ficam disponíveis para acesso via <b>SAC NDI / SAC PPO / SAC HAPVIDA</b>.
-                    </p>
+                <div style='text-align:center; padding: 50px 0; color:#aaa;'>
+                    <p style='font-size:44px;'>📤</p>
+                    <p style='font-size:15px;'>Envie o arquivo <b>.xlsx</b> exportado pelo BI<br>para atualizar os dados da equipe.</p>
                 </div>
                 """, unsafe_allow_html=True)
 
