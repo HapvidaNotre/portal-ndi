@@ -1045,30 +1045,33 @@ else:
                 st.session_state.pop('op_nome', None)
                 st.rerun()
 
-        st.markdown("""
-        <p style="font-size:11px; font-weight:700; color:#1a6fc4;
-                  letter-spacing:3px; text-transform:uppercase; margin:0 0 6px 0;">
-            ACESSO DO OPERADOR
-        </p>
-        <p style="font-size:22px; font-weight:900; color:#0b2a6f; margin:0 0 20px 0;">
-            Digite sua matrícula
-        </p>
-        """, unsafe_allow_html=True)
+        if not st.session_state.get('op_supervisor'):
+            st.markdown("""
+            <p style="font-size:11px; font-weight:700; color:#1a6fc4;
+                      letter-spacing:3px; text-transform:uppercase; margin:0 0 6px 0;">
+                ACESSO DO OPERADOR
+            </p>
+            <p style="font-size:22px; font-weight:900; color:#0b2a6f; margin:0 0 20px 0;">
+                Digite sua matrícula
+            </p>
+            """, unsafe_allow_html=True)
 
-        col_inp, _ = st.columns([2, 4])
-        with col_inp:
-            mat_input = st.text_input("Matrícula", placeholder="Ex: 1035323", label_visibility="collapsed")
-            buscar = st.button("🔍 Buscar", use_container_width=True)
+            col_inp, _ = st.columns([2, 4])
+            with col_inp:
+                mat_input = st.text_input("Matrícula", placeholder="Ex: 1035323", label_visibility="collapsed")
+                buscar = st.button("🔍 Buscar", use_container_width=True)
 
-        if buscar and mat_input:
-            sup, svc, nome_op = buscar_supervisor_por_matricula(mat_input.strip())
-            if sup:
-                st.session_state.op_supervisor = sup
-                st.session_state.op_servico    = svc
-                st.session_state.op_nome       = nome_op or mat_input.strip()
-            else:
-                st.session_state.pop('op_supervisor', None)
-                st.warning("⚠️ Matrícula não encontrada. Verifique o número ou aguarde o gestor enviar a planilha.")
+            if buscar and mat_input:
+                sup, svc, nome_op = buscar_supervisor_por_matricula(mat_input.strip())
+                if sup:
+                    st.session_state.op_supervisor  = sup
+                    st.session_state.op_servico     = svc
+                    st.session_state.op_nome        = nome_op or mat_input.strip()
+                    st.session_state.op_matricula   = mat_input.strip()
+                    st.rerun()
+                else:
+                    st.session_state.pop('op_supervisor', None)
+                    st.warning("⚠️ Matrícula não encontrada. Verifique o número ou aguarde o gestor enviar a planilha.")
 
         if st.session_state.get('op_supervisor'):
             sup = st.session_state.op_supervisor
@@ -1089,8 +1092,17 @@ else:
             </div>
             """, unsafe_allow_html=True)
 
+            col_trocar, _ = st.columns([1, 5])
+            if col_trocar.button("🔄 Trocar operador", use_container_width=True):
+                st.session_state.pop('op_supervisor', None)
+                st.session_state.pop('op_servico', None)
+                st.session_state.pop('op_nome', None)
+                st.session_state.pop('op_matricula', None)
+                st.rerun()
+
+            mat_input = st.session_state.get('op_matricula', sup)
             df, col_op, col_mat = carregar_dados_supervisor(sup, svc)
             if df.empty:
                 st.warning("Nenhum dado disponível ainda. Aguarde o gestor enviar a planilha.")
             else:
-                exibir_painel(df, col_op, col_mat, chave_aba=f"aba_op_{mat_input if mat_input else sup}")
+                exibir_painel(df, col_op, col_mat, chave_aba=f"aba_op_{mat_input}")
