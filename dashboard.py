@@ -776,14 +776,11 @@ if st.session_state.servico is None:
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) {
         background: linear-gradient(160deg, #0b2a6f 0%, #1a6fc4 100%) !important;
         padding: 40px !important;
-        height: calc(100vh - 32px) !important;
-        margin: 16px 16px 16px 0 !important;
-        border-radius: 20px !important;
+        height: 100vh !important;
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
         justify-content: center !important;
-        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3) !important;
     }
 
     /* Botões do HUB */
