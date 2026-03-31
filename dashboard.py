@@ -398,27 +398,130 @@ if 'servico' not in st.session_state:
     st.session_state.servico = None
 
 if st.session_state.servico is None:
-    st.markdown("""
-    <h1 style='text-align:center; font-size:36px; font-weight:900; margin:0;'>
-        <span style='-webkit-text-fill-color: initial;'>🚀</span>
-        <span style='background: linear-gradient(135deg, #0b2a6f, #1a6fc4);
-                     -webkit-background-clip: text;
-                     -webkit-text-fill-color: transparent;'>
-            Portal de Performance NDI
-        </span>
-    </h1>
-    """, unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    if c1.button("SAC NDI",     use_container_width=True):
-        st.session_state.servico = "SAC NDI";     st.rerun()
-    if c2.button("SAC PPO",     use_container_width=True):
-        st.session_state.servico = "SAC PPO";     st.rerun()
-    if c3.button("SAC HAPVIDA", use_container_width=True):
-        st.session_state.servico = "SAC HAPVIDA"; st.rerun()
 
-    _, c_sup, _ = st.columns([1, 1, 1])
-    if c_sup.button("ÁREA DA SUPERVISÃO", use_container_width=True):
-        st.session_state.servico = "Supervisor"; st.rerun()
+    # CSS exclusivo do HUB
+    st.markdown("""
+    <style>
+
+    /* Remove padding padrão do Streamlit na tela do HUB */
+    section.main > div { padding-top: 0 !important; }
+
+    /* Painel esquerdo */
+    .hub-left {
+        background-color: #ffffff;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 60px 50px;
+    }
+
+    .hub-title {
+        font-size: 26px;
+        font-weight: 900;
+        color: #0b2a6f;
+        margin-bottom: 8px;
+        letter-spacing: 0.5px;
+    }
+
+    .hub-subtitle {
+        font-size: 13px;
+        color: #888;
+        margin-bottom: 40px;
+    }
+
+    /* Painel direito */
+    .hub-right {
+        background: linear-gradient(160deg, #0b2a6f 0%, #1a6fc4 100%);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+    }
+
+    .hub-right img {
+        width: 200px;
+        filter: drop-shadow(0 4px 20px rgba(0,0,0,0.3));
+    }
+
+    .hub-right-label {
+        color: rgba(255,255,255,0.75);
+        font-size: 13px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-top: 10px;
+    }
+
+    /* Botões do HUB — fundo branco, texto azul, hover com efeito */
+    div[data-testid="stButton"] > button {
+        background-color: #ffffff !important;
+        color: #0b2a6f !important;
+        border: 2px solid #d0ddf5 !important;
+        height: 64px !important;
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        border-radius: 14px !important;
+        width: 100% !important;
+        margin-bottom: 12px !important;
+        letter-spacing: 0.5px !important;
+        box-shadow: 0 2px 8px rgba(11,42,111,0.07) !important;
+        transition: all 0.25s ease !important;
+    }
+
+    div[data-testid="stButton"] > button:hover {
+        background-color: #0b2a6f !important;
+        color: #ffffff !important;
+        border-color: #0b2a6f !important;
+        transform: translateY(-3px) scale(1.02) !important;
+        box-shadow: 0 8px 24px rgba(11,42,111,0.22) !important;
+    }
+
+    div[data-testid="stButton"] > button:active {
+        transform: scale(0.98) !important;
+    }
+
+    /* Divisor entre os painéis — remove borda dos columns */
+    [data-testid="column"] { padding: 0 !important; }
+
+    </style>
+    """, unsafe_allow_html=True)
+
+    col_left, col_right = st.columns([1, 1], gap="small")
+
+    # ── LADO ESQUERDO: botões ──────────────────────────────────
+    with col_left:
+        st.markdown("""
+        <div class="hub-left">
+            <p class="hub-title">Portal de Performance NDI</p>
+            <p class="hub-subtitle">Selecione o serviço para acessar o painel</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Centraliza botões com espaçamento
+        gap_top, col_btn, gap_bot = st.columns([0.15, 0.7, 0.15])
+        with col_btn:
+            st.markdown("<div style='margin-top: -280px;'></div>", unsafe_allow_html=True)
+            if st.button("🏥  SAC NDI", use_container_width=True):
+                st.session_state.servico = "SAC NDI"; st.rerun()
+            if st.button("📋  SAC PPO", use_container_width=True):
+                st.session_state.servico = "SAC PPO"; st.rerun()
+            if st.button("💙  SAC HAPVIDA", use_container_width=True):
+                st.session_state.servico = "SAC HAPVIDA"; st.rerun()
+            st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+            if st.button("🗂️  ÁREA DO GESTOR", use_container_width=True):
+                st.session_state.servico = "Supervisor"; st.rerun()
+
+    # ── LADO DIREITO: logo + fundo azul ───────────────────────
+    with col_right:
+        st.markdown("""
+        <div class="hub-right">
+            <img src="https://raw.githubusercontent.com/HapvidaNotre/portal-ndi/main/logo-hapvida-escudo-2048.png"
+                 alt="Hapvida NDI" />
+            <p class="hub-right-label">Portal de Performance</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 # ---------- DASHBOARD ----------
 else:
