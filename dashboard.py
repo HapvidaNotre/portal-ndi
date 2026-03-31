@@ -12,6 +12,12 @@ st.markdown("""
 
 .stApp { background-color: #f8f9fa; }
 
+/* Oculta barra preta padrão do Streamlit */
+[data-testid="stToolbar"],
+header[data-testid="stHeader"] {
+    display: none !important;
+}
+
 /* BOTÕES HUB */
 div.stButton > button {
     background-color: #0b2a6f;
