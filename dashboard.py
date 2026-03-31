@@ -746,13 +746,13 @@ if st.session_state.servico is None:
         gap: 0 !important;
     }
 
-    /* Coluna ESQUERDA — efeito glassmorphism */
+    /* Coluna ESQUERDA — glassmorphism branco */
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) {
-        background: rgba(255, 255, 255, 0.12) !important;
-        backdrop-filter: blur(24px) saturate(180%) !important;
-        -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.25) !important;
-        box-shadow: 4px 0 40px rgba(0, 0, 0, 0.15) !important;
+        background: rgba(255, 255, 255, 0.82) !important;
+        backdrop-filter: blur(28px) saturate(200%) !important;
+        -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.6) !important;
+        box-shadow: 4px 0 40px rgba(0, 0, 0, 0.12) !important;
         padding: 60px 50px 60px 50px !important;
         height: 100vh !important;
         display: flex !important;
@@ -760,16 +760,16 @@ if st.session_state.servico is None:
         justify-content: center !important;
     }
 
-    /* Ajusta texto da coluna esquerda para contraste no fundo escuro */
+    /* Texto da coluna esquerda — legível no fundo branco */
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) p,
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) span,
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) label {
-        color: rgba(255, 255, 255, 0.85) !important;
+        color: #4a6080 !important;
     }
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) h1,
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) h2,
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) h3 {
-        color: #ffffff !important;
+        color: #0b2a6f !important;
     }
 
     /* Coluna DIREITA (2ª coluna) */
@@ -783,11 +783,11 @@ if st.session_state.servico is None:
         justify-content: center !important;
     }
 
-    /* Botões do HUB */
+    /* Botões do HUB — azul sólido com efeito glass */
     div[data-testid="stButton"] > button {
-        background: rgba(255, 255, 255, 0.15) !important;
+        background: rgba(11, 42, 111, 0.88) !important;
         color: #ffffff !important;
-        border: 1.5px solid rgba(255, 255, 255, 0.35) !important;
+        border: 1.5px solid rgba(11, 42, 111, 0.3) !important;
         height: 62px !important;
         font-size: 15px !important;
         font-weight: 700 !important;
@@ -797,15 +797,15 @@ if st.session_state.servico is None:
         letter-spacing: 0.4px !important;
         backdrop-filter: blur(8px) !important;
         -webkit-backdrop-filter: blur(8px) !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+        box-shadow: 0 4px 18px rgba(11, 42, 111, 0.18) !important;
         transition: all 0.22s ease !important;
     }
 
     div[data-testid="stButton"] > button:hover {
-        background: rgba(255, 255, 255, 0.28) !important;
-        border-color: rgba(255, 255, 255, 0.6) !important;
+        background: rgba(11, 42, 111, 1) !important;
+        border-color: rgba(26, 111, 196, 0.6) !important;
         transform: translateY(-3px) scale(1.02) !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+        box-shadow: 0 10px 30px rgba(11, 42, 111, 0.28) !important;
     }
 
     div[data-testid="stButton"] > button:active {
@@ -821,15 +821,15 @@ if st.session_state.servico is None:
     # ── LADO ESQUERDO: título + botões ────────────────────────
     with col_left:
         st.markdown("""
-            <p style="font-size:11px; font-weight:700; color:rgba(255,255,255,0.7);
+            <p style="font-size:11px; font-weight:700; color:#1a6fc4;
                       letter-spacing:3px; text-transform:uppercase; margin:0 0 12px 0;">
                 HAPVIDA NOTREDAME INTERMÉDICA
             </p>
-            <p style="font-size:28px; font-weight:900; color:#ffffff;
+            <p style="font-size:28px; font-weight:900; color:#0b2a6f;
                       margin:0 0 6px 0; line-height:1.2;">
                 Portal de<br>Performance NDI
             </p>
-            <p style="font-size:13px; color:rgba(255,255,255,0.55); margin:0 0 40px 0;">
+            <p style="font-size:13px; color:#7a90aa; margin:0 0 40px 0;">
                 Selecione como deseja acessar
             </p>
         """, unsafe_allow_html=True)
