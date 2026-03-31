@@ -403,9 +403,19 @@ def carregar_dados_supervisor(supervisor: str, servico: str):
         col_num = f'{metrica}_num'
         unidade = conf['unidade']  # captura local para evitar bug de closure no lambda
         if col_num in df.columns:
-            df[metrica] = df[col_num].apply(
-                lambda x, u=unidade: f"{x:.2f}{u}" if pd.notna(x) else '---'
-            )
+            if metrica == 'TMA Voz':
+                def _fmt_tma(x):
+                    if pd.isna(x): return '---'
+                    total_sec = round(float(x) * 60)
+                    h = total_sec // 3600
+                    m = (total_sec % 3600) // 60
+                    s = total_sec % 60
+                    return f"{h:02d}:{m:02d}:{s:02d}"
+                df[metrica] = df[col_num].apply(_fmt_tma)
+            else:
+                df[metrica] = df[col_num].apply(
+                    lambda x, u=unidade: f"{x:.2f}{u}" if pd.notna(x) else '---'
+                )
         else:
             df[metrica] = '---'
             df[col_num] = None
