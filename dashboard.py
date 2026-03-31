@@ -783,7 +783,7 @@ if st.session_state.servico is None:
         justify-content: center !important;
     }
 
-    /* Botões do HUB — azul sólido com efeito glass */
+    /* Botões do HUB — azul sólido, texto branco */
     div[data-testid="stButton"] > button {
         background: #0b2a6f !important;
         color: #ffffff !important;
@@ -797,6 +797,11 @@ if st.session_state.servico is None:
         letter-spacing: 0.8px !important;
         box-shadow: 0 4px 18px rgba(11, 42, 111, 0.3) !important;
         transition: all 0.22s ease !important;
+    }
+    div[data-testid="stButton"] > button p,
+    div[data-testid="stButton"] > button span,
+    div[data-testid="stButton"] > button div {
+        color: #ffffff !important;
     }
 
     div[data-testid="stButton"] > button:hover {
