@@ -276,6 +276,15 @@ def upsert_supabase(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool
         for rec in registros
     ]
 
+    # Deduplica pelo conflict key antes de enviar
+    # Evita erro "ON CONFLICT DO UPDATE command cannot affect row a second time"
+    # quando a mesma matrícula aparece duplicada no arquivo
+    seen = {}
+    for rec in registros_limpos:
+        key = (rec.get('matricula'), rec.get('supervisor'), rec.get('servico'))
+        seen[key] = rec
+    registros_limpos = list(seen.values())
+
     supabase.table("performance_operadores").upsert(
         registros_limpos,
         on_conflict="matricula,supervisor,servico"
