@@ -295,8 +295,15 @@ def upsert_supabase(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool
 
         rec['atualizado_em'] = pd.Timestamp.now(tz='UTC').isoformat()
 
-        mat = rec.get('matricula')
-        if mat and str(mat).strip() not in ('', 'nan', 'None'):
+        mat      = rec.get('matricula')
+        operador = rec.get('operador') or ''
+        is_total = any(t in operador.upper() for t in ('TOTAL','EQUIPE','MÉDIA','MEDIA'))
+
+        if is_total:
+            # Guarda a linha de totais com matrícula especial para uso na aba Equipe
+            rec['matricula'] = '__TOTAL__'
+            registros.append(rec)
+        elif mat and str(mat).strip() not in ('', 'nan', 'None'):
             registros.append(rec)
 
     if not registros:
@@ -383,6 +390,22 @@ def carregar_dados_supervisor(supervisor: str, servico: str):
             df[col_num] = None
 
     return df, 'Operador', 'Matricula'
+
+@st.cache_data(ttl=60)
+def buscar_supervisor_por_matricula(matricula: str):
+    """Dado uma matrícula, retorna (supervisor, servico) registrado no Supabase."""
+    supabase = conectar_supabase()
+    res = (
+        supabase.table("performance_operadores")
+        .select("supervisor,servico,operador")
+        .eq("matricula", matricula.strip())
+        .limit(1)
+        .execute()
+    )
+    if res.data:
+        d = res.data[0]
+        return d.get('supervisor'), d.get('servico'), d.get('operador')
+    return None, None, None
 
 # ---------- HELPER: painel de análise ----------
 def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa"):
@@ -499,34 +522,42 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa"):
     # ── EQUIPE ──────────────────────────────────────────
     if aba == "Equipe":
         if not df_eq.empty:
-            st.markdown(f"<p style='color:#888; font-size:13px; margin:0 0 12px 0;'>Médias consolidadas de <b>{len(df_eq)}</b> operadores</p>", unsafe_allow_html=True)
+            # Usa a linha __TOTAL__ (apurado real do BI) quando disponível
+            df_total = df[df[col_mat].astype(str) == '__TOTAL__']
+            usar_total = not df_total.empty
+            fonte_label = "valores apurados pelo BI" if usar_total else f"médias de {len(df_eq)} operadores"
+            st.markdown(f"<p style='color:#888; font-size:13px; margin:0 0 12px 0;'>📋 Exibindo {fonte_label}</p>", unsafe_allow_html=True)
+
+            def _get_valor_equipe(metrica):
+                col_num = f'{metrica}_num'
+                if usar_total:
+                    val = df_total.iloc[0].get(col_num)
+                    return val if pd.notna(val) else None
+                else:
+                    return df_eq[col_num].mean() if col_num in df_eq.columns else None
 
             metricas_todos = list(METAS_BASE.keys())
-            # Primeira linha: 5 métricas
             row1 = metricas_todos[:5]
             row2 = metricas_todos[5:]
 
             cols1 = st.columns(5)
             for i, metrica in enumerate(row1):
-                col_num = f'{metrica}_num'
-                media = df_eq[col_num].mean() if col_num in df_eq.columns else None
+                val   = _get_valor_equipe(metrica)
                 conf  = METAS_BASE[metrica]
-                display = f"{media:.2f}{conf['unidade']}" if media is not None and not pd.isna(media) else '---'
+                display = f"{val:.2f}{conf['unidade']}" if val is not None and not pd.isna(val) else '---'
                 with cols1[i]:
-                    exibir_card(metrica, display, definir_cor_kpi(media, metrica))
+                    exibir_card(metrica, display, definir_cor_kpi(val, metrica))
 
             st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
             cols2 = st.columns(5)
             for i, metrica in enumerate(row2):
-                col_num = f'{metrica}_num'
-                media = df_eq[col_num].mean() if col_num in df_eq.columns else None
+                val   = _get_valor_equipe(metrica)
                 conf  = METAS_BASE[metrica]
-                display = f"{media:.2f}{conf['unidade']}" if media is not None and not pd.isna(media) else '---'
+                display = f"{val:.2f}{conf['unidade']}" if val is not None and not pd.isna(val) else '---'
                 with cols2[i]:
-                    exibir_card(metrica, display, definir_cor_kpi(media, metrica))
+                    exibir_card(metrica, display, definir_cor_kpi(val, metrica))
 
-            # Legenda de cores
             st.markdown("""
             <div style="display:flex; gap:18px; margin-top:14px; justify-content:center;">
                 <span style="font-size:12px; color:#28a745; font-weight:700;">● Dentro da meta</span>
@@ -535,7 +566,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa"):
             </div>
             """, unsafe_allow_html=True)
         else:
-            st.warning("Nenhum operador encontrado para calcular médias.")
+            st.warning("Nenhum operador encontrado.")
 
     # ── RANKING ─────────────────────────────────────────
     if aba == "Ranking":
@@ -553,7 +584,8 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa"):
             st.markdown(f"<p style='color:#888; font-size:13px; margin:8px 0 12px 0;'>Top {len(top)} — <b>{metrica_sel}</b></p>", unsafe_allow_html=True)
             for i, (_, row) in enumerate(top.iterrows()):
                 cor = definir_cor_kpi(row[f'{metrica_sel}_num'], metrica_sel)
-                exibir_card_ranking(i, row[col_op], row[metrica_sel], cor)
+                # Exibe apenas matrícula (sem nome do operador)
+                exibir_card_ranking(i, f"Matrícula {row[col_mat]}", row[metrica_sel], cor)
 
     # ── SAÚDE ────────────────────────────────────────────
     if aba == "Saúde":
@@ -587,8 +619,9 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa"):
 
         st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
-        tabela = df_saude[[col_mat, col_op, 'Valor', 'Status']].rename(
-            columns={col_mat: 'Matrícula', col_op: 'Operador', 'Valor': metrica_sel}
+        # Exibe apenas matrícula (sem nome do operador para preservar privacidade)
+        tabela = df_saude[[col_mat, 'Valor', 'Status']].rename(
+            columns={col_mat: 'Matrícula', 'Valor': metrica_sel}
         ).reset_index(drop=True)
         st.dataframe(tabela, use_container_width=True, hide_index=True)
 
@@ -676,18 +709,14 @@ if st.session_state.servico is None:
                 Portal de<br>Performance NDI
             </p>
             <p style="font-size:13px; color:#999; margin:0 0 40px 0;">
-                Selecione o serviço para continuar
+                Selecione como deseja acessar
             </p>
         """, unsafe_allow_html=True)
 
-        if st.button("SAC NDI", use_container_width=True):
-            st.session_state.servico = "SAC NDI"; st.rerun()
-        if st.button("SAC PPO", use_container_width=True):
-            st.session_state.servico = "SAC PPO"; st.rerun()
-        if st.button("SAC HAPVIDA", use_container_width=True):
-            st.session_state.servico = "SAC HAPVIDA"; st.rerun()
-        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
-        if st.button("ÁREA DO GESTOR", use_container_width=True):
+        if st.button("👤  OPERADOR", use_container_width=True):
+            st.session_state.servico = "Operador"; st.rerun()
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+        if st.button("🗂️  ÁREA DO GESTOR", use_container_width=True):
             st.session_state.servico = "Supervisor"; st.rerun()
 
     # ── LADO DIREITO: fundo azul + logo ───────────────────────
@@ -773,26 +802,66 @@ else:
                 """, unsafe_allow_html=True)
 
     # ══════════════════════════════════════════════════
-    # SAC NDI / SAC PPO / SAC HAPVIDA  (Supabase)
+    # ÁREA DO OPERADOR  (busca automática por matrícula)
     # ══════════════════════════════════════════════════
-    else:
-        with st.sidebar:
-            st.markdown(f"### {st.session_state.servico}")
-            if st.session_state.servico == "SAC NDI":
-                lista_sup = ["Selecione...","Erik","Davi","Elaine","Sayanne","Beatriz","Aline","Marcelo"]
-            elif st.session_state.servico == "SAC PPO":
-                lista_sup = ["Selecione...","Ellen","Carla","Magno","Alex"]
-            else:
-                lista_sup = ["Selecione...","Hapvida"]
+    elif st.session_state.servico == "Operador":
 
-            supervisor = st.selectbox("Supervisor:", lista_sup)
-            if st.button("Voltar"):
+        with st.sidebar:
+            st.markdown("### 👤 Área do Operador")
+            if st.button("← Voltar"):
                 st.session_state.servico = None
+                st.session_state.pop('op_supervisor', None)
+                st.session_state.pop('op_servico', None)
+                st.session_state.pop('op_nome', None)
                 st.rerun()
 
-        if supervisor != "Selecione...":
-            df, col_op, col_mat = carregar_dados_supervisor(supervisor, st.session_state.servico)
-            if df.empty:
-                st.warning("Nenhum dado encontrado para este supervisor. Aguarde o upload da planilha pelo supervisor.")
+        st.markdown("""
+        <p style="font-size:11px; font-weight:700; color:#1a6fc4;
+                  letter-spacing:3px; text-transform:uppercase; margin:0 0 6px 0;">
+            ACESSO DO OPERADOR
+        </p>
+        <p style="font-size:22px; font-weight:900; color:#0b2a6f; margin:0 0 20px 0;">
+            Digite sua matrícula
+        </p>
+        """, unsafe_allow_html=True)
+
+        col_in, col_btn, _ = st.columns([2, 1, 3])
+        with col_in:
+            mat_input = st.text_input("Matrícula", placeholder="Ex: 1035323", label_visibility="collapsed")
+        with col_btn:
+            buscar = st.button("🔍 Buscar", use_container_width=True)
+
+        if buscar and mat_input:
+            sup, svc, nome_op = buscar_supervisor_por_matricula(mat_input.strip())
+            if sup:
+                st.session_state.op_supervisor = sup
+                st.session_state.op_servico    = svc
+                st.session_state.op_nome       = nome_op or mat_input.strip()
             else:
-                exibir_painel(df, col_op, col_mat)
+                st.session_state.pop('op_supervisor', None)
+                st.warning("⚠️ Matrícula não encontrada. Verifique o número ou aguarde o gestor enviar a planilha.")
+
+        if st.session_state.get('op_supervisor'):
+            sup = st.session_state.op_supervisor
+            svc = st.session_state.op_servico
+            st.markdown(f"""
+            <div style="background:linear-gradient(135deg,#0b2a6f,#1a6fc4);
+                        border-radius:14px; padding:16px 22px; margin:14px 0 20px 0;
+                        display:flex; align-items:center; gap:16px;">
+                <span style="font-size:28px;">👤</span>
+                <div>
+                    <p style="margin:0; color:rgba(255,255,255,0.6); font-size:11px;
+                              letter-spacing:2px; text-transform:uppercase;">Operador identificado</p>
+                    <p style="margin:2px 0; color:white; font-size:17px; font-weight:900;">{st.session_state.op_nome}</p>
+                    <p style="margin:0; color:rgba(255,255,255,0.65); font-size:12px;">
+                        Equipe: <b>{sup}</b> &nbsp;|&nbsp; Serviço: <b>{svc}</b>
+                    </p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            df, col_op, col_mat = carregar_dados_supervisor(sup, svc)
+            if df.empty:
+                st.warning("Nenhum dado disponível ainda. Aguarde o gestor enviar a planilha.")
+            else:
+                exibir_painel(df, col_op, col_mat, chave_aba=f"aba_op_{mat_input if mat_input else sup}")
