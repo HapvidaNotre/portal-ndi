@@ -63,9 +63,6 @@ header[data-testid="stHeader"] {
 [data-testid="stAppViewContainer"] { padding-top: 0 !important; margin-top: 0 !important; }
 [data-testid="stMain"] { padding-top: 0 !important; margin-top: 0 !important; }
 .stMainBlockContainer { padding-top: 0 !important; margin-top: 0 !important; }
-
-/* Elimina resíduo de espaço no topo */
-[data-testid="stMain"] { margin-top: -60px !important; }
 .block-container { padding-top: 0rem !important; }
 
 /* Oculta menu hamburguer e botão de deploy */
@@ -856,6 +853,20 @@ if 'servico' not in st.session_state:
     st.session_state.servico = None
 
 if st.session_state.servico is None:
+    # Força scroll ao topo no elemento correto do Streamlit
+    st.components.v1.html("""
+    <script>
+        (function() {
+            var tries = 0;
+            function scrollTop() {
+                var el = window.parent.document.querySelector('[data-testid="stMain"]');
+                if (el) { el.scrollTop = 0; }
+                else if (tries++ < 10) { setTimeout(scrollTop, 100); }
+            }
+            scrollTop();
+        })();
+    </script>
+    """, height=0)
 
     # CSS do HUB — estiliza as colunas diretamente pelo DOM
     st.markdown("""
