@@ -950,41 +950,64 @@ else:
                 margin: 0 auto;
             }
 
-            /* Inputs — container com espaçamento */
+            /* Inputs — espaçamento entre campos */
             div[data-testid="stTextInput"] {
                 margin-bottom: 6px !important;
             }
 
-            /* Inputs — glass aprimorado */
-            div[data-testid="stTextInput"] input {
-                background: rgba(255, 255, 255, 0.10) !important;
-                border: 1.5px solid rgba(255, 255, 255, 0.22) !important;
+            /* ── GLASS no wrapper div ── */
+            div[data-testid="stTextInput"] > div {
+                background: rgba(255, 255, 255, 0.07) !important;
+                backdrop-filter: blur(20px) saturate(160%) !important;
+                -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.20) !important;
                 border-radius: 14px !important;
+                box-shadow:
+                    0 4px 24px rgba(0, 0, 0, 0.18),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+                    inset 0 -1px 0 rgba(0, 0, 0, 0.08) !important;
+                transition: all 0.25s ease !important;
+                overflow: hidden !important;
+            }
+
+            /* Hover no wrapper */
+            div[data-testid="stTextInput"] > div:hover {
+                background: rgba(255, 255, 255, 0.12) !important;
+                border-color: rgba(255, 255, 255, 0.32) !important;
+                box-shadow:
+                    0 6px 28px rgba(0, 0, 0, 0.20),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+                    inset 0 -1px 0 rgba(0, 0, 0, 0.08) !important;
+            }
+
+            /* Focus-within no wrapper — ativa quando o input dentro está focado */
+            div[data-testid="stTextInput"] > div:focus-within {
+                background: rgba(255, 255, 255, 0.16) !important;
+                border-color: rgba(110, 200, 255, 0.75) !important;
+                box-shadow:
+                    0 0 0 3px rgba(90, 185, 255, 0.22),
+                    0 6px 32px rgba(0, 0, 0, 0.20),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+                    inset 0 -1px 0 rgba(0, 0, 0, 0.06) !important;
+            }
+
+            /* Input em si — transparente para o glass do wrapper aparecer */
+            div[data-testid="stTextInput"] input {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
                 color: #ffffff !important;
                 font-size: 15px !important;
                 font-weight: 500 !important;
                 height: 52px !important;
                 padding: 0 18px !important;
                 letter-spacing: 0.4px !important;
-                transition: all 0.25s ease !important;
-                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12) inset !important;
+                outline: none !important;
             }
             div[data-testid="stTextInput"] input::placeholder {
-                color: rgba(255, 255, 255, 0.32) !important;
+                color: rgba(255, 255, 255, 0.30) !important;
                 font-style: italic !important;
                 font-size: 13px !important;
-            }
-            div[data-testid="stTextInput"] input:hover {
-                background: rgba(255, 255, 255, 0.15) !important;
-                border-color: rgba(255, 255, 255, 0.38) !important;
-            }
-            div[data-testid="stTextInput"] input:focus {
-                background: rgba(255, 255, 255, 0.20) !important;
-                border-color: rgba(110, 195, 255, 0.90) !important;
-                box-shadow:
-                    0 0 0 3px rgba(100, 185, 255, 0.22),
-                    0 4px 20px rgba(0, 0, 0, 0.15) inset !important;
-                outline: none !important;
             }
 
             /* Labels dos inputs */
@@ -1002,11 +1025,12 @@ else:
             div[data-testid="stTextInput"] button {
                 background: transparent !important;
                 border: none !important;
-                color: rgba(255, 255, 255, 0.50) !important;
+                color: rgba(255, 255, 255, 0.45) !important;
                 transition: color 0.2s ease !important;
+                margin-right: 6px !important;
             }
             div[data-testid="stTextInput"] button:hover {
-                color: rgba(255, 255, 255, 0.90) !important;
+                color: rgba(255, 255, 255, 0.95) !important;
                 background: transparent !important;
             }
 
