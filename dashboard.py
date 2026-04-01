@@ -545,14 +545,15 @@ def gestor_buscar(matricula: str):
     except Exception:
         return None
 
-def gestor_cadastrar(matricula: str, nome: str, servico: str, senha: str) -> bool:
+def gestor_cadastrar(matricula: str, nome: str, servico: str, senha: str, email: str = '') -> bool:
     supabase = conectar_supabase()
     try:
         supabase.table("gestores_auth").insert({
-            "matricula": matricula.strip(),
-            "nome":      nome,
-            "servico":   servico,
+            "matricula":  matricula.strip(),
+            "nome":       nome,
+            "servico":    servico,
             "senha_hash": _hash_senha(matricula, senha),
+            "email":      email.strip().lower(),
         }).execute()
         return True
     except Exception as e:
@@ -568,6 +569,66 @@ def gestor_alterar_senha(matricula: str, senha_nova: str) -> bool:
         return True
     except Exception as e:
         st.error(f"Erro ao alterar senha: {e}")
+        return False
+
+import smtplib, random, string
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+def _gerar_codigo(n=6) -> str:
+    return ''.join(random.choices(string.digits, k=n))
+
+def enviar_email_reset(destinatario: str, nome: str, codigo: str) -> bool:
+    try:
+        cfg = st.secrets["email"]
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "🔑 Portal NDI — Código de redefinição de senha"
+        msg["From"]    = cfg["usuario"]
+        msg["To"]      = destinatario
+
+        html = f"""
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;
+                    background:#f4f7fb;border-radius:16px;padding:40px 36px;">
+            <div style="text-align:center;margin-bottom:28px;">
+                <p style="font-size:32px;margin:0;">🔑</p>
+                <p style="font-size:11px;font-weight:800;color:#1a6fc4;
+                          letter-spacing:3px;text-transform:uppercase;margin:8px 0 4px;">
+                    Portal NDI
+                </p>
+                <p style="font-size:20px;font-weight:900;color:#0b2a6f;margin:0;">
+                    Redefinição de senha
+                </p>
+            </div>
+            <p style="color:#444;font-size:14px;margin:0 0 20px;">
+                Olá, <b>{nome}</b>! Use o código abaixo para redefinir sua senha.<br>
+                Ele é válido por <b>10 minutos</b>.
+            </p>
+            <div style="background:#0b2a6f;border-radius:12px;padding:24px;
+                        text-align:center;margin:0 0 24px;">
+                <p style="color:rgba(255,255,255,0.6);font-size:11px;
+                          letter-spacing:2px;text-transform:uppercase;margin:0 0 8px;">
+                    Seu código
+                </p>
+                <p style="color:#ffffff;font-size:36px;font-weight:900;
+                          letter-spacing:10px;margin:0;">
+                    {codigo}
+                </p>
+            </div>
+            <p style="color:#999;font-size:12px;text-align:center;margin:0;">
+                Se não foi você quem solicitou, ignore este e-mail.
+            </p>
+        </div>
+        """
+        msg.attach(MIMEText(html, "html"))
+
+        with smtplib.SMTP(cfg["smtp_host"], int(cfg["smtp_port"])) as s:
+            s.ehlo()
+            s.starttls()
+            s.login(cfg["usuario"], cfg["senha"])
+            s.sendmail(cfg["usuario"], destinatario, msg.as_string())
+        return True
+    except Exception as e:
+        st.error(f"Erro ao enviar e-mail: {e}")
         return False
 
 # ---------- HELPER: painel de análise ----------
@@ -1111,8 +1172,10 @@ else:
                     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
                     col_a, col_b = st.columns(2)
-                    entrar  = col_a.button("✅ Entrar",           use_container_width=True)
+                    entrar   = col_a.button("✅ Entrar",           use_container_width=True)
                     cadastro = col_b.button("📝 Primeiro acesso", use_container_width=True)
+
+                    esqueci = st.button("🔑 Esqueci minha senha", use_container_width=True)
 
                     if entrar:
                         if not mat_login or not sen_login:
@@ -1129,6 +1192,10 @@ else:
                                 st.session_state.gestor_nome     = gestor['nome']
                                 st.session_state.gestor_servico  = gestor['servico']
                                 st.rerun()
+
+                    if esqueci:
+                        st.session_state.gestor_tela = 'esqueci_senha'
+                        st.rerun()
 
                     if cadastro:
                         st.session_state.gestor_tela = 'cadastro'
@@ -1148,6 +1215,15 @@ else:
                     svc_cad  = st.selectbox("📋  Serviço",         list(SUPERVISORES.keys()),   key="cad_svc")
                     nomes_c  = SUPERVISORES.get(svc_cad, [])
                     nom_cad  = st.selectbox("🙋  Seu nome",        nomes_c,                     key="cad_nom")
+
+                    col_email, col_dom = st.columns([3, 2])
+                    with col_email:
+                        prefixo_email = st.text_input("📧  Seu e-mail corporativo", placeholder="nome.sobrenome", key="cad_email_prefix")
+                    with col_dom:
+                        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+                        st.markdown("<p style='color:rgba(255,255,255,0.6); font-size:14px; padding-top:14px; margin:0;'>@hapvida.com.br</p>", unsafe_allow_html=True)
+                    email_cad = f"{prefixo_email.strip().lower()}@hapvida.com.br" if prefixo_email.strip() else ""
+
                     sen_cad  = st.text_input("🔒  Criar senha",    type="password", placeholder="Mínimo 6 caracteres", key="cad_sen")
                     sen_cad2 = st.text_input("✅  Confirmar senha",type="password", placeholder="Repita a senha",      key="cad_sen2")
 
@@ -1160,8 +1236,8 @@ else:
                         st.rerun()
 
                     if salvar:
-                        if not mat_cad or not sen_cad:
-                            st.warning("Preencha todos os campos.")
+                        if not mat_cad or not sen_cad or not prefixo_email.strip():
+                            st.warning("Preencha todos os campos, incluindo o e-mail.")
                         elif len(sen_cad) < 6:
                             st.warning("A senha deve ter no mínimo 6 caracteres.")
                         elif sen_cad != sen_cad2:
@@ -1169,7 +1245,7 @@ else:
                         elif gestor_buscar(mat_cad) is not None:
                             st.error("Esta matrícula já possui cadastro. Volte e faça login.")
                         else:
-                            ok = gestor_cadastrar(mat_cad, nom_cad, svc_cad, sen_cad)
+                            ok = gestor_cadastrar(mat_cad, nom_cad, svc_cad, sen_cad, email_cad)
                             if ok:
                                 st.success("✅ Conta criada! Fazendo login...")
                                 time.sleep(1)
@@ -1178,6 +1254,116 @@ else:
                                 st.session_state.gestor_nome      = nom_cad
                                 st.session_state.gestor_servico   = svc_cad
                                 st.session_state.gestor_tela      = 'login'
+                                st.rerun()
+
+                # ── TELA: ESQUECI MINHA SENHA ──────────────────
+                elif st.session_state.gestor_tela == 'esqueci_senha':
+                    st.markdown("""
+                    <div style="text-align:center; margin-bottom:24px;">
+                        <p style="font-size:32px; margin:0;">📧</p>
+                        <p style="font-size:20px; font-weight:900; color:#ffffff; margin:4px 0;">Esqueci minha senha</p>
+                        <p style="font-size:13px; color:rgba(255,255,255,0.55); margin:0;">
+                            Digite sua matrícula para receber o código no e-mail cadastrado.
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    mat_esq = st.text_input("👤  Matrícula", placeholder="Ex: 1035323", key="esq_mat")
+
+                    col_env, col_vol = st.columns(2)
+                    enviar_cod = col_env.button("📨 Enviar código", use_container_width=True)
+                    vol_esq    = col_vol.button("← Voltar",         use_container_width=True)
+
+                    if vol_esq:
+                        st.session_state.gestor_tela = 'login'
+                        st.rerun()
+
+                    if enviar_cod:
+                        if not mat_esq:
+                            st.warning("Digite sua matrícula.")
+                        else:
+                            gestor = gestor_buscar(mat_esq.strip())
+                            if gestor is None:
+                                st.error("Matrícula não encontrada.")
+                            elif not gestor.get('email'):
+                                st.error("Nenhum e-mail cadastrado para esta matrícula. Entre em contato com o administrador.")
+                            else:
+                                codigo = _gerar_codigo()
+                                st.session_state.reset_codigo    = codigo
+                                st.session_state.reset_matricula = mat_esq.strip()
+                                st.session_state.reset_expiry    = time.time() + 600  # 10 min
+                                enviado = enviar_email_reset(gestor['email'], gestor['nome'], codigo)
+                                if enviado:
+                                    email_mask = gestor['email']
+                                    partes = email_mask.split('@')
+                                    email_mask = partes[0][:3] + '***@hapvida.com.br'
+                                    st.success(f"✅ Código enviado para **{email_mask}**. Verifique sua caixa de entrada.")
+                                    time.sleep(1.5)
+                                    st.session_state.gestor_tela = 'verificar_codigo'
+                                    st.rerun()
+
+                # ── TELA: VERIFICAR CÓDIGO ─────────────────────
+                elif st.session_state.gestor_tela == 'verificar_codigo':
+                    st.markdown("""
+                    <div style="text-align:center; margin-bottom:24px;">
+                        <p style="font-size:32px; margin:0;">🔢</p>
+                        <p style="font-size:20px; font-weight:900; color:#ffffff; margin:4px 0;">Digite o código</p>
+                        <p style="font-size:13px; color:rgba(255,255,255,0.55); margin:0;">
+                            Insira o código de 6 dígitos enviado ao seu e-mail.
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    cod_digitado = st.text_input("🔢  Código de verificação", placeholder="Ex: 483921", key="cod_ver")
+
+                    col_ok, col_rv = st.columns(2)
+                    verificar  = col_ok.button("✅ Verificar", use_container_width=True)
+                    reenviar   = col_rv.button("🔄 Reenviar",  use_container_width=True)
+
+                    if reenviar:
+                        st.session_state.gestor_tela = 'esqueci_senha'
+                        st.rerun()
+
+                    if verificar:
+                        expiry = st.session_state.get('reset_expiry', 0)
+                        if time.time() > expiry:
+                            st.error("⏱️ Código expirado. Solicite um novo.")
+                        elif cod_digitado.strip() != st.session_state.get('reset_codigo', ''):
+                            st.error("❌ Código incorreto. Tente novamente.")
+                        else:
+                            st.session_state.gestor_tela = 'nova_senha_reset'
+                            st.rerun()
+
+                # ── TELA: NOVA SENHA APÓS RESET ────────────────
+                elif st.session_state.gestor_tela == 'nova_senha_reset':
+                    st.markdown("""
+                    <div style="text-align:center; margin-bottom:24px;">
+                        <p style="font-size:32px; margin:0;">🔒</p>
+                        <p style="font-size:20px; font-weight:900; color:#ffffff; margin:4px 0;">Nova senha</p>
+                        <p style="font-size:13px; color:rgba(255,255,255,0.55); margin:0;">
+                            Escolha uma senha forte para sua conta.
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    nova_sen  = st.text_input("🔒  Nova senha",     type="password", placeholder="Mínimo 6 caracteres", key="rst_nova")
+                    nova_sen2 = st.text_input("✅  Confirmar senha", type="password", key="rst_nova2")
+
+                    salvar_rst = st.button("💾 Salvar nova senha", use_container_width=True)
+
+                    if salvar_rst:
+                        if len(nova_sen) < 6:
+                            st.warning("A senha deve ter no mínimo 6 caracteres.")
+                        elif nova_sen != nova_sen2:
+                            st.error("As senhas não coincidem.")
+                        else:
+                            mat_rst = st.session_state.get('reset_matricula', '')
+                            if gestor_alterar_senha(mat_rst, nova_sen):
+                                for k in ('reset_codigo', 'reset_matricula', 'reset_expiry'):
+                                    st.session_state.pop(k, None)
+                                st.success("✅ Senha redefinida com sucesso! Faça login.")
+                                time.sleep(1.5)
+                                st.session_state.gestor_tela = 'login'
                                 st.rerun()
 
                 # ── TELA DE ALTERAR SENHA ─────────────────────
