@@ -13,44 +13,43 @@ st.markdown("""
 /* FUNDO GERAL */
 .stApp { background-color: #f8f9fa; }
 
-/* INPUTS GLOBAIS — estilo glass para toda a app */
+/* INPUTS GLOBAIS — dark glass */
 div[data-testid="stTextInput"] {
     margin-bottom: 6px !important;
 }
 div[data-testid="stTextInput"] > div {
-    background: rgba(255, 255, 255, 0.92) !important;
+    background: rgba(11, 42, 111, 0.55) !important;
     backdrop-filter: blur(16px) saturate(160%) !important;
     -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
-    border: 1px solid rgba(11, 42, 111, 0.18) !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
     border-radius: 14px !important;
     box-shadow:
-        0 4px 20px rgba(11, 42, 111, 0.08),
-        inset 0 1px 0 rgba(255, 255, 255, 0.80),
-        inset 0 -1px 0 rgba(11, 42, 111, 0.05) !important;
+        0 4px 20px rgba(0, 0, 0, 0.20),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
     transition: all 0.25s ease !important;
     overflow: hidden !important;
 }
 div[data-testid="stTextInput"] > div:hover {
-    background: rgba(255, 255, 255, 0.98) !important;
-    border-color: rgba(11, 42, 111, 0.30) !important;
+    background: rgba(11, 42, 111, 0.68) !important;
+    border-color: rgba(255, 255, 255, 0.30) !important;
     box-shadow:
-        0 6px 24px rgba(11, 42, 111, 0.12),
-        inset 0 1px 0 rgba(255, 255, 255, 0.90) !important;
+        0 6px 24px rgba(0, 0, 0, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
 }
 div[data-testid="stTextInput"] > div:focus-within {
-    background: #ffffff !important;
-    border-color: rgba(26, 111, 196, 0.65) !important;
+    background: rgba(11, 42, 111, 0.72) !important;
+    border-color: rgba(100, 185, 255, 0.75) !important;
     box-shadow:
-        0 0 0 3px rgba(26, 111, 196, 0.15),
-        0 6px 28px rgba(11, 42, 111, 0.12),
-        inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+        0 0 0 3px rgba(90, 185, 255, 0.22),
+        0 6px 28px rgba(0, 0, 0, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
 }
 div[data-testid="stTextInput"] input {
-    background: #ffffff !important;
+    background: transparent !important;
     border: none !important;
     box-shadow: none !important;
-    color: #0b2a6f !important;
-    -webkit-text-fill-color: #0b2a6f !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
     font-size: 15px !important;
     font-weight: 500 !important;
     height: 52px !important;
@@ -61,7 +60,7 @@ div[data-testid="stTextInput"] input {
     outline: none !important;
 }
 div[data-testid="stTextInput"] input::placeholder {
-    color: rgba(11, 42, 111, 0.35) !important;
+    color: rgba(255, 255, 255, 0.38) !important;
     font-style: italic !important;
     font-size: 13px !important;
 }
@@ -77,12 +76,12 @@ div[data-testid="stTextInput"] label p {
 div[data-testid="stTextInput"] button {
     background: transparent !important;
     border: none !important;
-    color: rgba(11, 42, 111, 0.45) !important;
+    color: rgba(255, 255, 255, 0.50) !important;
     transition: color 0.2s ease !important;
     margin-right: 6px !important;
 }
 div[data-testid="stTextInput"] button:hover {
-    color: rgba(11, 42, 111, 0.90) !important;
+    color: rgba(255, 255, 255, 0.95) !important;
     background: transparent !important;
 }
 /* Remove tooltip "Press Enter to apply" — global */
@@ -1030,43 +1029,13 @@ else:
                 margin: 0 auto;
             }
 
-            /* Overrides do login — adapta o glass ao fundo azul escuro */
-            div[data-testid="stTextInput"] > div {
-                background: rgba(255, 255, 255, 0.07) !important;
-                border-color: rgba(255, 255, 255, 0.20) !important;
-                box-shadow:
-                    0 4px 24px rgba(0, 0, 0, 0.18),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
-            }
-            div[data-testid="stTextInput"] > div:hover {
-                background: rgba(255, 255, 255, 0.12) !important;
-                border-color: rgba(255, 255, 255, 0.32) !important;
-            }
+            /* Overrides do login — adapta borda e glow para fundo azul */
             div[data-testid="stTextInput"] > div:focus-within {
-                background: rgba(255, 255, 255, 0.16) !important;
-                border-color: rgba(110, 200, 255, 0.75) !important;
+                border-color: rgba(110, 200, 255, 0.85) !important;
                 box-shadow:
-                    0 0 0 3px rgba(90, 185, 255, 0.22),
-                    0 6px 32px rgba(0, 0, 0, 0.20),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
-            }
-            div[data-testid="stTextInput"] input {
-                background: rgba(0, 0, 0, 0.25) !important;
-                color: #ffffff !important;
-                -webkit-text-fill-color: #ffffff !important;
-            }
-            div[data-testid="stTextInput"] input::placeholder {
-                color: rgba(255, 255, 255, 0.30) !important;
-            }
-            div[data-testid="stTextInput"] label,
-            div[data-testid="stTextInput"] label p {
-                color: rgba(255, 255, 255, 0.60) !important;
-            }
-            div[data-testid="stTextInput"] button {
-                color: rgba(255, 255, 255, 0.45) !important;
-            }
-            div[data-testid="stTextInput"] button:hover {
-                color: rgba(255, 255, 255, 0.95) !important;
+                    0 0 0 3px rgba(90, 185, 255, 0.25),
+                    0 6px 32px rgba(0, 0, 0, 0.22),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.20) !important;
             }
 
             /* Botões dentro do card — glass claro */
