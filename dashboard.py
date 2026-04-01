@@ -54,7 +54,15 @@ div[data-testid="InputInstructions"] {
 [data-testid="stToolbar"],
 header[data-testid="stHeader"] {
     display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
 }
+
+/* Remove espaço reservado pelo header mesmo quando oculto */
+.stApp > header { display: none !important; height: 0 !important; }
+[data-testid="stAppViewContainer"] { padding-top: 0 !important; margin-top: 0 !important; }
+[data-testid="stMain"] { padding-top: 0 !important; margin-top: 0 !important; }
+.stMainBlockContainer { padding-top: 0 !important; margin-top: 0 !important; }
 
 /* Oculta menu hamburguer e botão de deploy */
 #MainMenu { visibility: hidden !important; }
@@ -842,14 +850,6 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
 # ---------- HUB ----------
 if 'servico' not in st.session_state:
     st.session_state.servico = None
-
-# Força scroll ao topo sempre que a página carregar
-st.components.v1.html("""
-<script>
-    window.parent.document.querySelector('section.main').scrollTop = 0;
-    window.parent.scrollTo(0, 0);
-</script>
-""", height=0)
 
 if st.session_state.servico is None:
 
