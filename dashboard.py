@@ -783,11 +783,11 @@ if st.session_state.servico is None:
         justify-content: center !important;
     }
 
-    /* Botões do HUB — azul sólido, texto branco */
+    /* Botões do HUB — branco claro com borda azul */
     div[data-testid="stButton"] > button {
-        background: #0b2a6f !important;
-        color: #ffffff !important;
-        border: none !important;
+        background: rgba(255, 255, 255, 0.75) !important;
+        color: #0b2a6f !important;
+        border: 1.5px solid rgba(11, 42, 111, 0.2) !important;
         height: 62px !important;
         font-size: 15px !important;
         font-weight: 700 !important;
@@ -795,7 +795,9 @@ if st.session_state.servico is None:
         width: 100% !important;
         margin-bottom: 4px !important;
         letter-spacing: 0.8px !important;
-        box-shadow: 0 4px 18px rgba(11, 42, 111, 0.3) !important;
+        backdrop-filter: blur(10px) !important;
+        -webkit-backdrop-filter: blur(10px) !important;
+        box-shadow: 0 4px 18px rgba(11, 42, 111, 0.1) !important;
         transition: all 0.22s ease !important;
     }
     div[data-testid="stButton"] > button *,
@@ -803,18 +805,19 @@ if st.session_state.servico is None:
     div[data-testid="stButton"] > button span,
     div[data-testid="stButton"] > button div,
     div[data-testid="stButton"] > button label {
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
+        color: #0b2a6f !important;
+        -webkit-text-fill-color: #0b2a6f !important;
     }
 
     div[data-testid="stButton"] > button:hover {
-        background: #1341a3 !important;
+        background: rgba(255, 255, 255, 0.95) !important;
+        border-color: rgba(11, 42, 111, 0.45) !important;
         transform: translateY(-3px) scale(1.02) !important;
-        box-shadow: 0 10px 30px rgba(11, 42, 111, 0.35) !important;
+        box-shadow: 0 10px 30px rgba(11, 42, 111, 0.15) !important;
     }
     div[data-testid="stButton"] > button:hover * {
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
+        color: #0b2a6f !important;
+        -webkit-text-fill-color: #0b2a6f !important;
     }
 
     div[data-testid="stButton"] > button:active {
