@@ -72,6 +72,14 @@ span.css-1lsmgbg,
 div[class*="viewerBadge"] { display: none !important; }
 div[class*="watermark"] { display: none !important; }
 
+/* Badge "Hosted with Streamlit" */
+div[data-testid="stAppViewBlockContainer"] ~ div { display: none !important; }
+a[href*="streamlit.io"] { display: none !important; }
+[class*="badge"] { display: none !important; }
+[class*="Badge"] { display: none !important; }
+[class*="hostBadge"] { display: none !important; }
+[class*="HostBadge"] { display: none !important; }
+
 /* Remove espaço vazio no topo */
 .stApp > div:first-child { margin-top: 0 !important; }
 section.main > div.block-container {
