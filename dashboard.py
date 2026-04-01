@@ -1596,4 +1596,24 @@ else:
             if df.empty:
                 st.warning("Nenhum dado disponível ainda. Aguarde o gestor enviar a planilha.")
             else:
+                # Exibe data da última atualização feita pelo gestor
+                if 'atualizado_em' in df.columns:
+                    try:
+                        ultima_atualizacao = pd.to_datetime(df['atualizado_em']).max()
+                        ultima_atualizacao = ultima_atualizacao.tz_convert('America/Fortaleza')
+                        data_fmt = ultima_atualizacao.strftime('%d/%m/%Y às %H:%M')
+                        st.markdown(f"""
+                        <div style="display:flex; align-items:center; gap:8px;
+                                    background:#f0f4ff; border-radius:10px;
+                                    padding:10px 16px; margin-bottom:14px;
+                                    border-left:4px solid #1a6fc4;">
+                            <span style="font-size:18px;">🗓️</span>
+                            <p style="margin:0; font-size:13px; color:#444;">
+                                Métricas atualizadas pelo gestor em
+                                <b style="color:#0b2a6f;">{data_fmt}</b>
+                            </p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    except:
+                        pass
                 exibir_painel(df, col_op, col_mat, chave_aba=f"aba_op_{mat_input}", mat_operador=mat_input)
