@@ -937,97 +937,48 @@ else:
             _, col_center, _ = st.columns([1, 2, 1])
             with col_center:
 
-                # ── BOTÃO DE AJUDA (?) ────────────────────────
+                # ── BOTÃO DE AJUDA (?) via session state ──────
+                if 'show_help' not in st.session_state:
+                    st.session_state.show_help = False
+
+                # CSS do botão ? e do painel de ajuda
                 st.markdown("""
                 <style>
-                /* Botão flutuante de ajuda */
-                .help-fab {
-                    position: fixed;
-                    bottom: 28px;
-                    right: 28px;
-                    width: 48px;
-                    height: 48px;
-                    border-radius: 50%;
-                    background: linear-gradient(135deg, #0b2a6f, #1a6fc4);
-                    color: white;
-                    font-size: 22px;
-                    font-weight: 900;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    box-shadow: 0 4px 18px rgba(11,42,111,0.35);
-                    z-index: 9999;
-                    user-select: none;
-                    transition: transform 0.2s, box-shadow 0.2s;
+                div[data-testid="stButton"] > button[kind="secondary"].help-btn {
+                    border-radius: 50% !important;
                 }
-                .help-fab:hover {
-                    transform: scale(1.1);
-                    box-shadow: 0 8px 28px rgba(11,42,111,0.45);
-                }
-
-                /* Overlay escuro */
-                .help-overlay {
-                    display: none;
-                    position: fixed;
-                    inset: 0;
-                    background: rgba(0,0,0,0.45);
-                    z-index: 10000;
-                    align-items: center;
-                    justify-content: center;
-                }
-                .help-overlay.active { display: flex; }
-
-                /* Modal */
-                .help-modal {
+                .help-panel {
                     background: white;
-                    border-radius: 20px;
-                    padding: 36px 40px 32px 40px;
-                    max-width: 520px;
-                    width: 90%;
-                    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
-                    position: relative;
-                    animation: modalIn 0.25s ease;
+                    border-radius: 18px;
+                    padding: 28px 32px 24px 32px;
+                    box-shadow: 0 8px 40px rgba(11,42,111,0.14);
+                    border: 1px solid #e8eef8;
+                    margin-bottom: 20px;
+                    animation: fadeIn 0.2s ease;
                 }
-                @keyframes modalIn {
-                    from { opacity:0; transform: scale(0.92) translateY(20px); }
-                    to   { opacity:1; transform: scale(1) translateY(0); }
+                @keyframes fadeIn {
+                    from { opacity:0; transform: translateY(-8px); }
+                    to   { opacity:1; transform: translateY(0); }
                 }
-
-                .help-modal-close {
-                    position: absolute;
-                    top: 14px; right: 18px;
-                    font-size: 20px;
-                    cursor: pointer;
-                    color: #aaa;
-                    font-weight: 700;
-                    line-height: 1;
-                    transition: color 0.15s;
-                }
-                .help-modal-close:hover { color: #333; }
-
                 .help-section-title {
-                    font-size: 12px;
+                    font-size: 11px;
                     font-weight: 800;
                     letter-spacing: 2px;
                     text-transform: uppercase;
                     color: #1a6fc4;
-                    margin: 22px 0 8px 0;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
+                    margin: 18px 0 10px 0;
+                    padding-bottom: 6px;
+                    border-bottom: 2px solid #e8eef8;
                 }
-                .help-section-title:first-of-type { margin-top: 0; }
-
                 .help-step {
                     display: flex;
                     align-items: flex-start;
-                    gap: 12px;
-                    margin-bottom: 10px;
+                    gap: 10px;
+                    margin-bottom: 9px;
                 }
                 .help-step-num {
-                    min-width: 24px;
-                    height: 24px;
+                    min-width: 22px;
+                    height: 22px;
                     border-radius: 50%;
                     background: #0b2a6f;
                     color: white;
@@ -1043,23 +994,23 @@ else:
                     color: #3a5070;
                     line-height: 1.5;
                 }
-                .help-divider {
-                    border: none;
-                    border-top: 1px solid #eef2f8;
-                    margin: 18px 0;
-                }
                 </style>
+                """, unsafe_allow_html=True)
 
-                <!-- Botão ? -->
-                <div class="help-fab" onclick="document.getElementById('helpOverlay').classList.add('active')">?</div>
+                # Linha com título da tela e botão ?
+                col_titulo, col_help = st.columns([5, 1])
+                with col_help:
+                    label_help = "✕ Fechar" if st.session_state.show_help else "❓ Ajuda"
+                    if st.button(label_help, use_container_width=True, key="btn_help"):
+                        st.session_state.show_help = not st.session_state.show_help
+                        st.rerun()
 
-                <!-- Modal de ajuda -->
-                <div class="help-overlay" id="helpOverlay" onclick="if(event.target===this) this.classList.remove('active')">
-                    <div class="help-modal">
-                        <span class="help-modal-close" onclick="document.getElementById('helpOverlay').classList.remove('active')">✕</span>
-
-                        <p style="font-size:20px; font-weight:900; color:#0b2a6f; margin:0 0 4px 0;">Como usar o Portal</p>
-                        <p style="font-size:12px; color:#aaa; margin:0 0 18px 0;">Guia rápido para gestores e operadores</p>
+                # Painel de ajuda expandido
+                if st.session_state.show_help:
+                    st.markdown("""
+                    <div class="help-panel">
+                        <p style="font-size:17px; font-weight:900; color:#0b2a6f; margin:0 0 2px 0;">📖 Como usar o Portal</p>
+                        <p style="font-size:12px; color:#aaa; margin:0 0 4px 0;">Guia rápido para gestores e operadores</p>
 
                         <p class="help-section-title">👤 Para o Operador</p>
                         <div class="help-step">
@@ -1072,15 +1023,13 @@ else:
                         </div>
                         <div class="help-step">
                             <div class="help-step-num">3</div>
-                            <div class="help-step-text">Visualize seus <b>KPIs individuais</b>, o desempenho da equipe, rankings e diagnóstico de saúde das métricas.</div>
+                            <div class="help-step-text">Visualize seus <b>KPIs individuais</b>, desempenho da equipe, rankings e diagnóstico de metas.</div>
                         </div>
-
-                        <hr class="help-divider"/>
 
                         <p class="help-section-title">🗂️ Para o Gestor — Upload de Dados</p>
                         <div class="help-step">
                             <div class="help-step-num">1</div>
-                            <div class="help-step-text">Faça login com sua <b>matrícula e senha</b>. Primeiro acesso? Clique em <b>Primeiro acesso</b> para criar sua conta.</div>
+                            <div class="help-step-text">Faça login com sua <b>matrícula e senha</b>. Primeiro acesso? Clique em <b>Primeiro acesso</b>.</div>
                         </div>
                         <div class="help-step">
                             <div class="help-step-num">2</div>
@@ -1088,19 +1037,18 @@ else:
                         </div>
                         <div class="help-step">
                             <div class="help-step-num">3</div>
-                            <div class="help-step-text">Clique em <b>Browse files</b> e selecione o arquivo. O upload substitui automaticamente os dados anteriores.</div>
+                            <div class="help-step-text">Clique em <b>Browse files</b>, selecione o arquivo — o upload substitui os dados anteriores automaticamente.</div>
                         </div>
                         <div class="help-step">
                             <div class="help-step-num">4</div>
-                            <div class="help-step-text">Após o envio, os dados ficam disponíveis imediatamente para todos os operadores da sua equipe.</div>
+                            <div class="help-step-text">Após o envio, os dados ficam <b>disponíveis imediatamente</b> para os operadores da sua equipe.</div>
                         </div>
 
-                        <p style="font-size:11px; color:#bbb; text-align:center; margin:20px 0 0 0;">
+                        <p style="font-size:11px; color:#bbb; text-align:center; margin:16px 0 0 0;">
                             Dúvidas? Contate o Sup. Erik Coelho.
                         </p>
                     </div>
-                </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
 
                 # ── TELA DE LOGIN ─────────────────────────────
                 if st.session_state.gestor_tela == 'login':
