@@ -10,6 +10,9 @@ st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_i
 st.markdown("""
 <style>
 
+/* FUNDO GERAL */
+.stApp { background-color: #f8f9fa; }
+
 /* INPUTS GLOBAIS — estilo glass para toda a app */
 div[data-testid="stTextInput"] {
     margin-bottom: 6px !important;
