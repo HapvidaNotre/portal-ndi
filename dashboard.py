@@ -18,7 +18,7 @@ div[data-testid="stTextInput"] {
     margin-bottom: 6px !important;
 }
 div[data-testid="stTextInput"] > div {
-    background: rgba(255, 255, 255, 0.55) !important;
+    background: rgba(255, 255, 255, 0.92) !important;
     backdrop-filter: blur(16px) saturate(160%) !important;
     -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
     border: 1px solid rgba(11, 42, 111, 0.18) !important;
@@ -31,14 +31,14 @@ div[data-testid="stTextInput"] > div {
     overflow: hidden !important;
 }
 div[data-testid="stTextInput"] > div:hover {
-    background: rgba(255, 255, 255, 0.75) !important;
+    background: rgba(255, 255, 255, 0.98) !important;
     border-color: rgba(11, 42, 111, 0.30) !important;
     box-shadow:
         0 6px 24px rgba(11, 42, 111, 0.12),
         inset 0 1px 0 rgba(255, 255, 255, 0.90) !important;
 }
 div[data-testid="stTextInput"] > div:focus-within {
-    background: rgba(255, 255, 255, 0.85) !important;
+    background: #ffffff !important;
     border-color: rgba(26, 111, 196, 0.65) !important;
     box-shadow:
         0 0 0 3px rgba(26, 111, 196, 0.15),
@@ -50,6 +50,7 @@ div[data-testid="stTextInput"] input {
     border: none !important;
     box-shadow: none !important;
     color: #0b2a6f !important;
+    -webkit-text-fill-color: #0b2a6f !important;
     font-size: 15px !important;
     font-weight: 500 !important;
     height: 52px !important;
