@@ -201,7 +201,7 @@ METAS_BASE = {
     'Pausa Total':   {'valor': 21.75, 'margem': 3.0, 'menor_melhor': True,  'unidade': '%'},
     'Absenteismo':   {'valor': 5.0,   'margem': 1.0, 'menor_melhor': True,  'unidade': '%'},
     'Produtividade': {'valor': 80.0,  'margem': 5.0, 'menor_melhor': False, 'unidade': '%'},
-    'Transf':        {'valor': 10.0,  'margem': 2.0, 'menor_melhor': True,  'unidade': '%'},
+    'Transf':        {'valor': 85.0,  'margem': 5.0, 'menor_melhor': True,  'unidade': '%'},
     'ShortCall':     {'valor': 5.0,   'margem': 1.0, 'menor_melhor': True,  'unidade': '%'},
 }
 
