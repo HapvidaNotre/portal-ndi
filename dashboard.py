@@ -938,7 +938,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
                 m = medalhas[rank_idx]
                 cor_kpi = definir_cor_kpi(row[f'{metrica_sel}_num'], metrica_sel)
                 nome = row[col_op] if col_op in row else f"Matrícula {row[col_mat]}"
-                nome_curto = nome.split()[0] if nome else "---"
+                nome_curto = f"Mat. {row[col_mat]}"
 
                 with cols_podio[col_idx]:
                     st.markdown(f"""
