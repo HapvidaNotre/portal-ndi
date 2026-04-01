@@ -986,7 +986,7 @@ else:
     if st.session_state.servico == "Supervisor":
 
         SUPERVISORES = {
-            "SAC NDI":     ["Erik","Davi","Elaine","Sayanne","Beatriz","Aline","Marcelo"],
+            "SAC NDI":     ["Erik","Davi","Elaine","Sayanne","Beatriz","Aline","Marcelo,","Richarlysson"],
             "SAC PPO":     ["Ellen","Carla","Magno","Alex"],
             "SAC HAPVIDA": ["Hapvida"],
         }
