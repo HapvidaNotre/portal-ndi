@@ -65,8 +65,8 @@ header[data-testid="stHeader"] {
 .stMainBlockContainer { padding-top: 0 !important; margin-top: 0 !important; }
 
 /* Elimina resíduo de espaço no topo */
-[data-testid="stMain"] > div:first-child { margin-top: -60px !important; }
-.block-container { padding-top: 0rem !important; margin-top: -60px !important; }
+[data-testid="stMain"] { margin-top: -60px !important; }
+.block-container { padding-top: 0rem !important; }
 
 /* Oculta menu hamburguer e botão de deploy */
 #MainMenu { visibility: hidden !important; }
