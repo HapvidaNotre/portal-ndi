@@ -1023,6 +1023,12 @@ else:
                 margin-bottom: 6px !important;
             }
 
+            /* Remove tooltip "Press Enter to apply" */
+            div[data-testid="stTextInput"] div[data-testid="InputInstructions"],
+            div[data-testid="InputInstructions"] {
+                display: none !important;
+            }
+
             /* Ícone olho senha */
             div[data-testid="stTextInput"] button {
                 background: transparent !important;
