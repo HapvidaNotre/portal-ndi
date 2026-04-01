@@ -46,7 +46,7 @@ div[data-testid="stTextInput"] > div:focus-within {
         inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
 }
 div[data-testid="stTextInput"] input {
-    background: transparent !important;
+    background: #ffffff !important;
     border: none !important;
     box-shadow: none !important;
     color: #0b2a6f !important;
