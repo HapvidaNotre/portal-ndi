@@ -1051,6 +1051,7 @@ else:
                     inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
             }
             div[data-testid="stTextInput"] input {
+                background: rgba(0, 0, 0, 0.25) !important;
                 color: #ffffff !important;
                 -webkit-text-fill-color: #ffffff !important;
             }
