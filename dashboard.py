@@ -61,6 +61,17 @@ header[data-testid="stHeader"] {
 .stDeployButton { display: none !important; }
 footer { visibility: hidden !important; }
 
+/* Oculta ícones do canto inferior direito (watermark Streamlit) */
+[data-testid="stStatusWidget"] { display: none !important; }
+.__web-inspector-hide-shortcut__,
+[data-testid="manage-app-button"],
+.viewerBadge_container__r5tak,
+.viewerBadge_link__qRIco,
+span.css-1lsmgbg,
+#stDecoration { display: none !important; }
+div[class*="viewerBadge"] { display: none !important; }
+div[class*="watermark"] { display: none !important; }
+
 /* Remove espaço vazio no topo */
 .stApp > div:first-child { margin-top: 0 !important; }
 section.main > div.block-container {
