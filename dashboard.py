@@ -843,6 +843,14 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
 if 'servico' not in st.session_state:
     st.session_state.servico = None
 
+# Força scroll ao topo sempre que a página carregar
+st.components.v1.html("""
+<script>
+    window.parent.document.querySelector('section.main').scrollTop = 0;
+    window.parent.scrollTo(0, 0);
+</script>
+""", height=0)
+
 if st.session_state.servico is None:
 
     # CSS do HUB — estiliza as colunas diretamente pelo DOM
