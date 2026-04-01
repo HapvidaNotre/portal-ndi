@@ -210,7 +210,7 @@ METAS_BASE = {
     'Pausa Total':   {'valor': 21.75, 'margem': 3.0, 'menor_melhor': True,  'unidade': '%'},
     'Absenteismo':   {'valor': 5.0,   'margem': 1.0, 'menor_melhor': True,  'unidade': '%'},
     'Produtividade': {'valor': 80.0,  'margem': 5.0, 'menor_melhor': False, 'unidade': '%'},
-    'Transf':        {'valor': 85.0,  'margem': 5.0, 'menor_melhor': True,  'unidade': '%'},
+    'Transf':        {'valor': 85.0,  'margem': 5.0, 'menor_melhor': False, 'unidade': '%'},
     'ShortCall':     {'valor': 5.0,   'margem': 1.0, 'menor_melhor': True,  'unidade': '%'},
 }
 
@@ -1003,9 +1003,24 @@ if st.session_state.servico is None:
     # ── LADO DIREITO: fundo azul + logo ───────────────────────
     with col_right:
         st.markdown("""
+            <style>
+            @keyframes heartbeat {
+                0%   { transform: scale(1);    }
+                14%  { transform: scale(1.08); }
+                28%  { transform: scale(1);    }
+                42%  { transform: scale(1.05); }
+                70%  { transform: scale(1);    }
+                100% { transform: scale(1);    }
+            }
+            .logo-pulse {
+                animation: heartbeat 2.2s ease-in-out infinite;
+                transform-origin: center center;
+            }
+            </style>
             <div style="display:flex; flex-direction:column; align-items:center;
                         justify-content:center; min-height:85vh; gap:24px;">
                 <img src="https://raw.githubusercontent.com/HapvidaNotre/portal-ndi/main/logo-hapvida-escudo-2048.png"
+                     class="logo-pulse"
                      style="width:210px; filter:drop-shadow(0 6px 24px rgba(0,0,0,0.35));" />
                 <p style="color:rgba(255,255,255,0.65); font-size:12px;
                           letter-spacing:3px; text-transform:uppercase; margin:0;">
