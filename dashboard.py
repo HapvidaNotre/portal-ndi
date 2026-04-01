@@ -1052,6 +1052,7 @@ else:
             }
             div[data-testid="stTextInput"] input {
                 color: #ffffff !important;
+                -webkit-text-fill-color: #ffffff !important;
             }
             div[data-testid="stTextInput"] input::placeholder {
                 color: rgba(255, 255, 255, 0.30) !important;
