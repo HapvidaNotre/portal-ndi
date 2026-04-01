@@ -934,6 +934,53 @@ else:
                 padding: 40px 36px 32px 36px;
                 box-shadow: 0 8px 40px rgba(11,42,111,0.12);
             }
+
+            /* Container do input */
+            div[data-testid="stTextInput"] > div {
+                border-radius: 12px !important;
+                overflow: hidden !important;
+            }
+
+            /* Campo de texto */
+            div[data-testid="stTextInput"] input {
+                background: #f4f7fc !important;
+                border: 1.5px solid #dce6f5 !important;
+                border-radius: 12px !important;
+                color: #0b2a6f !important;
+                font-size: 14px !important;
+                font-weight: 500 !important;
+                padding: 14px 16px !important;
+                transition: border-color 0.2s, box-shadow 0.2s !important;
+            }
+
+            div[data-testid="stTextInput"] input::placeholder {
+                color: #a0b0c8 !important;
+                font-weight: 400 !important;
+            }
+
+            div[data-testid="stTextInput"] input:focus {
+                border-color: #1a6fc4 !important;
+                box-shadow: 0 0 0 3px rgba(26,111,196,0.12) !important;
+                background: #ffffff !important;
+                outline: none !important;
+            }
+
+            /* Label do input */
+            div[data-testid="stTextInput"] label {
+                font-size: 11px !important;
+                font-weight: 700 !important;
+                color: #1a6fc4 !important;
+                letter-spacing: 1.5px !important;
+                text-transform: uppercase !important;
+                margin-bottom: 4px !important;
+            }
+
+            /* Ícone de olho (senha) */
+            div[data-testid="stTextInput"] button {
+                background: transparent !important;
+                border: none !important;
+                color: #a0b0c8 !important;
+            }
             </style>
             """, unsafe_allow_html=True)
 
