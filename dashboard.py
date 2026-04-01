@@ -923,64 +923,111 @@ else:
         # ══════════════════════════════════════════════════
         if not st.session_state.gestor_logado:
 
-            # CSS do painel de login
+            # CSS completo da tela de login
             st.markdown("""
             <style>
-            .login-box {
+
+            /* Fundo azul gradiente na tela de login */
+            .stApp {
+                background: linear-gradient(160deg, #0b2a6f 0%, #1a6fc4 100%) !important;
+            }
+
+            /* Bloco central fica sobre o gradiente */
+            section.main > div.block-container {
+                padding-top: 0 !important;
+            }
+
+            /* Card de login — glassmorphism */
+            .login-glass-card {
+                background: rgba(255, 255, 255, 0.10);
+                backdrop-filter: blur(24px) saturate(180%);
+                -webkit-backdrop-filter: blur(24px) saturate(180%);
+                border: 1px solid rgba(255, 255, 255, 0.22);
+                border-radius: 24px;
+                padding: 48px 44px 40px 44px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
                 max-width: 420px;
-                margin: 60px auto 0 auto;
-                background: white;
-                border-radius: 18px;
-                padding: 40px 36px 32px 36px;
-                box-shadow: 0 8px 40px rgba(11,42,111,0.12);
+                margin: 0 auto;
             }
 
-            /* Container do input */
-            div[data-testid="stTextInput"] > div {
-                border-radius: 12px !important;
-                overflow: hidden !important;
-            }
-
-            /* Campo de texto */
+            /* Inputs — fundo branco semitransparente */
             div[data-testid="stTextInput"] input {
-                background: #f4f7fc !important;
-                border: 1.5px solid #dce6f5 !important;
+                background: rgba(255, 255, 255, 0.14) !important;
+                border: 1.5px solid rgba(255, 255, 255, 0.28) !important;
                 border-radius: 12px !important;
-                color: #0b2a6f !important;
+                color: #ffffff !important;
                 font-size: 14px !important;
                 font-weight: 500 !important;
                 padding: 14px 16px !important;
-                transition: border-color 0.2s, box-shadow 0.2s !important;
+                transition: border-color 0.2s, box-shadow 0.2s, background 0.2s !important;
             }
-
             div[data-testid="stTextInput"] input::placeholder {
-                color: #a0b0c8 !important;
-                font-weight: 400 !important;
+                color: rgba(255, 255, 255, 0.45) !important;
             }
-
             div[data-testid="stTextInput"] input:focus {
-                border-color: #1a6fc4 !important;
-                box-shadow: 0 0 0 3px rgba(26,111,196,0.12) !important;
-                background: #ffffff !important;
+                background: rgba(255, 255, 255, 0.22) !important;
+                border-color: rgba(255, 255, 255, 0.65) !important;
+                box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12) !important;
                 outline: none !important;
             }
 
-            /* Label do input */
+            /* Labels dos inputs */
             div[data-testid="stTextInput"] label {
                 font-size: 11px !important;
                 font-weight: 700 !important;
-                color: #1a6fc4 !important;
-                letter-spacing: 1.5px !important;
+                color: rgba(255, 255, 255, 0.7) !important;
+                letter-spacing: 1.8px !important;
                 text-transform: uppercase !important;
                 margin-bottom: 4px !important;
             }
 
-            /* Ícone de olho (senha) */
+            /* Ícone olho senha */
             div[data-testid="stTextInput"] button {
                 background: transparent !important;
                 border: none !important;
-                color: #a0b0c8 !important;
+                color: rgba(255,255,255,0.5) !important;
             }
+
+            /* Botões dentro do card — glass claro */
+            div[data-testid="stButton"] > button {
+                background: rgba(255, 255, 255, 0.18) !important;
+                color: #ffffff !important;
+                border: 1.5px solid rgba(255, 255, 255, 0.35) !important;
+                border-radius: 12px !important;
+                height: 52px !important;
+                font-size: 14px !important;
+                font-weight: 700 !important;
+                letter-spacing: 0.5px !important;
+                backdrop-filter: blur(8px) !important;
+                -webkit-backdrop-filter: blur(8px) !important;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+                transition: all 0.22s ease !important;
+            }
+            div[data-testid="stButton"] > button *,
+            div[data-testid="stButton"] > button p,
+            div[data-testid="stButton"] > button span,
+            div[data-testid="stButton"] > button div {
+                color: #ffffff !important;
+                -webkit-text-fill-color: #ffffff !important;
+            }
+            div[data-testid="stButton"] > button:hover {
+                background: rgba(255, 255, 255, 0.30) !important;
+                border-color: rgba(255, 255, 255, 0.6) !important;
+                transform: translateY(-2px) !important;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.18) !important;
+            }
+            div[data-testid="stButton"] > button:hover * {
+                color: #ffffff !important;
+                -webkit-text-fill-color: #ffffff !important;
+            }
+
+            /* Alertas legíveis no fundo escuro */
+            [data-testid="stAlert"] p,
+            [data-testid="stAlert"] div,
+            [data-testid="stAlert"] span {
+                color: #1a1a1a !important;
+            }
+
             </style>
             """, unsafe_allow_html=True)
 
@@ -990,10 +1037,20 @@ else:
                 # ── TELA DE LOGIN ─────────────────────────────
                 if st.session_state.gestor_tela == 'login':
                     st.markdown("""
-                    <div style="text-align:center; margin-bottom:28px;">
-                        <p style="font-size:36px; margin:0;">🗂️</p>
-                        <p style="font-size:22px; font-weight:900; color:#0b2a6f; margin:4px 0 4px 0;">Área do Gestor</p>
-                        <p style="font-size:13px; color:#999; margin:0;">Acesse com sua matrícula e senha</p>
+                    <div class="login-glass-card">
+                        <div style="text-align:center; margin-bottom:32px;">
+                            <p style="font-size:40px; margin:0 0 12px 0;">🗂️</p>
+                            <p style="font-size:10px; font-weight:800; color:rgba(255,255,255,0.55);
+                                      letter-spacing:3px; text-transform:uppercase; margin:0 0 6px 0;">
+                                Portal NDI
+                            </p>
+                            <p style="font-size:24px; font-weight:900; color:#ffffff; margin:0 0 4px 0;">
+                                Área do Gestor
+                            </p>
+                            <p style="font-size:13px; color:rgba(255,255,255,0.5); margin:0;">
+                                Acesse com sua matrícula e senha
+                            </p>
+                        </div>
                     </div>
                     """, unsafe_allow_html=True)
 
