@@ -1000,7 +1000,9 @@ else:
                 font-size: 15px !important;
                 font-weight: 500 !important;
                 height: 52px !important;
+                line-height: 52px !important;
                 padding: 0 18px !important;
+                vertical-align: middle !important;
                 letter-spacing: 0.4px !important;
                 outline: none !important;
             }
