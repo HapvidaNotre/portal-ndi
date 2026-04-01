@@ -68,7 +68,7 @@ div[data-testid="stTextInput"] label,
 div[data-testid="stTextInput"] label p {
     font-size: 10px !important;
     font-weight: 800 !important;
-    color: #1a6fc4 !important;
+    color: rgba(255, 255, 255, 0.75) !important;
     letter-spacing: 2.5px !important;
     text-transform: uppercase !important;
     margin-bottom: 6px !important;
