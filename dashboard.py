@@ -688,19 +688,21 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
             res = df[df[col_mat].astype(str) == mat_busca.strip()]
             if not res.empty:
                 r = res.iloc[0]
-                st.markdown(f"""
-                <div style="background:linear-gradient(135deg,#0b2a6f,#1a6fc4);
-                            border-radius:14px; padding:18px 22px; margin:10px 0 18px 0;
-                            display:flex; align-items:center; gap:14px;">
-                    <span style="font-size:32px;">👤</span>
-                    <div>
-                        <p style="margin:0; color:rgba(255,255,255,0.65); font-size:11px;
-                                  letter-spacing:2px; text-transform:uppercase;">Operador</p>
-                        <p style="margin:0; color:white; font-size:20px; font-weight:900;">{r[col_op]}</p>
-                        <p style="margin:0; color:rgba(255,255,255,0.5); font-size:12px;">Matrícula {r[col_mat]}</p>
+                # Só exibe o banner se não vier da área do operador (onde já aparece acima)
+                if not mat_operador:
+                    st.markdown(f"""
+                    <div style="background:linear-gradient(135deg,#0b2a6f,#1a6fc4);
+                                border-radius:14px; padding:18px 22px; margin:10px 0 18px 0;
+                                display:flex; align-items:center; gap:14px;">
+                        <span style="font-size:32px;">👤</span>
+                        <div>
+                            <p style="margin:0; color:rgba(255,255,255,0.65); font-size:11px;
+                                      letter-spacing:2px; text-transform:uppercase;">Operador</p>
+                            <p style="margin:0; color:white; font-size:20px; font-weight:900;">{r[col_op]}</p>
+                            <p style="margin:0; color:rgba(255,255,255,0.5); font-size:12px;">Matrícula {r[col_mat]}</p>
+                        </div>
                     </div>
-                </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
 
                 # Linha 1 — 5 métricas principais
                 metricas_l1 = [
