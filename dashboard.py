@@ -10,7 +10,83 @@ st.set_page_config(page_title="Portal de Performance NDI", layout="wide", page_i
 st.markdown("""
 <style>
 
-.stApp { background-color: #f8f9fa; }
+/* INPUTS GLOBAIS — estilo glass para toda a app */
+div[data-testid="stTextInput"] {
+    margin-bottom: 6px !important;
+}
+div[data-testid="stTextInput"] > div {
+    background: rgba(255, 255, 255, 0.55) !important;
+    backdrop-filter: blur(16px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
+    border: 1px solid rgba(11, 42, 111, 0.18) !important;
+    border-radius: 14px !important;
+    box-shadow:
+        0 4px 20px rgba(11, 42, 111, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.80),
+        inset 0 -1px 0 rgba(11, 42, 111, 0.05) !important;
+    transition: all 0.25s ease !important;
+    overflow: hidden !important;
+}
+div[data-testid="stTextInput"] > div:hover {
+    background: rgba(255, 255, 255, 0.75) !important;
+    border-color: rgba(11, 42, 111, 0.30) !important;
+    box-shadow:
+        0 6px 24px rgba(11, 42, 111, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.90) !important;
+}
+div[data-testid="stTextInput"] > div:focus-within {
+    background: rgba(255, 255, 255, 0.85) !important;
+    border-color: rgba(26, 111, 196, 0.65) !important;
+    box-shadow:
+        0 0 0 3px rgba(26, 111, 196, 0.15),
+        0 6px 28px rgba(11, 42, 111, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+}
+div[data-testid="stTextInput"] input {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #0b2a6f !important;
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    height: 52px !important;
+    line-height: 52px !important;
+    padding: 0 18px !important;
+    vertical-align: middle !important;
+    letter-spacing: 0.3px !important;
+    outline: none !important;
+}
+div[data-testid="stTextInput"] input::placeholder {
+    color: rgba(11, 42, 111, 0.35) !important;
+    font-style: italic !important;
+    font-size: 13px !important;
+}
+div[data-testid="stTextInput"] label,
+div[data-testid="stTextInput"] label p {
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    color: #1a6fc4 !important;
+    letter-spacing: 2.5px !important;
+    text-transform: uppercase !important;
+    margin-bottom: 6px !important;
+}
+div[data-testid="stTextInput"] button {
+    background: transparent !important;
+    border: none !important;
+    color: rgba(11, 42, 111, 0.45) !important;
+    transition: color 0.2s ease !important;
+    margin-right: 6px !important;
+}
+div[data-testid="stTextInput"] button:hover {
+    color: rgba(11, 42, 111, 0.90) !important;
+    background: transparent !important;
+}
+/* Remove tooltip "Press Enter to apply" — global */
+div[data-testid="InputInstructions"] {
+    display: none !important;
+}
+
+
 
 /* Oculta barra preta padrão do Streamlit */
 [data-testid="stToolbar"],
@@ -950,96 +1026,41 @@ else:
                 margin: 0 auto;
             }
 
-            /* Inputs — espaçamento entre campos */
-            div[data-testid="stTextInput"] {
-                margin-bottom: 6px !important;
-            }
-
-            /* ── GLASS no wrapper div ── */
+            /* Overrides do login — adapta o glass ao fundo azul escuro */
             div[data-testid="stTextInput"] > div {
                 background: rgba(255, 255, 255, 0.07) !important;
-                backdrop-filter: blur(20px) saturate(160%) !important;
-                -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
-                border: 1px solid rgba(255, 255, 255, 0.20) !important;
-                border-radius: 14px !important;
+                border-color: rgba(255, 255, 255, 0.20) !important;
                 box-shadow:
                     0 4px 24px rgba(0, 0, 0, 0.18),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-                    inset 0 -1px 0 rgba(0, 0, 0, 0.08) !important;
-                transition: all 0.25s ease !important;
-                overflow: hidden !important;
+                    inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
             }
-
-            /* Hover no wrapper */
             div[data-testid="stTextInput"] > div:hover {
                 background: rgba(255, 255, 255, 0.12) !important;
                 border-color: rgba(255, 255, 255, 0.32) !important;
-                box-shadow:
-                    0 6px 28px rgba(0, 0, 0, 0.20),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-                    inset 0 -1px 0 rgba(0, 0, 0, 0.08) !important;
             }
-
-            /* Focus-within no wrapper — ativa quando o input dentro está focado */
             div[data-testid="stTextInput"] > div:focus-within {
                 background: rgba(255, 255, 255, 0.16) !important;
                 border-color: rgba(110, 200, 255, 0.75) !important;
                 box-shadow:
                     0 0 0 3px rgba(90, 185, 255, 0.22),
                     0 6px 32px rgba(0, 0, 0, 0.20),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-                    inset 0 -1px 0 rgba(0, 0, 0, 0.06) !important;
+                    inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
             }
-
-            /* Input em si — transparente para o glass do wrapper aparecer */
             div[data-testid="stTextInput"] input {
-                background: transparent !important;
-                border: none !important;
-                box-shadow: none !important;
                 color: #ffffff !important;
-                font-size: 15px !important;
-                font-weight: 500 !important;
-                height: 52px !important;
-                line-height: 52px !important;
-                padding: 0 18px !important;
-                vertical-align: middle !important;
-                letter-spacing: 0.4px !important;
-                outline: none !important;
             }
             div[data-testid="stTextInput"] input::placeholder {
                 color: rgba(255, 255, 255, 0.30) !important;
-                font-style: italic !important;
-                font-size: 13px !important;
             }
-
-            /* Labels dos inputs */
             div[data-testid="stTextInput"] label,
             div[data-testid="stTextInput"] label p {
-                font-size: 10px !important;
-                font-weight: 800 !important;
                 color: rgba(255, 255, 255, 0.60) !important;
-                letter-spacing: 2.5px !important;
-                text-transform: uppercase !important;
-                margin-bottom: 6px !important;
             }
-
-            /* Remove tooltip "Press Enter to apply" */
-            div[data-testid="stTextInput"] div[data-testid="InputInstructions"],
-            div[data-testid="InputInstructions"] {
-                display: none !important;
-            }
-
-            /* Ícone olho senha */
             div[data-testid="stTextInput"] button {
-                background: transparent !important;
-                border: none !important;
                 color: rgba(255, 255, 255, 0.45) !important;
-                transition: color 0.2s ease !important;
-                margin-right: 6px !important;
             }
             div[data-testid="stTextInput"] button:hover {
                 color: rgba(255, 255, 255, 0.95) !important;
-                background: transparent !important;
             }
 
             /* Botões dentro do card — glass claro */
