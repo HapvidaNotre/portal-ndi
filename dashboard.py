@@ -950,42 +950,64 @@ else:
                 margin: 0 auto;
             }
 
-            /* Inputs — fundo branco semitransparente */
+            /* Inputs — container com espaçamento */
+            div[data-testid="stTextInput"] {
+                margin-bottom: 6px !important;
+            }
+
+            /* Inputs — glass aprimorado */
             div[data-testid="stTextInput"] input {
-                background: rgba(255, 255, 255, 0.14) !important;
-                border: 1.5px solid rgba(255, 255, 255, 0.28) !important;
-                border-radius: 12px !important;
+                background: rgba(255, 255, 255, 0.10) !important;
+                border: 1.5px solid rgba(255, 255, 255, 0.22) !important;
+                border-radius: 14px !important;
                 color: #ffffff !important;
-                font-size: 14px !important;
+                font-size: 15px !important;
                 font-weight: 500 !important;
-                padding: 14px 16px !important;
-                transition: border-color 0.2s, box-shadow 0.2s, background 0.2s !important;
+                height: 52px !important;
+                padding: 0 18px !important;
+                letter-spacing: 0.4px !important;
+                transition: all 0.25s ease !important;
+                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12) inset !important;
             }
             div[data-testid="stTextInput"] input::placeholder {
-                color: rgba(255, 255, 255, 0.45) !important;
+                color: rgba(255, 255, 255, 0.32) !important;
+                font-style: italic !important;
+                font-size: 13px !important;
+            }
+            div[data-testid="stTextInput"] input:hover {
+                background: rgba(255, 255, 255, 0.15) !important;
+                border-color: rgba(255, 255, 255, 0.38) !important;
             }
             div[data-testid="stTextInput"] input:focus {
-                background: rgba(255, 255, 255, 0.22) !important;
-                border-color: rgba(255, 255, 255, 0.65) !important;
-                box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12) !important;
+                background: rgba(255, 255, 255, 0.20) !important;
+                border-color: rgba(110, 195, 255, 0.90) !important;
+                box-shadow:
+                    0 0 0 3px rgba(100, 185, 255, 0.22),
+                    0 4px 20px rgba(0, 0, 0, 0.15) inset !important;
                 outline: none !important;
             }
 
             /* Labels dos inputs */
-            div[data-testid="stTextInput"] label {
-                font-size: 11px !important;
-                font-weight: 700 !important;
-                color: rgba(255, 255, 255, 0.7) !important;
-                letter-spacing: 1.8px !important;
+            div[data-testid="stTextInput"] label,
+            div[data-testid="stTextInput"] label p {
+                font-size: 10px !important;
+                font-weight: 800 !important;
+                color: rgba(255, 255, 255, 0.60) !important;
+                letter-spacing: 2.5px !important;
                 text-transform: uppercase !important;
-                margin-bottom: 4px !important;
+                margin-bottom: 6px !important;
             }
 
             /* Ícone olho senha */
             div[data-testid="stTextInput"] button {
                 background: transparent !important;
                 border: none !important;
-                color: rgba(255,255,255,0.5) !important;
+                color: rgba(255, 255, 255, 0.50) !important;
+                transition: color 0.2s ease !important;
+            }
+            div[data-testid="stTextInput"] button:hover {
+                color: rgba(255, 255, 255, 0.90) !important;
+                background: transparent !important;
             }
 
             /* Botões dentro do card — glass claro */
@@ -1054,8 +1076,11 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    mat_login  = st.text_input("Matrícula", placeholder="Ex: 1035323", key="login_mat")
-                    sen_login  = st.text_input("Senha", type="password", placeholder="Sua senha", key="login_sen")
+                    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+                    mat_login  = st.text_input("👤  Matrícula", placeholder="Ex: 1035323", key="login_mat")
+                    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+                    sen_login  = st.text_input("🔒  Senha", type="password", placeholder="Sua senha", key="login_sen")
+                    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
                     col_a, col_b = st.columns(2)
                     entrar  = col_a.button("✅ Entrar",           use_container_width=True)
@@ -1091,12 +1116,12 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    mat_cad  = st.text_input("Sua Matrícula",  placeholder="Ex: 1035323",  key="cad_mat")
-                    svc_cad  = st.selectbox("Serviço",         list(SUPERVISORES.keys()),   key="cad_svc")
+                    mat_cad  = st.text_input("👤  Sua Matrícula",  placeholder="Ex: 1035323",  key="cad_mat")
+                    svc_cad  = st.selectbox("📋  Serviço",         list(SUPERVISORES.keys()),   key="cad_svc")
                     nomes_c  = SUPERVISORES.get(svc_cad, [])
-                    nom_cad  = st.selectbox("Seu nome",        nomes_c,                     key="cad_nom")
-                    sen_cad  = st.text_input("Criar senha",    type="password", placeholder="Mínimo 6 caracteres", key="cad_sen")
-                    sen_cad2 = st.text_input("Confirmar senha",type="password", placeholder="Repita a senha",      key="cad_sen2")
+                    nom_cad  = st.selectbox("🙋  Seu nome",        nomes_c,                     key="cad_nom")
+                    sen_cad  = st.text_input("🔒  Criar senha",    type="password", placeholder="Mínimo 6 caracteres", key="cad_sen")
+                    sen_cad2 = st.text_input("✅  Confirmar senha",type="password", placeholder="Repita a senha",      key="cad_sen2")
 
                     col_c, col_d = st.columns(2)
                     salvar  = col_c.button("✅ Criar conta",  use_container_width=True)
@@ -1136,9 +1161,9 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    sen_at   = st.text_input("Senha atual",    type="password", key="alt_at")
-                    sen_nova = st.text_input("Nova senha",     type="password", placeholder="Mínimo 6 caracteres", key="alt_nova")
-                    sen_nov2 = st.text_input("Confirmar nova", type="password", key="alt_nov2")
+                    sen_at   = st.text_input("🔑  Senha atual",    type="password", key="alt_at")
+                    sen_nova = st.text_input("🔒  Nova senha",     type="password", placeholder="Mínimo 6 caracteres", key="alt_nova")
+                    sen_nov2 = st.text_input("✅  Confirmar nova", type="password", key="alt_nov2")
 
                     col_e, col_f = st.columns(2)
                     confirmar = col_e.button("✅ Confirmar", use_container_width=True)
