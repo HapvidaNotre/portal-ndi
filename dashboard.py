@@ -616,10 +616,10 @@ def buscar_tendencias(matricula: str, supervisor: str, servico: str) -> dict:
     except Exception:
         return {}
 
-
+@st.cache_data(ttl=60)
+def buscar_supervisor_por_matricula(matricula: str):
     """Dado uma matrícula, retorna (supervisor, servico) registrado no Supabase."""
     supabase = conectar_supabase()
-    # Limpa possível .0 digitado ou copiado
     mat_clean = _limpar_matricula(matricula) or matricula.strip()
     res = (
         supabase.table("performance_operadores")
