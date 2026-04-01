@@ -267,13 +267,22 @@ def definir_cor_kpi(valor_num, metrica):
         return "#28a745" if valor_num <= m else ("#ffc107" if valor_num <= m + tol else "#dc3545")
     return "#28a745" if valor_num >= m else ("#ffc107" if valor_num >= m - tol else "#dc3545")
 
-def exibir_card(label, valor_display, cor):
+def exibir_card(label, valor_display, cor, tendencia=None):
     cor_bg = {
         "#28a745": "rgba(40,167,69,0.08)",
         "#ffc107": "rgba(255,193,7,0.10)",
         "#dc3545": "rgba(220,53,69,0.08)",
         "#999":    "rgba(150,150,150,0.07)",
     }.get(cor, "rgba(150,150,150,0.07)")
+
+    if tendencia == 'good':
+        tend_html = '<span style="font-size:11px; color:#28a745; font-weight:700;">▲ subindo</span>'
+    elif tendencia == 'bad':
+        tend_html = '<span style="font-size:11px; color:#dc3545; font-weight:700;">▼ caindo</span>'
+    elif tendencia == 'stable':
+        tend_html = '<span style="font-size:11px; color:#aaa; font-weight:600;">● estável</span>'
+    else:
+        tend_html = ''
 
     st.markdown(f"""
     <div style="
@@ -289,11 +298,12 @@ def exibir_card(label, valor_display, cor):
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 6px;
+        gap: 4px;
     ">
         <p style="margin:0; font-size:10px; color:#888; font-weight:700;
                   text-transform:uppercase; letter-spacing:0.8px; line-height:1.3;">{label}</p>
         <p style="margin:0; font-size:22px; font-weight:900; color:#0b2a6f; line-height:1.1;">{valor_display}</p>
+        {tend_html}
     </div>
     """, unsafe_allow_html=True)
 
@@ -443,6 +453,38 @@ def upsert_supabase(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool
         on_conflict="matricula,supervisor,servico"
     ).execute()
 
+    # ── Histórico: limpa meses anteriores e insere snapshot atual ──
+    try:
+        from datetime import datetime, timezone
+        mes_atual = datetime.now(timezone.utc).strftime('%Y-%m-01')
+
+        # Remove registros de meses anteriores para este supervisor/serviço
+        supabase.table("performance_historico") \
+            .delete() \
+            .eq("supervisor", supervisor) \
+            .eq("servico", servico) \
+            .lt("upload_date", mes_atual) \
+            .execute()
+
+        # Monta registros só com colunas numéricas para o histórico
+        _COLS_HIST = ['supervisor','servico','matricula','operador',
+                      'aderencia','resolutividade','tma_voz','pesquisa','silencio',
+                      'absenteismo','produtividade','transf','shortcall',
+                      'pausa_produtiva','pausa_improdutiva','pausa_total']
+        upload_ts  = pd.Timestamp.now(tz='UTC').isoformat()
+        hist_recs  = []
+        for rec in registros_limpos:
+            if rec.get('matricula') == '__TOTAL__':
+                continue
+            h = {k: rec.get(k) for k in _COLS_HIST}
+            h['upload_date'] = upload_ts
+            hist_recs.append(h)
+
+        if hist_recs:
+            supabase.table("performance_historico").insert(hist_recs).execute()
+    except Exception:
+        pass  # Histórico não bloqueia o upload principal
+
     return True
 
 # ---------- LEITURA DO SUPABASE ----------
@@ -507,7 +549,74 @@ def carregar_dados_supervisor(supervisor: str, servico: str):
     return df, 'Operador', 'Matricula'
 
 @st.cache_data(ttl=60)
-def buscar_supervisor_por_matricula(matricula: str):
+def buscar_tendencias(matricula: str, supervisor: str, servico: str) -> dict:
+    """Compara os dois últimos uploads do operador e retorna tendência por métrica."""
+    try:
+        supabase = conectar_supabase()
+        mat_clean = _limpar_matricula(matricula) or matricula.strip()
+
+        res = (
+            supabase.table("performance_historico")
+            .select("upload_date,aderencia,resolutividade,tma_voz,pesquisa,silencio,"
+                    "absenteismo,produtividade,transf,shortcall,pausa_total")
+            .eq("matricula", mat_clean)
+            .eq("supervisor", supervisor)
+            .eq("servico", servico)
+            .order("upload_date", desc=True)
+            .limit(20)
+            .execute()
+        )
+
+        if not res.data or len(res.data) < 2:
+            return {}
+
+        df_h = pd.DataFrame(res.data)
+        df_h['upload_date'] = pd.to_datetime(df_h['upload_date'])
+
+        datas = sorted(df_h['upload_date'].unique(), reverse=True)
+        if len(datas) < 2:
+            return {}
+
+        atual   = df_h[df_h['upload_date'] == datas[0]].iloc[0]
+        anterior = df_h[df_h['upload_date'] == datas[1]].iloc[0]
+
+        _MAP_TEND = {
+            'Aderencia':      'aderencia',
+            'Resolutividade': 'resolutividade',
+            'TMA Voz':        'tma_voz',
+            'Pesquisa':       'pesquisa',
+            'Silencio':       'silencio',
+            'Absenteismo':    'absenteismo',
+            'Produtividade':  'produtividade',
+            'Transf':         'transf',
+            'ShortCall':      'shortcall',
+            'Pausa Total':    'pausa_total',
+        }
+
+        tendencias = {}
+        for metrica, col in _MAP_TEND.items():
+            v_atual = atual.get(col)
+            v_ant   = anterior.get(col)
+            if v_atual is None or v_ant is None:
+                continue
+            try:
+                v_atual = float(v_atual)
+                v_ant   = float(v_ant)
+                diff    = v_atual - v_ant
+                if abs(diff) < 0.01:
+                    tendencias[metrica] = 'stable'
+                else:
+                    menor_melhor = METAS_BASE[metrica]['menor_melhor']
+                    subiu = diff > 0
+                    tendencias[metrica] = 'good' if (subiu != menor_melhor) else 'bad'
+            except Exception:
+                pass
+
+        return tendencias
+    except Exception:
+        return {}
+
+
     """Dado uma matrícula, retorna (supervisor, servico) registrado no Supabase."""
     supabase = conectar_supabase()
     # Limpa possível .0 digitado ou copiado
@@ -704,6 +813,11 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
                     </div>
                     """, unsafe_allow_html=True)
 
+                # Busca tendências do histórico
+                sup_tend = st.session_state.get('op_supervisor') or df['supervisor'].iloc[0] if 'supervisor' in df.columns else ''
+                svc_tend = st.session_state.get('op_servico')    or df['servico'].iloc[0]    if 'servico'    in df.columns else ''
+                tend = buscar_tendencias(str(r[col_mat]), sup_tend, svc_tend)
+
                 # Linha 1 — 5 métricas principais
                 metricas_l1 = [
                     ("Aderência",      'Aderencia'),
@@ -715,7 +829,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
                 cols = st.columns(5)
                 for idx, (label, key) in enumerate(metricas_l1):
                     with cols[idx]:
-                        exibir_card(label, r[key], definir_cor_kpi(r[f'{key}_num'], key.replace(' ','') if key != 'TMA Voz' else 'TMA Voz'))
+                        exibir_card(label, r[key], definir_cor_kpi(r[f'{key}_num'], key.replace(' ','') if key != 'TMA Voz' else 'TMA Voz'), tend.get(key))
 
                 st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
@@ -730,7 +844,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
                 cols2 = st.columns(5)
                 for idx, (label, key) in enumerate(metricas_l2):
                     with cols2[idx]:
-                        exibir_card(label, r[key], definir_cor_kpi(r.get(f'{key}_num'), key))
+                        exibir_card(label, r[key], definir_cor_kpi(r.get(f'{key}_num'), key), tend.get(key))
             else:
                 st.warning("⚠️ Matrícula não encontrada.")
 
@@ -801,16 +915,48 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
 
         top = df_eq.dropna(subset=[f'{metrica_sel}_num']).sort_values(
             by=f'{metrica_sel}_num', ascending=METAS_BASE[metrica_sel]['menor_melhor']
-        ).head(10)
+        ).head(3)
 
         if top.empty:
             st.info("Sem dados suficientes para este ranking.")
         else:
-            st.markdown(f"<p style='color:#888; font-size:13px; margin:8px 0 12px 0;'>Top {len(top)} — <b>{metrica_sel}</b></p>", unsafe_allow_html=True)
-            for i, (_, row) in enumerate(top.iterrows()):
-                cor = definir_cor_kpi(row[f'{metrica_sel}_num'], metrica_sel)
-                # Exibe apenas matrícula (sem nome do operador)
-                exibir_card_ranking(i, f"Matrícula {row[col_mat]}", row[metrica_sel], cor)
+            top_list = list(top.iterrows())
+            medalhas = [
+                {"emoji": "🥇", "label": "1º lugar", "cor": "#FFD700", "bg": "#fffbe6", "altura": "160px", "tamanho": "28px"},
+                {"emoji": "🥈", "label": "2º lugar", "cor": "#C0C0C0", "bg": "#f7f7f7", "altura": "130px", "tamanho": "22px"},
+                {"emoji": "🥉", "label": "3º lugar", "cor": "#CD7F32", "bg": "#fff5ee", "altura": "110px", "tamanho": "20px"},
+            ]
+            ordem_exibicao = [1, 0, 2] if len(top_list) >= 3 else list(range(len(top_list)))
+
+            st.markdown(f"<p style='color:#888; font-size:13px; margin:8px 0 20px 0; text-align:center;'>🏆 Top 3 — <b>{metrica_sel}</b></p>", unsafe_allow_html=True)
+
+            cols_podio = st.columns(3)
+            for col_idx, rank_idx in enumerate(ordem_exibicao):
+                if rank_idx >= len(top_list):
+                    continue
+                _, row = top_list[rank_idx]
+                m = medalhas[rank_idx]
+                cor_kpi = definir_cor_kpi(row[f'{metrica_sel}_num'], metrica_sel)
+                nome = row[col_op] if col_op in row else f"Matrícula {row[col_mat]}"
+                nome_curto = nome.split()[0] if nome else "---"
+
+                with cols_podio[col_idx]:
+                    st.markdown(f"""
+                    <div style="background:{m['bg']}; border-radius:18px;
+                                border: 2px solid {m['cor']}; padding:20px 12px;
+                                text-align:center; min-height:{m['altura']};
+                                display:flex; flex-direction:column;
+                                align-items:center; justify-content:center; gap:6px;
+                                box-shadow: 0 4px 16px rgba(0,0,0,0.08);">
+                        <p style="margin:0; font-size:36px; line-height:1;">{m['emoji']}</p>
+                        <p style="margin:0; font-size:10px; color:#999; font-weight:700;
+                                  text-transform:uppercase; letter-spacing:1.5px;">{m['label']}</p>
+                        <p style="margin:0; font-size:13px; font-weight:800; color:#1f3a5f;
+                                  line-height:1.3;">{nome_curto}</p>
+                        <p style="margin:0; font-size:{m['tamanho']}; font-weight:900;
+                                  color:{cor_kpi};">{row[metrica_sel]}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
 
     # ── SAÚDE ────────────────────────────────────────────
     if aba == "Saúde":
