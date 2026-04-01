@@ -13,43 +13,19 @@ st.markdown("""
 /* FUNDO GERAL */
 .stApp { background-color: #f8f9fa; }
 
-/* INPUTS GLOBAIS — dark glass */
+/* INPUTS GLOBAIS — estrutura neutra (sem forçar cores escuras fora da área do gestor) */
 div[data-testid="stTextInput"] {
     margin-bottom: 6px !important;
 }
 div[data-testid="stTextInput"] > div {
-    background: rgba(11, 42, 111, 0.55) !important;
-    backdrop-filter: blur(16px) saturate(160%) !important;
-    -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.18) !important;
     border-radius: 14px !important;
-    box-shadow:
-        0 4px 20px rgba(0, 0, 0, 0.20),
-        inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
     transition: all 0.25s ease !important;
     overflow: hidden !important;
-}
-div[data-testid="stTextInput"] > div:hover {
-    background: rgba(11, 42, 111, 0.68) !important;
-    border-color: rgba(255, 255, 255, 0.30) !important;
-    box-shadow:
-        0 6px 24px rgba(0, 0, 0, 0.25),
-        inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
-}
-div[data-testid="stTextInput"] > div:focus-within {
-    background: rgba(11, 42, 111, 0.72) !important;
-    border-color: rgba(100, 185, 255, 0.75) !important;
-    box-shadow:
-        0 0 0 3px rgba(90, 185, 255, 0.22),
-        0 6px 28px rgba(0, 0, 0, 0.25),
-        inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
 }
 div[data-testid="stTextInput"] input {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
     font-size: 15px !important;
     font-weight: 500 !important;
     height: 52px !important;
@@ -59,30 +35,13 @@ div[data-testid="stTextInput"] input {
     letter-spacing: 0.3px !important;
     outline: none !important;
 }
-div[data-testid="stTextInput"] input::placeholder {
-    color: rgba(255, 255, 255, 0.38) !important;
-    font-style: italic !important;
-    font-size: 13px !important;
-}
 div[data-testid="stTextInput"] label,
 div[data-testid="stTextInput"] label p {
     font-size: 10px !important;
     font-weight: 800 !important;
-    color: rgba(255, 255, 255, 0.75) !important;
     letter-spacing: 2.5px !important;
     text-transform: uppercase !important;
     margin-bottom: 6px !important;
-}
-div[data-testid="stTextInput"] button {
-    background: transparent !important;
-    border: none !important;
-    color: rgba(255, 255, 255, 0.50) !important;
-    transition: color 0.2s ease !important;
-    margin-right: 6px !important;
-}
-div[data-testid="stTextInput"] button:hover {
-    color: rgba(255, 255, 255, 0.95) !important;
-    background: transparent !important;
 }
 /* Remove tooltip "Press Enter to apply" — global */
 div[data-testid="InputInstructions"] {
@@ -1090,13 +1049,53 @@ else:
                 margin: 0 auto;
             }
 
-            /* Overrides do login — adapta borda e glow para fundo azul */
+            /* Inputs — fundo branco + texto escuro: funciona em qualquer tema */
+            div[data-testid="stTextInput"] > div {
+                background: rgba(255, 255, 255, 0.93) !important;
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+                border: 1.5px solid rgba(255, 255, 255, 0.6) !important;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+            }
+            div[data-testid="stTextInput"] > div:hover {
+                background: #ffffff !important;
+                border-color: rgba(255, 255, 255, 0.9) !important;
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.20) !important;
+            }
             div[data-testid="stTextInput"] > div:focus-within {
-                border-color: rgba(110, 200, 255, 0.85) !important;
+                background: #ffffff !important;
+                border-color: #64b9ff !important;
                 box-shadow:
-                    0 0 0 3px rgba(90, 185, 255, 0.25),
-                    0 6px 32px rgba(0, 0, 0, 0.22),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.20) !important;
+                    0 0 0 3px rgba(90, 185, 255, 0.35),
+                    0 6px 20px rgba(0, 0, 0, 0.18) !important;
+            }
+
+            /* Texto escuro no input — legível sobre fundo branco */
+            div[data-testid="stTextInput"] input {
+                color: #1a2a4a !important;
+                -webkit-text-fill-color: #1a2a4a !important;
+            }
+            div[data-testid="stTextInput"] input::placeholder {
+                color: rgba(0, 0, 0, 0.35) !important;
+                font-style: italic !important;
+                font-size: 13px !important;
+            }
+            /* Labels ficam brancas pois estão sobre o fundo azul gradient */
+            div[data-testid="stTextInput"] label,
+            div[data-testid="stTextInput"] label p {
+                color: rgba(255, 255, 255, 0.90) !important;
+            }
+            /* Ícone olho da senha */
+            div[data-testid="stTextInput"] button {
+                background: transparent !important;
+                border: none !important;
+                color: rgba(30, 60, 120, 0.60) !important;
+                transition: color 0.2s ease !important;
+                margin-right: 6px !important;
+            }
+            div[data-testid="stTextInput"] button:hover {
+                color: rgba(30, 60, 120, 0.95) !important;
+                background: transparent !important;
             }
 
             /* Botões dentro do card — glass claro */
@@ -1206,8 +1205,8 @@ else:
                     st.markdown("""
                     <div style="text-align:center; margin-bottom:24px;">
                         <p style="font-size:32px; margin:0;">📝</p>
-                        <p style="font-size:20px; font-weight:900; color:#0b2a6f; margin:4px 0 4px 0;">Criar conta</p>
-                        <p style="font-size:13px; color:#999; margin:0;">Preencha seus dados para o primeiro acesso</p>
+                        <p style="font-size:20px; font-weight:900; color:#ffffff; margin:4px 0 4px 0;">Criar conta</p>
+                        <p style="font-size:13px; color:rgba(255,255,255,0.65); margin:0;">Preencha seus dados para o primeiro acesso</p>
                     </div>
                     """, unsafe_allow_html=True)
 
