@@ -491,6 +491,42 @@ def gestor_alterar_senha(matricula: str, senha_nova: str) -> bool:
         st.error(f"Erro ao alterar senha: {e}")
         return False
 
+# ---------- MODAL DE AJUDA ----------
+@st.dialog("📖 Como usar o Portal")
+def mostrar_ajuda():
+    st.markdown("""
+    <style>
+    .help-section-title {
+        font-size: 11px; font-weight: 800; letter-spacing: 2px;
+        text-transform: uppercase; color: #1a6fc4;
+        margin: 18px 0 10px 0; padding-bottom: 6px;
+        border-bottom: 2px solid #e8eef8;
+    }
+    .help-step {
+        display: flex; align-items: flex-start; gap: 10px; margin-bottom: 9px;
+    }
+    .help-step-num {
+        min-width: 22px; height: 22px; border-radius: 50%;
+        background: #0b2a6f; color: white; font-size: 11px; font-weight: 800;
+        display: flex; align-items: center; justify-content: center; margin-top: 1px;
+    }
+    .help-step-text { font-size: 13px; color: #3a5070; line-height: 1.5; }
+    </style>
+
+    <p class="help-section-title">👤 Para o Operador</p>
+    <div class="help-step"><div class="help-step-num">1</div><div class="help-step-text">Na tela inicial, clique em <b>Operador</b>.</div></div>
+    <div class="help-step"><div class="help-step-num">2</div><div class="help-step-text">Digite sua <b>matrícula</b> e clique em <b>Buscar</b>.</div></div>
+    <div class="help-step"><div class="help-step-num">3</div><div class="help-step-text">Visualize seus <b>KPIs individuais</b>, desempenho da equipe, rankings e diagnóstico de metas.</div></div>
+
+    <p class="help-section-title">🗂️ Para o Gestor — Upload</p>
+    <div class="help-step"><div class="help-step-num">1</div><div class="help-step-text">Faça login com sua <b>matrícula e senha</b>. Primeiro acesso? Clique em <b>Primeiro acesso</b>.</div></div>
+    <div class="help-step"><div class="help-step-num">2</div><div class="help-step-text">Exporte a planilha de performance do <b>BI</b> no formato <b>.xlsx</b>.</div></div>
+    <div class="help-step"><div class="help-step-num">3</div><div class="help-step-text">Clique em <b>Browse files</b> e selecione o arquivo — os dados anteriores são substituídos automaticamente.</div></div>
+    <div class="help-step"><div class="help-step-num">4</div><div class="help-step-text">Após o envio, os dados ficam <b>disponíveis imediatamente</b> para os operadores da equipe.</div></div>
+
+    <p style="font-size:11px; color:#bbb; text-align:center; margin:20px 0 0 0;">Dúvidas? Contate o Sup. Erik Coelho.</p>
+    """, unsafe_allow_html=True)
+
 # ---------- HELPER: painel de análise ----------
 def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None):
     df_eq = df[
@@ -937,118 +973,42 @@ else:
             _, col_center, _ = st.columns([1, 2, 1])
             with col_center:
 
-                # ── BOTÃO DE AJUDA (?) via session state ──────
-                if 'show_help' not in st.session_state:
-                    st.session_state.show_help = False
-
-                # CSS do botão ? e do painel de ajuda
+                # ── BOTÃO FLUTUANTE DE AJUDA (?) ──────────────
                 st.markdown("""
                 <style>
-                div[data-testid="stButton"] > button[kind="secondary"].help-btn {
+                div[data-testid="stButton"].fab-help > button {
+                    position: fixed !important;
+                    bottom: 28px !important;
+                    right: 28px !important;
+                    width: 54px !important;
+                    height: 54px !important;
                     border-radius: 50% !important;
+                    background: linear-gradient(135deg, #0b2a6f, #1a6fc4) !important;
+                    color: white !important;
+                    font-size: 22px !important;
+                    font-weight: 900 !important;
+                    border: none !important;
+                    box-shadow: 0 4px 18px rgba(11,42,111,0.4) !important;
+                    z-index: 9999 !important;
+                    padding: 0 !important;
+                    min-width: unset !important;
+                    transition: transform 0.2s, box-shadow 0.2s !important;
                 }
-                .help-panel {
-                    background: white;
-                    border-radius: 18px;
-                    padding: 28px 32px 24px 32px;
-                    box-shadow: 0 8px 40px rgba(11,42,111,0.14);
-                    border: 1px solid #e8eef8;
-                    margin-bottom: 20px;
-                    animation: fadeIn 0.2s ease;
+                div[data-testid="stButton"].fab-help > button:hover {
+                    transform: scale(1.12) !important;
+                    box-shadow: 0 8px 28px rgba(11,42,111,0.5) !important;
                 }
-                @keyframes fadeIn {
-                    from { opacity:0; transform: translateY(-8px); }
-                    to   { opacity:1; transform: translateY(0); }
-                }
-                .help-section-title {
-                    font-size: 11px;
-                    font-weight: 800;
-                    letter-spacing: 2px;
-                    text-transform: uppercase;
-                    color: #1a6fc4;
-                    margin: 18px 0 10px 0;
-                    padding-bottom: 6px;
-                    border-bottom: 2px solid #e8eef8;
-                }
-                .help-step {
-                    display: flex;
-                    align-items: flex-start;
-                    gap: 10px;
-                    margin-bottom: 9px;
-                }
-                .help-step-num {
-                    min-width: 22px;
-                    height: 22px;
-                    border-radius: 50%;
-                    background: #0b2a6f;
-                    color: white;
-                    font-size: 11px;
-                    font-weight: 800;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    margin-top: 1px;
-                }
-                .help-step-text {
-                    font-size: 13px;
-                    color: #3a5070;
-                    line-height: 1.5;
+                div[data-testid="stButton"].fab-help > button * {
+                    color: white !important;
+                    -webkit-text-fill-color: white !important;
                 }
                 </style>
                 """, unsafe_allow_html=True)
 
-                # Linha com título da tela e botão ?
-                col_titulo, col_help = st.columns([5, 1])
-                with col_help:
-                    label_help = "✕ Fechar" if st.session_state.show_help else "❓ Ajuda"
-                    if st.button(label_help, use_container_width=True, key="btn_help"):
-                        st.session_state.show_help = not st.session_state.show_help
-                        st.rerun()
-
-                # Painel de ajuda expandido
-                if st.session_state.show_help:
-                    st.markdown("""
-                    <div class="help-panel">
-                        <p style="font-size:17px; font-weight:900; color:#0b2a6f; margin:0 0 2px 0;">📖 Como usar o Portal</p>
-                        <p style="font-size:12px; color:#aaa; margin:0 0 4px 0;">Guia rápido para gestores e operadores</p>
-
-                        <p class="help-section-title">👤 Para o Operador</p>
-                        <div class="help-step">
-                            <div class="help-step-num">1</div>
-                            <div class="help-step-text">Na tela inicial, clique em <b>Operador</b>.</div>
-                        </div>
-                        <div class="help-step">
-                            <div class="help-step-num">2</div>
-                            <div class="help-step-text">Digite sua <b>matrícula</b> e clique em <b>Buscar</b>.</div>
-                        </div>
-                        <div class="help-step">
-                            <div class="help-step-num">3</div>
-                            <div class="help-step-text">Visualize seus <b>KPIs individuais</b>, desempenho da equipe, rankings e diagnóstico de metas.</div>
-                        </div>
-
-                        <p class="help-section-title">🗂️ Para o Gestor — Upload de Dados</p>
-                        <div class="help-step">
-                            <div class="help-step-num">1</div>
-                            <div class="help-step-text">Faça login com sua <b>matrícula e senha</b>. Primeiro acesso? Clique em <b>Primeiro acesso</b>.</div>
-                        </div>
-                        <div class="help-step">
-                            <div class="help-step-num">2</div>
-                            <div class="help-step-text">Exporte a planilha de performance do <b>BI</b> no formato <b>.xlsx</b>.</div>
-                        </div>
-                        <div class="help-step">
-                            <div class="help-step-num">3</div>
-                            <div class="help-step-text">Clique em <b>Browse files</b>, selecione o arquivo — o upload substitui os dados anteriores automaticamente.</div>
-                        </div>
-                        <div class="help-step">
-                            <div class="help-step-num">4</div>
-                            <div class="help-step-text">Após o envio, os dados ficam <b>disponíveis imediatamente</b> para os operadores da sua equipe.</div>
-                        </div>
-
-                        <p style="font-size:11px; color:#bbb; text-align:center; margin:16px 0 0 0;">
-                            Dúvidas? Contate o Sup. Erik Coelho.
-                        </p>
-                    </div>
-                    """, unsafe_allow_html=True)
+                st.markdown('<div class="fab-help">', unsafe_allow_html=True)
+                if st.button("?", key="fab_ajuda"):
+                    mostrar_ajuda()
+                st.markdown('</div>', unsafe_allow_html=True)
 
                 # ── TELA DE LOGIN ─────────────────────────────
                 if st.session_state.gestor_tela == 'login':
