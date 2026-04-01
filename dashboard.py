@@ -56,6 +56,11 @@ header[data-testid="stHeader"] {
     display: none !important;
 }
 
+/* Oculta menu hamburguer e botão de deploy */
+#MainMenu { visibility: hidden !important; }
+.stDeployButton { display: none !important; }
+footer { visibility: hidden !important; }
+
 /* Remove espaço vazio no topo */
 .stApp > div:first-child { margin-top: 0 !important; }
 section.main > div.block-container {
