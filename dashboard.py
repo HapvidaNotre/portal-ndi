@@ -1259,36 +1259,38 @@ else:
                 margin: 0 auto;
             }
 
-            /* Inputs — fundo branco + texto escuro: funciona em qualquer tema */
+            /* Inputs — fundo semitransparente escuro + texto branco */
             div[data-testid="stTextInput"] > div {
-                background: rgba(255, 255, 255, 0.93) !important;
-                backdrop-filter: none !important;
-                -webkit-backdrop-filter: none !important;
-                border: 1.5px solid rgba(255, 255, 255, 0.6) !important;
+                background: rgba(255, 255, 255, 0.10) !important;
+                backdrop-filter: blur(8px) !important;
+                -webkit-backdrop-filter: blur(8px) !important;
+                border: 1.5px solid rgba(255, 255, 255, 0.30) !important;
                 box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
             }
             div[data-testid="stTextInput"] > div:hover {
-                background: #ffffff !important;
-                border-color: rgba(255, 255, 255, 0.9) !important;
+                background: rgba(255, 255, 255, 0.16) !important;
+                border-color: rgba(255, 255, 255, 0.50) !important;
                 box-shadow: 0 6px 20px rgba(0, 0, 0, 0.20) !important;
             }
             div[data-testid="stTextInput"] > div:focus-within {
-                background: #ffffff !important;
+                background: rgba(255, 255, 255, 0.18) !important;
                 border-color: #64b9ff !important;
                 box-shadow:
                     0 0 0 3px rgba(90, 185, 255, 0.35),
                     0 6px 20px rgba(0, 0, 0, 0.18) !important;
             }
 
-            /* Texto escuro no input — legível sobre fundo branco */
+            /* Texto branco no input — legível sobre fundo escuro */
             div[data-testid="stTextInput"] input {
-                color: #1a2a4a !important;
-                -webkit-text-fill-color: #1a2a4a !important;
+                color: #ffffff !important;
+                -webkit-text-fill-color: #ffffff !important;
+                caret-color: #ffffff !important;
             }
             div[data-testid="stTextInput"] input::placeholder {
-                color: rgba(0, 0, 0, 0.35) !important;
+                color: rgba(255, 255, 255, 0.50) !important;
                 font-style: italic !important;
                 font-size: 13px !important;
+                -webkit-text-fill-color: rgba(255, 255, 255, 0.50) !important;
             }
             /* Labels ficam brancas pois estão sobre o fundo azul gradient */
             div[data-testid="stTextInput"] label,
@@ -1299,12 +1301,12 @@ else:
             div[data-testid="stTextInput"] button {
                 background: transparent !important;
                 border: none !important;
-                color: rgba(30, 60, 120, 0.60) !important;
+                color: rgba(255, 255, 255, 0.65) !important;
                 transition: color 0.2s ease !important;
                 margin-right: 6px !important;
             }
             div[data-testid="stTextInput"] button:hover {
-                color: rgba(30, 60, 120, 0.95) !important;
+                color: rgba(255, 255, 255, 0.95) !important;
                 background: transparent !important;
             }
 
