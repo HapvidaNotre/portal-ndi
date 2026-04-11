@@ -879,11 +879,22 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
             row1 = metricas_todos[:5]
             row2 = metricas_todos[5:]
 
+            def _fmt_equipe(metrica, val):
+                if val is None or pd.isna(val):
+                    return '---'
+                if metrica == 'TMA Voz':
+                    total_sec = round(float(val) * 60)
+                    h = total_sec // 3600
+                    m = (total_sec % 3600) // 60
+                    s = total_sec % 60
+                    return f"{h:02d}:{m:02d}:{s:02d}"
+                conf = METAS_BASE[metrica]
+                return f"{val:.2f}{conf['unidade']}"
+
             cols1 = st.columns(5)
             for i, metrica in enumerate(row1):
                 val   = _get_valor_equipe(metrica)
-                conf  = METAS_BASE[metrica]
-                display = f"{val:.2f}{conf['unidade']}" if val is not None and not pd.isna(val) else '---'
+                display = _fmt_equipe(metrica, val)
                 with cols1[i]:
                     exibir_card(metrica, display, definir_cor_kpi(val, metrica))
 
@@ -892,8 +903,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
             cols2 = st.columns(5)
             for i, metrica in enumerate(row2):
                 val   = _get_valor_equipe(metrica)
-                conf  = METAS_BASE[metrica]
-                display = f"{val:.2f}{conf['unidade']}" if val is not None and not pd.isna(val) else '---'
+                display = _fmt_equipe(metrica, val)
                 with cols2[i]:
                     exibir_card(metrica, display, definir_cor_kpi(val, metrica))
 
