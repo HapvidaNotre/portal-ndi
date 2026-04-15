@@ -258,10 +258,55 @@ _MAP_COLUNAS_BI = {
     'pausa total':         'pausa_total',
 }
 
+# ---------- METAS — Supabase CRUD ----------
+@st.cache_data(ttl=300)
+def carregar_metas_gestor(supervisor: str, servico: str) -> dict:
+    """Carrega metas customizadas do gestor. Retorna METAS_BASE se não houver nenhuma salva."""
+    try:
+        supabase = conectar_supabase()
+        res = (
+            supabase.table("gestores_metas")
+            .select("metas_json")
+            .eq("supervisor", supervisor)
+            .eq("servico", servico)
+            .limit(1)
+            .execute()
+        )
+        if res.data and res.data[0].get("metas_json"):
+            metas_salvas = res.data[0]["metas_json"]
+            # Mescla com METAS_BASE para garantir que menor_melhor e unidade sempre existam
+            metas = {}
+            for k, v_base in METAS_BASE.items():
+                if k in metas_salvas:
+                    metas[k] = {**v_base, **metas_salvas[k]}
+                else:
+                    metas[k] = v_base.copy()
+            return metas
+    except Exception:
+        pass
+    return {k: v.copy() for k, v in METAS_BASE.items()}
+
+def salvar_metas_gestor(supervisor: str, servico: str, metas_dict: dict) -> bool:
+    """Salva (upsert) metas customizadas do gestor no Supabase."""
+    try:
+        supabase = conectar_supabase()
+        # Serializa apenas valor e margem (menor_melhor e unidade vêm do METAS_BASE)
+        metas_json = {k: {"valor": v["valor"], "margem": v["margem"]} for k, v in metas_dict.items()}
+        supabase.table("gestores_metas").upsert(
+            {"supervisor": supervisor, "servico": servico, "metas_json": metas_json},
+            on_conflict="supervisor,servico"
+        ).execute()
+        carregar_metas_gestor.clear()
+        return True
+    except Exception as e:
+        st.error(f"Erro ao salvar metas: {e}")
+        return False
+
 # ---------- FUNÇÕES UTILITÁRIAS ----------
-def definir_cor_kpi(valor_num, metrica):
+def definir_cor_kpi(valor_num, metrica, metas=None):
     if valor_num is None or pd.isna(valor_num): return "#999"
-    conf = METAS_BASE[metrica]
+    conf = (metas or METAS_BASE).get(metrica, METAS_BASE.get(metrica, {}))
+    if not conf: return "#999"
     m, tol, menor = conf['valor'], conf['margem'], conf['menor_melhor']
     if menor:
         return "#28a745" if valor_num <= m else ("#ffc107" if valor_num <= m + tol else "#dc3545")
@@ -733,7 +778,8 @@ def enviar_email_reset(destinatario: str, nome: str, codigo: str) -> bool:
         return False
 
 # ---------- HELPER: painel de análise ----------
-def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None):
+def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None, metas=None):
+    metas = metas or METAS_BASE
     df_eq = df[
         (~df[col_op].astype(str).str.upper().str.contains('EQUIPE|TOTAL|MÉDIA|MEDIA|SUPERVISOR', na=False)) &
         (~df[col_mat].astype(str).isin(MATRICULAS_BACKOFFICE))
@@ -829,7 +875,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
                 cols = st.columns(5)
                 for idx, (label, key) in enumerate(metricas_l1):
                     with cols[idx]:
-                        exibir_card(label, r[key], definir_cor_kpi(r[f'{key}_num'], key.replace(' ','') if key != 'TMA Voz' else 'TMA Voz'), tend.get(key))
+                        exibir_card(label, r[key], definir_cor_kpi(r[f'{key}_num'], key.replace(' ','') if key != 'TMA Voz' else 'TMA Voz', metas), tend.get(key))
 
                 st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
@@ -844,7 +890,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
                 cols2 = st.columns(5)
                 for idx, (label, key) in enumerate(metricas_l2):
                     with cols2[idx]:
-                        exibir_card(label, r[key], definir_cor_kpi(r.get(f'{key}_num'), key), tend.get(key))
+                        exibir_card(label, r[key], definir_cor_kpi(r.get(f'{key}_num'), key, metas), tend.get(key))
             else:
                 st.warning("⚠️ Matrícula não encontrada.")
 
@@ -875,7 +921,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
                 else:
                     return df_eq[col_num].mean() if col_num in df_eq.columns else None
 
-            metricas_todos = list(METAS_BASE.keys())
+            metricas_todos = list(metas.keys())
             row1 = metricas_todos[:5]
             row2 = metricas_todos[5:]
 
@@ -888,7 +934,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
                     m = (total_sec % 3600) // 60
                     s = total_sec % 60
                     return f"{h:02d}:{m:02d}:{s:02d}"
-                conf = METAS_BASE[metrica]
+                conf = metas[metrica]
                 return f"{val:.2f}{conf['unidade']}"
 
             cols1 = st.columns(5)
@@ -896,7 +942,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
                 val   = _get_valor_equipe(metrica)
                 display = _fmt_equipe(metrica, val)
                 with cols1[i]:
-                    exibir_card(metrica, display, definir_cor_kpi(val, metrica))
+                    exibir_card(metrica, display, definir_cor_kpi(val, metrica, metas))
 
             st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
@@ -905,7 +951,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
                 val   = _get_valor_equipe(metrica)
                 display = _fmt_equipe(metrica, val)
                 with cols2[i]:
-                    exibir_card(metrica, display, definir_cor_kpi(val, metrica))
+                    exibir_card(metrica, display, definir_cor_kpi(val, metrica, metas))
 
             st.markdown("""
             <div style="display:flex; gap:18px; margin-top:14px; justify-content:center;">
@@ -921,10 +967,10 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
     if aba == "Ranking":
         col_sel, col_vazio = st.columns([2, 3])
         with col_sel:
-            metrica_sel = st.selectbox("Selecionar métrica:", list(METAS_BASE.keys()))
+            metrica_sel = st.selectbox("Selecionar métrica:", list(metas.keys()))
 
         top = df_eq.dropna(subset=[f'{metrica_sel}_num']).sort_values(
-            by=f'{metrica_sel}_num', ascending=METAS_BASE[metrica_sel]['menor_melhor']
+            by=f'{metrica_sel}_num', ascending=metas[metrica_sel]['menor_melhor']
         ).head(3)
 
         if top.empty:
@@ -946,7 +992,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
                     continue
                 _, row = top_list[rank_idx]
                 m = medalhas[rank_idx]
-                cor_kpi = definir_cor_kpi(row[f'{metrica_sel}_num'], metrica_sel)
+                cor_kpi = definir_cor_kpi(row[f'{metrica_sel}_num'], metrica_sel, metas)
                 nome = row[col_op] if col_op in row else f"Matrícula {row[col_mat]}"
                 nome_curto = f"Mat. {row[col_mat]}"
 
@@ -972,9 +1018,9 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None)
     if aba == "Saúde":
         col_sel2, _ = st.columns([2, 3])
         with col_sel2:
-            metrica_sel = st.selectbox("Selecione a Métrica:", list(METAS_BASE.keys()))
+            metrica_sel = st.selectbox("Selecione a Métrica:", list(metas.keys()))
 
-        conf_s   = METAS_BASE[metrica_sel]
+        conf_s   = metas[metrica_sel]
         df_saude = df_eq.copy()
 
         def verificar_status(valor):
@@ -1622,6 +1668,134 @@ else:
                                 st.session_state.gestor_tela = 'logado'
                                 st.rerun()
 
+                # ── TELA DE CONFIGURAR METAS ──────────────────
+                elif st.session_state.gestor_tela == 'configurar_metas':
+                    _nome_g    = st.session_state.gestor_nome
+                    _servico_g = st.session_state.gestor_servico
+
+                    st.markdown("""
+                    <div style="text-align:center; margin-bottom:8px;">
+                        <p style="font-size:32px; margin:0;">🎯</p>
+                        <p style="font-size:20px; font-weight:900; color:#0b2a6f; margin:4px 0;">Configurar Metas</p>
+                        <p style="font-size:12px; color:#888; margin:0;">
+                            Defina o valor-alvo e a margem de tolerância de cada indicador.<br>
+                            As cores dos operadores serão atualizadas automaticamente.
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    # Legenda visual
+                    st.markdown("""
+                    <div style="display:flex; gap:20px; justify-content:center;
+                                background:#f8f9fa; border-radius:10px; padding:10px 16px;
+                                margin:12px 0 20px 0;">
+                        <span style="font-size:12px; color:#28a745; font-weight:700;">🟢 ≥ Meta</span>
+                        <span style="font-size:12px; color:#ffc107; font-weight:700;">🟡 Dentro da margem</span>
+                        <span style="font-size:12px; color:#dc3545; font-weight:700;">🔴 Fora da meta</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    # Carrega metas atuais (do banco ou defaults)
+                    metas_atuais = carregar_metas_gestor(_nome_g, _servico_g)
+
+                    # Configs de exibição por métrica
+                    _META_LABELS = {
+                        'Aderencia':      ('📅 Aderência',      False, '%'),
+                        'Resolutividade': ('✅ Resolutividade',  False, '%'),
+                        'TMA Voz':        ('🎙️ TMA Voz',         True,  'min'),
+                        'Pesquisa':       ('⭐ Pesquisa',        False, ''),
+                        'Silencio':       ('🔇 Silêncio',        True,  '%'),
+                        'Pausa Total':    ('⏸️ Pausa Total',     True,  '%'),
+                        'Absenteismo':    ('🚫 Absenteísmo',     True,  '%'),
+                        'Produtividade':  ('⚡ Produtividade',   False, '%'),
+                        'Transf':         ('🔁 Transferência',   False, '%'),
+                        'ShortCall':      ('📵 ShortCall',       True,  '%'),
+                    }
+
+                    novos_valores = {}
+                    for metrica, (label, menor_melhor, unidade) in _META_LABELS.items():
+                        conf_atual = metas_atuais.get(metrica, METAS_BASE[metrica])
+                        direcao = "🔻 menor = melhor" if menor_melhor else "🔺 maior = melhor"
+
+                        st.markdown(f"""
+                        <div style="background:white; border-radius:12px; padding:14px 18px 10px 18px;
+                                    margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,0.06);
+                                    border-left: 5px solid #1a6fc4;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                <p style="margin:0; font-size:14px; font-weight:800; color:#0b2a6f;">{label}</p>
+                                <span style="font-size:10px; color:#aaa; font-weight:600;">{direcao}</span>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        col_v, col_m = st.columns(2)
+                        with col_v:
+                            novo_val = st.number_input(
+                                f"Meta ({unidade if unidade else 'valor'})",
+                                min_value=0.0, max_value=999.0,
+                                value=float(conf_atual['valor']),
+                                step=0.5,
+                                format="%.2f",
+                                key=f"meta_val_{metrica}"
+                            )
+                        with col_m:
+                            novo_mar = st.number_input(
+                                "Margem de tolerância",
+                                min_value=0.0, max_value=100.0,
+                                value=float(conf_atual['margem']),
+                                step=0.5,
+                                format="%.2f",
+                                key=f"meta_mar_{metrica}"
+                            )
+
+                        # Preview das faixas em tempo real
+                        if menor_melhor:
+                            ok_str  = f"≤ {novo_val:.2f}{unidade}"
+                            atc_str = f"{novo_val:.2f} – {novo_val + novo_mar:.2f}{unidade}"
+                            out_str = f"> {novo_val + novo_mar:.2f}{unidade}"
+                        else:
+                            ok_str  = f"≥ {novo_val:.2f}{unidade}"
+                            atc_str = f"{novo_val - novo_mar:.2f} – {novo_val:.2f}{unidade}"
+                            out_str = f"< {novo_val - novo_mar:.2f}{unidade}"
+
+                        st.markdown(f"""
+                        <div style="display:flex; gap:10px; margin:-4px 0 6px 0; flex-wrap:wrap;">
+                            <span style="font-size:11px; background:rgba(40,167,69,0.12); color:#28a745;
+                                          border-radius:6px; padding:3px 10px; font-weight:700;">🟢 {ok_str}</span>
+                            <span style="font-size:11px; background:rgba(255,193,7,0.15); color:#b88a00;
+                                          border-radius:6px; padding:3px 10px; font-weight:700;">🟡 {atc_str}</span>
+                            <span style="font-size:11px; background:rgba(220,53,69,0.10); color:#dc3545;
+                                          border-radius:6px; padding:3px 10px; font-weight:700;">🔴 {out_str}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        novos_valores[metrica] = {
+                            **METAS_BASE[metrica],
+                            'valor':  novo_val,
+                            'margem': novo_mar,
+                        }
+
+                    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+                    col_salv, col_rest, col_can = st.columns(3)
+
+                    if col_salv.button("💾 Salvar metas", use_container_width=True):
+                        if salvar_metas_gestor(_nome_g, _servico_g, novos_valores):
+                            st.success("✅ Metas salvas! Os operadores já verão as novas cores.")
+                            time.sleep(1.2)
+                            st.session_state.gestor_tela = 'logado'
+                            st.rerun()
+
+                    if col_rest.button("↺ Restaurar padrão", use_container_width=True):
+                        if salvar_metas_gestor(_nome_g, _servico_g, {k: v.copy() for k, v in METAS_BASE.items()}):
+                            st.success("✅ Metas restauradas para o padrão!")
+                            time.sleep(1.2)
+                            st.session_state.gestor_tela = 'logado'
+                            st.rerun()
+
+                    if col_can.button("← Cancelar", use_container_width=True):
+                        st.session_state.gestor_tela = 'logado'
+                        st.rerun()
+
         # ══════════════════════════════════════════════════
         # LOGADO — área de upload
         # ══════════════════════════════════════════════════
@@ -1647,10 +1821,14 @@ else:
             </div>
             """, unsafe_allow_html=True)
 
-            # Botão alterar senha
-            col_alt, _ = st.columns([1, 4])
+            # Botões alterar senha + configurar metas
+            col_alt, col_metas_btn, _ = st.columns([1, 1, 3])
             if col_alt.button("🔑 Alterar senha"):
                 st.session_state.gestor_tela = 'alterar_senha'
+                st.session_state.gestor_logado = False
+                st.rerun()
+            if col_metas_btn.button("🎯 Configurar Metas"):
+                st.session_state.gestor_tela = 'configurar_metas'
                 st.session_state.gestor_logado = False
                 st.rerun()
 
@@ -1754,6 +1932,9 @@ else:
             if df.empty:
                 st.warning("Nenhum dado disponível ainda. Aguarde o gestor enviar a planilha.")
             else:
+                # Carrega metas customizadas do gestor desta equipe
+                metas_op = carregar_metas_gestor(sup, svc)
+
                 # Exibe data da última atualização feita pelo gestor
                 if 'atualizado_em' in df.columns:
                     try:
@@ -1774,4 +1955,4 @@ else:
                         """, unsafe_allow_html=True)
                     except:
                         pass
-                exibir_painel(df, col_op, col_mat, chave_aba=f"aba_op_{mat_input}", mat_operador=mat_input)
+                exibir_painel(df, col_op, col_mat, chave_aba=f"aba_op_{mat_input}", mat_operador=mat_input, metas=metas_op)
