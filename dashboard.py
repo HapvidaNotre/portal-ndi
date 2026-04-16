@@ -549,36 +549,85 @@ def upsert_supabase(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool
 
 # ---------- UPSERT FCR/DIRECIONADO ----------
 def upsert_supabase_fcr(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool:
-    """Lê arquivo de FCR e atualiza colunas fcr e direcionado no Supabase."""
+    """Lê arquivo de FCR e atualiza colunas fcr e direcionado no Supabase.
+    
+    O cruzamento é feito pelo NOME do operador, pois o 'Login Operador' do FCR
+    é um identificador diferente da Matrícula do BI.
+    """
     supabase = conectar_supabase()
 
     df_raw = df_raw.copy()
     df_raw.columns = [str(c).strip() for c in df_raw.columns]
 
+    # Detecta linhas de metadados antes do cabeçalho real
+    # (ex.: planilhas que têm "DATA - Ano  2026  2026..." na primeira linha)
+    real_header_idx = None
+    for i in range(min(5, len(df_raw))):
+        row_vals = [str(v).lower().strip() for v in df_raw.iloc[i].values]
+        if any('nome' in v or 'login' in v or 'matric' in v for v in row_vals):
+            real_header_idx = i
+            break
+
+    if real_header_idx is not None:
+        df_raw.columns = [str(v).strip() for v in df_raw.iloc[real_header_idx].values]
+        df_raw = df_raw.iloc[real_header_idx + 1:].reset_index(drop=True)
+
     # Detecção flexível de colunas
-    mat_col = fcr_col = dir_col = None
+    nome_col = fcr_col = dir_col = None
     for col in df_raw.columns:
         cl = str(col).lower().strip()
-        if 'login' in cl or 'matric' in cl:
-            mat_col = col
+        if 'nome' in cl and 'operador' in cl:
+            nome_col = col
         if cl.startswith('% fcr') or '% fcr' in cl:
             fcr_col = col
         if '% direcionad' in cl:
             dir_col = col
 
-    if not mat_col or not fcr_col:
+    if not nome_col or not fcr_col:
         st.error(
             "Colunas obrigatórias não encontradas no arquivo FCR. "
-            "Verifique se contém 'Login Operador' e '% FCR (1° Contato)'."
+            "Verifique se contém 'Nome Operador' e '% FCR (1° Contato)'."
+        )
+        return False
+
+    # Busca os registros já salvos no Supabase para montar mapa Nome → Matrícula
+    # (A planilha do BI deve ser enviada antes do FCR)
+    res = (
+        supabase.table("performance_operadores")
+        .select("matricula,operador")
+        .eq("supervisor", supervisor)
+        .eq("servico", servico)
+        .execute()
+    )
+
+    def _norm_nome(s):
+        return str(s).upper().strip()
+
+    nome_to_mat = {}
+    if res.data:
+        for r in res.data:
+            if r.get('operador') and r.get('matricula'):
+                nome_to_mat[_norm_nome(r['operador'])] = r['matricula']
+
+    if not nome_to_mat:
+        st.error(
+            "⚠️ Nenhum dado do BI encontrado para esta equipe. "
+            "Envie a planilha de **Métricas Gerais** antes de enviar o FCR."
         )
         return False
 
     registros = []
+    nao_encontrados = []
     import math as _math
 
     for _, row in df_raw.iterrows():
-        mat = _limpar_matricula(row.get(mat_col, ''))
-        if not mat or mat in ('', 'nan', 'None'):
+        nome = _norm_nome(row.get(nome_col, ''))
+        if not nome or nome in ('', 'NAN', 'NONE', 'TOTAL'):
+            continue
+
+        mat = nome_to_mat.get(nome)
+        if not mat:
+            nao_encontrados.append(nome)
             continue
 
         fcr_val = _limpar_num(row.get(fcr_col))
@@ -590,10 +639,10 @@ def upsert_supabase_fcr(df_raw: pd.DataFrame, supervisor: str, servico: str) -> 
                 fcr_val = None
 
         rec = {
-            'matricula':    mat,
-            'supervisor':   supervisor,
-            'servico':      servico,
-            'fcr':          fcr_val,
+            'matricula':     mat,
+            'supervisor':    supervisor,
+            'servico':       servico,
+            'fcr':           fcr_val,
             'atualizado_em': pd.Timestamp.now(tz='UTC').isoformat(),
         }
 
@@ -609,8 +658,14 @@ def upsert_supabase_fcr(df_raw: pd.DataFrame, supervisor: str, servico: str) -> 
 
         registros.append(rec)
 
+    if nao_encontrados:
+        st.warning(
+            f"⚠️ {len(nao_encontrados)} operador(es) do FCR não encontrado(s) na planilha do BI: "
+            f"{', '.join(nao_encontrados[:5])}{'...' if len(nao_encontrados) > 5 else ''}"
+        )
+
     if not registros:
-        st.warning("Nenhum registro válido encontrado no arquivo FCR.")
+        st.warning("Nenhum registro FCR pôde ser vinculado. Verifique se a planilha do BI foi enviada primeiro.")
         return False
 
     # Deduplica
