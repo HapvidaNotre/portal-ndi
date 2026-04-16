@@ -713,13 +713,16 @@ def upsert_supabase_rechamada(df_raw: pd.DataFrame, supervisor: str, servico: st
         cl = str(col).lower().strip()
         if cl in ('agente', 'nome operador', 'operador', 'nome'):
             agente_col = col
-        if 'rechamada' in cl and '%' in cl:
+        # Coluna de rechamada: deve conter "rechamada" e "%" mas NÃO "shortcall" nem "tma"
+        # Isso evita falso positivo com "(%) Shortcall Rechamada" ou "TMA Rechamadas"
+        if 'rechamada' in cl and '%' in cl and 'shortcall' not in cl and 'tma' not in cl:
             rechamada_col = col
 
-    # Fallback: pega qualquer coluna com "rechamada" se não achou com "%"
+    # Fallback: pega qualquer coluna com "rechamada" exceto as de shortcall/tma
     if not rechamada_col:
         for col in df_raw.columns:
-            if 'rechamada' in str(col).lower():
+            cl = str(col).lower()
+            if 'rechamada' in cl and 'shortcall' not in cl and 'tma' not in cl:
                 rechamada_col = col
                 break
 
