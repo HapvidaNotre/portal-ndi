@@ -808,7 +808,10 @@ def upsert_supabase_rechamada(df_raw: pd.DataFrame, supervisor: str, servico: st
     ).execute()
 
     carregar_dados_supervisor.clear()
-    return True(supervisor: str, servico: str):
+    return True
+
+@st.cache_data(ttl=60)
+def carregar_dados_supervisor(supervisor: str, servico: str):
     """Lê dados do Supabase para o supervisor/serviço e retorna df no padrão do sistema."""
     supabase = conectar_supabase()
 
