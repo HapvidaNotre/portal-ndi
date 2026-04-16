@@ -214,6 +214,7 @@ METAS_BASE = {
     'ShortCall':     {'valor': 5.0,   'margem': 1.0, 'menor_melhor': True,  'unidade': '%'},
     'FCR':           {'valor': 80.0,  'margem': 5.0, 'menor_melhor': False, 'unidade': '%'},
     'Direcionado':   {'valor': 20.0,  'margem': 5.0, 'menor_melhor': True,  'unidade': '%'},
+    'Rechamada':     {'valor': 15.0,  'margem': 3.0, 'menor_melhor': True,  'unidade': '%'},
 }
 
 MATRICULAS_BACKOFFICE = ['1211819','1210820','1210724','1211110','1211213','1214016','10115858','1212492','1028483']
@@ -684,8 +685,130 @@ def upsert_supabase_fcr(df_raw: pd.DataFrame, supervisor: str, servico: str) -> 
     return True
 
 
-@st.cache_data(ttl=60)
-def carregar_dados_supervisor(supervisor: str, servico: str):
+# ---------- UPSERT RECHAMADA ----------
+def upsert_supabase_rechamada(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool:
+    """Lê arquivo de Rechamada e atualiza coluna rechamada no Supabase.
+    O cruzamento é feito pelo NOME do agente (coluna 'Agente'), pois não há matrícula.
+    """
+    supabase = conectar_supabase()
+
+    df_raw = df_raw.copy()
+    df_raw.columns = [str(c).strip() for c in df_raw.columns]
+
+    # Detecta linha de metadados antes do cabeçalho real
+    real_header_idx = None
+    for i in range(min(5, len(df_raw))):
+        row_vals = [str(v).lower().strip() for v in df_raw.iloc[i].values]
+        if any('agente' in v or 'nome' in v or 'operador' in v for v in row_vals):
+            real_header_idx = i
+            break
+
+    if real_header_idx is not None:
+        df_raw.columns = [str(v).strip() for v in df_raw.iloc[real_header_idx].values]
+        df_raw = df_raw.iloc[real_header_idx + 1:].reset_index(drop=True)
+
+    # Detecção flexível de colunas
+    agente_col = rechamada_col = None
+    for col in df_raw.columns:
+        cl = str(col).lower().strip()
+        if cl in ('agente', 'nome operador', 'operador', 'nome'):
+            agente_col = col
+        if 'rechamada' in cl and '%' in cl:
+            rechamada_col = col
+
+    # Fallback: pega qualquer coluna com "rechamada" se não achou com "%"
+    if not rechamada_col:
+        for col in df_raw.columns:
+            if 'rechamada' in str(col).lower():
+                rechamada_col = col
+                break
+
+    if not agente_col or not rechamada_col:
+        st.error(
+            "Colunas obrigatórias não encontradas no arquivo de Rechamada. "
+            "Verifique se contém 'Agente' e '(%) Rechamada'."
+        )
+        return False
+
+    # Busca mapa Nome → Matrícula já salvo no Supabase
+    res = (
+        supabase.table("performance_operadores")
+        .select("matricula,operador")
+        .eq("supervisor", supervisor)
+        .eq("servico", servico)
+        .execute()
+    )
+
+    def _norm_nome(s):
+        return str(s).upper().strip()
+
+    nome_to_mat = {}
+    if res.data:
+        for r in res.data:
+            if r.get('operador') and r.get('matricula'):
+                nome_to_mat[_norm_nome(r['operador'])] = r['matricula']
+
+    if not nome_to_mat:
+        st.error(
+            "⚠️ Nenhum dado do BI encontrado para esta equipe. "
+            "Envie a planilha de **Métricas Gerais** antes de enviar a Rechamada."
+        )
+        return False
+
+    registros = []
+    nao_encontrados = []
+    import math as _math
+
+    for _, row in df_raw.iterrows():
+        nome = _norm_nome(row.get(agente_col, ''))
+        if not nome or nome in ('', 'NAN', 'NONE', 'TOTAL'):
+            continue
+
+        mat = nome_to_mat.get(nome)
+        if not mat:
+            nao_encontrados.append(nome)
+            continue
+
+        rec_val = _limpar_num(row.get(rechamada_col))
+        if rec_val is not None:
+            if not (_math.isnan(rec_val) or _math.isinf(rec_val)):
+                if rec_val <= 1.0:
+                    rec_val = round(rec_val * 100, 2)
+            else:
+                rec_val = None
+
+        registros.append({
+            'matricula':     mat,
+            'supervisor':    supervisor,
+            'servico':       servico,
+            'rechamada':     rec_val,
+            'atualizado_em': pd.Timestamp.now(tz='UTC').isoformat(),
+        })
+
+    if nao_encontrados:
+        st.warning(
+            f"⚠️ {len(nao_encontrados)} agente(s) da Rechamada não encontrado(s) na planilha do BI: "
+            f"{', '.join(nao_encontrados[:5])}{'...' if len(nao_encontrados) > 5 else ''}"
+        )
+
+    if not registros:
+        st.warning("Nenhum registro de Rechamada pôde ser vinculado. Verifique se a planilha do BI foi enviada primeiro.")
+        return False
+
+    # Deduplica
+    seen = {}
+    for rec in registros:
+        key = (rec.get('matricula'), rec.get('supervisor'), rec.get('servico'))
+        seen[key] = rec
+    registros = list(seen.values())
+
+    supabase.table("performance_operadores").upsert(
+        registros,
+        on_conflict="matricula,supervisor,servico"
+    ).execute()
+
+    carregar_dados_supervisor.clear()
+    return True(supervisor: str, servico: str):
     """Lê dados do Supabase para o supervisor/serviço e retorna df no padrão do sistema."""
     supabase = conectar_supabase()
 
@@ -720,6 +843,7 @@ def carregar_dados_supervisor(supervisor: str, servico: str):
         'pausa_total':       'Pausa Total_num',
         'fcr':               'FCR_num',
         'direcionado':       'Direcionado_num',
+        'rechamada':         'Rechamada_num',
     })
 
     # Garante colunas de display formatadas para cada métrica
@@ -791,6 +915,7 @@ def buscar_tendencias(matricula: str, supervisor: str, servico: str) -> dict:
             'Pausa Total':    'pausa_total',
             'FCR':            'fcr',
             'Direcionado':    'direcionado',
+            'Rechamada':      'rechamada',
         }
 
         tendencias = {}
@@ -1049,10 +1174,11 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
 
                 st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
-                # Linha 3 — FCR e Direcionado
+                # Linha 3 — FCR, Direcionado e Rechamada
                 metricas_l3 = [
                     ("FCR (1° Contato)", 'FCR'),
                     ("Direcionado",      'Direcionado'),
+                    ("Rechamada",        'Rechamada'),
                 ]
                 cols3 = st.columns(5)
                 for idx, (label, key) in enumerate(metricas_l3):
@@ -1429,7 +1555,7 @@ else:
     if st.session_state.servico == "Supervisor":
 
         SUPERVISORES = {
-            "SAC NDI":     ["Erik","Davi","Elaine","Sayanne","Beatriz","Aline","Marcelo,","Richarlysson","Igor"],
+            "SAC NDI":     ["Erik","Davi","Elaine","Sayanne","Beatriz","Aline","Marcelo,","Richarlysson"],
             "SAC PPO":     ["Ellen","Carla","Magno","Alex"],
             "SAC HAPVIDA": ["Hapvida"],
         }
@@ -2011,8 +2137,8 @@ else:
 
             st.divider()
 
-            # ── Dois uploaders rotulados ────────────────────────────
-            col_up1, col_up2 = st.columns(2)
+            # ── Três uploaders rotulados ────────────────────────────
+            col_up1, col_up2, col_up3 = st.columns(3)
 
             with col_up1:
                 st.markdown("""
@@ -2054,6 +2180,26 @@ else:
                     label_visibility="collapsed"
                 )
 
+            with col_up3:
+                st.markdown("""
+                <div style="background:#fff8f0; border-radius:12px; padding:12px 16px 6px 16px;
+                            border-left:4px solid #fd7e14; margin-bottom:10px;">
+                    <p style="margin:0; font-size:12px; font-weight:800; color:#0b2a6f;
+                              letter-spacing:1.5px; text-transform:uppercase;">
+                        🔁 Rechamada
+                    </p>
+                    <p style="margin:4px 0 0 0; font-size:12px; color:#666;">
+                        Planilha com % Rechamada por agente.
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+                arquivo_rechamada = st.file_uploader(
+                    "Enviar planilha de Rechamada (.xlsx)",
+                    type=["xlsx"],
+                    key=f"upload_rechamada_{nome_sup}_{servico_sup}",
+                    label_visibility="collapsed"
+                )
+
             # ── Processar arquivo de Métricas Gerais ──────────────
             if arquivo_bi is not None:
                 with st.spinner("Processando métricas gerais..."):
@@ -2077,7 +2223,18 @@ else:
                     except Exception as e:
                         st.error(f"Erro ao processar o arquivo FCR: {e}")
 
-            if arquivo_bi is None and arquivo_fcr is None:
+            # ── Processar arquivo de Rechamada ─────────────────────
+            if arquivo_rechamada is not None:
+                with st.spinner("Processando Rechamada..."):
+                    try:
+                        df_rec_raw = pd.read_excel(arquivo_rechamada, dtype=str)
+                        sucesso_rec = upsert_supabase_rechamada(df_rec_raw, nome_sup, servico_sup)
+                        if sucesso_rec:
+                            st.success(f"✅ **{arquivo_rechamada.name}** — Rechamada enviada com sucesso!")
+                    except Exception as e:
+                        st.error(f"Erro ao processar o arquivo de Rechamada: {e}")
+
+            if arquivo_bi is None and arquivo_fcr is None and arquivo_rechamada is None:
                 st.markdown("""
                 <div style='text-align:center; padding: 50px 0; color:#aaa;'>
                     <p style='font-size:44px;'>📤</p>
