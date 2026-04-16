@@ -763,6 +763,9 @@ def upsert_supabase_rechamada(df_raw: pd.DataFrame, supervisor: str, servico: st
         nome = _norm_nome(row.get(agente_col, ''))
         if not nome or nome in ('', 'NAN', 'NONE', 'TOTAL'):
             continue
+        # Ignora linhas de rodapé/metadados do BI (ex: texto de filtros exportado)
+        if len(nome) > 80 or nome.startswith('FILTRO') or nome.startswith('PARÂMETRO'):
+            continue
 
         mat = nome_to_mat.get(nome)
         if not mat:
@@ -848,6 +851,12 @@ def carregar_dados_supervisor(supervisor: str, servico: str):
         'direcionado':       'Direcionado_num',
         'rechamada':         'Rechamada_num',
     })
+
+    # Coerce todas as colunas _num para float (Supabase pode retornar como object/string)
+    for metrica in METAS_BASE:
+        col_num = f'{metrica}_num'
+        if col_num in df.columns:
+            df[col_num] = pd.to_numeric(df[col_num], errors='coerce')
 
     # Garante colunas de display formatadas para cada métrica
     for metrica, conf in METAS_BASE.items():
