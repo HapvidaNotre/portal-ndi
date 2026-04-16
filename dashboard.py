@@ -325,39 +325,7 @@ def definir_cor_kpi(valor_num, metrica, metas=None):
         return "#28a745" if valor_num <= m else ("#ffc107" if valor_num <= m + tol else "#dc3545")
     return "#28a745" if valor_num >= m else ("#ffc107" if valor_num >= m - tol else "#dc3545")
 
-def calcular_gap_meta(valor_num, metrica, metas=None):
-    """Retorna string mostrando quanto falta para atingir a meta, ou None se já atingida."""
-    if valor_num is None or pd.isna(valor_num):
-        return None
-    conf = (metas or METAS_BASE).get(metrica, METAS_BASE.get(metrica, {}))
-    if not conf:
-        return None
-    meta_val  = conf['valor']
-    menor     = conf['menor_melhor']
-    unidade   = conf['unidade']
-
-    if menor:
-        gap = valor_num - meta_val   # positivo = precisa reduzir
-        if gap <= 0:
-            return None              # já na meta ou melhor
-        if metrica == 'TMA Voz':
-            total_sec = round(gap * 60)
-            m = total_sec // 60
-            s = total_sec % 60
-            return f"⬇️ Reduzir {m:02d}:{s:02d} min"
-        return f"⬇️ Reduzir {gap:.2f}{unidade}"
-    else:
-        gap = meta_val - valor_num   # positivo = precisa aumentar
-        if gap <= 0:
-            return None              # já na meta ou melhor
-        if metrica == 'TMA Voz':
-            total_sec = round(gap * 60)
-            m = total_sec // 60
-            s = total_sec % 60
-            return f"⬆️ Falta {m:02d}:{s:02d} min"
-        return f"⬆️ Falta {gap:.2f}{unidade}"
-
-def exibir_card(label, valor_display, cor, tendencia=None, gap_meta=None):
+def exibir_card(label, valor_display, cor, tendencia=None):
     cor_bg = {
         "#28a745": "rgba(40,167,69,0.08)",
         "#ffc107": "rgba(255,193,7,0.10)",
@@ -374,16 +342,6 @@ def exibir_card(label, valor_display, cor, tendencia=None, gap_meta=None):
     else:
         tend_html = ''
 
-    if gap_meta:
-        gap_html = (
-            f'<span style="font-size:10px; color:#e67e22; font-weight:700; '
-            f'background:rgba(230,126,34,0.10); border-radius:6px; '
-            f'padding:2px 7px; margin-top:2px; display:inline-block;">'
-            f'{gap_meta}</span>'
-        )
-    else:
-        gap_html = ''
-
     st.markdown(f"""
     <div style="
         background: white;
@@ -393,18 +351,17 @@ def exibir_card(label, valor_display, cor, tendencia=None, gap_meta=None):
         box-shadow: 0 2px 10px rgba(0,0,0,0.07);
         border-top: 4px solid {cor};
         text-align: center;
-        min-height: 100px;
+        min-height: 90px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 3px;
+        gap: 4px;
     ">
         <p style="margin:0; font-size:10px; color:#888; font-weight:700;
                   text-transform:uppercase; letter-spacing:0.8px; line-height:1.3;">{label}</p>
         <p style="margin:0; font-size:22px; font-weight:900; color:#0b2a6f; line-height:1.1;">{valor_display}</p>
         {tend_html}
-        {gap_html}
     </div>
     """, unsafe_allow_html=True)
 
@@ -1239,14 +1196,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
                 cols = st.columns(5)
                 for idx, (label, key) in enumerate(metricas_l1):
                     with cols[idx]:
-                        meta_key = key if key == 'TMA Voz' else key.replace(' ', '')
-                        val_num  = r[f'{key}_num']
-                        exibir_card(
-                            label, r[key],
-                            definir_cor_kpi(val_num, meta_key, metas),
-                            tend.get(key),
-                            calcular_gap_meta(val_num, meta_key, metas)
-                        )
+                        exibir_card(label, r[key], definir_cor_kpi(r[f'{key}_num'], key.replace(' ','') if key != 'TMA Voz' else 'TMA Voz', metas), tend.get(key))
 
                 st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
@@ -1261,13 +1211,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
                 cols2 = st.columns(5)
                 for idx, (label, key) in enumerate(metricas_l2):
                     with cols2[idx]:
-                        val_num = r.get(f'{key}_num')
-                        exibir_card(
-                            label, r[key],
-                            definir_cor_kpi(val_num, key, metas),
-                            tend.get(key),
-                            calcular_gap_meta(val_num, key, metas)
-                        )
+                        exibir_card(label, r[key], definir_cor_kpi(r.get(f'{key}_num'), key, metas), tend.get(key))
 
                 st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
@@ -1280,13 +1224,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
                 cols3 = st.columns(5)
                 for idx, (label, key) in enumerate(metricas_l3):
                     with cols3[idx]:
-                        val_num = r.get(f'{key}_num')
-                        exibir_card(
-                            label, r[key],
-                            definir_cor_kpi(val_num, key, metas),
-                            tend.get(key),
-                            calcular_gap_meta(val_num, key, metas)
-                        )
+                        exibir_card(label, r[key], definir_cor_kpi(r.get(f'{key}_num'), key, metas), tend.get(key))
             else:
                 st.warning("⚠️ Matrícula não encontrada.")
 
@@ -2360,19 +2298,9 @@ else:
                 st.rerun()
 
         if not st.session_state.get('op_supervisor'):
-            # Botão de voltar sempre visível na página
-            col_back, _ = st.columns([1, 5])
-            with col_back:
-                if st.button("← Voltar ao Menu", use_container_width=True, key="op_voltar_topo"):
-                    st.session_state.servico = None
-                    st.session_state.pop('op_supervisor', None)
-                    st.session_state.pop('op_servico', None)
-                    st.session_state.pop('op_nome', None)
-                    st.rerun()
-
             st.markdown("""
             <p style="font-size:11px; font-weight:700; color:#1a6fc4;
-                      letter-spacing:3px; text-transform:uppercase; margin:16px 0 6px 0;">
+                      letter-spacing:3px; text-transform:uppercase; margin:0 0 6px 0;">
                 ACESSO DO OPERADOR
             </p>
             <p style="font-size:22px; font-weight:900; color:#0b2a6f; margin:0 0 20px 0;">
@@ -2416,15 +2344,8 @@ else:
             </div>
             """, unsafe_allow_html=True)
 
-            col_trocar, col_voltar_menu, _ = st.columns([1, 1, 4])
+            col_trocar, _ = st.columns([1, 5])
             if col_trocar.button("🔄 Trocar operador", use_container_width=True):
-                st.session_state.pop('op_supervisor', None)
-                st.session_state.pop('op_servico', None)
-                st.session_state.pop('op_nome', None)
-                st.session_state.pop('op_matricula', None)
-                st.rerun()
-            if col_voltar_menu.button("← Voltar ao Menu", use_container_width=True, key="op_voltar_menu"):
-                st.session_state.servico = None
                 st.session_state.pop('op_supervisor', None)
                 st.session_state.pop('op_servico', None)
                 st.session_state.pop('op_nome', None)
