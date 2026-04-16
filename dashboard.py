@@ -695,11 +695,17 @@ def upsert_supabase_rechamada(df_raw: pd.DataFrame, supervisor: str, servico: st
     df_raw = df_raw.copy()
     df_raw.columns = [str(c).strip() for c in df_raw.columns]
 
-    # Detecta linha de metadados antes do cabeçalho real
+    # Detecta linha de metadados antes do cabeçalho real.
+    # IMPORTANTE: a verificação é RESTRITA — só reprocessa se a linha for exclusivamente
+    # composta por palavras-chave de cabeçalho, evitando falso positivo com linhas de
+    # filtros exportados (ex.: "Chamadas Atendidas Agente não está em branco...")
     real_header_idx = None
+    _HEADER_KEYWORDS = ('agente', 'nome operador', 'operador', 'nome', 'matricula')
     for i in range(min(5, len(df_raw))):
-        row_vals = [str(v).lower().strip() for v in df_raw.iloc[i].values]
-        if any('agente' in v or 'nome' in v or 'operador' in v for v in row_vals):
+        row_vals = [str(v).lower().strip() for v in df_raw.iloc[i].values if str(v).strip() not in ('', 'nan', 'None')]
+        # Só reprocessa se pelo menos uma célula for EXATAMENTE uma palavra-chave de cabeçalho
+        # (e não um texto longo contendo essas palavras)
+        if any(v in _HEADER_KEYWORDS for v in row_vals):
             real_header_idx = i
             break
 
@@ -707,31 +713,51 @@ def upsert_supabase_rechamada(df_raw: pd.DataFrame, supervisor: str, servico: st
         df_raw.columns = [str(v).strip() for v in df_raw.iloc[real_header_idx].values]
         df_raw = df_raw.iloc[real_header_idx + 1:].reset_index(drop=True)
 
-    # Detecção flexível de colunas
+    # ── Detecção de colunas com PRIORIDADE POR NOME EXATO ──────────────────────
+    # Nomes exatos conhecidos para a coluna de agente
+    _AGENTE_EXATOS = {'agente', 'nome operador', 'operador', 'nome'}
+    # Nomes exatos conhecidos para a coluna de rechamada (%)
+    _RECHAMADA_EXATOS = {'(%) rechamada', '% rechamada', 'rechamada (%)', '% de rechamada'}
+
     agente_col = rechamada_col = None
+
+    # 1ª passagem: busca match EXATO (mais confiável)
     for col in df_raw.columns:
         cl = str(col).lower().strip()
-        if cl in ('agente', 'nome operador', 'operador', 'nome'):
+        if agente_col is None and cl in _AGENTE_EXATOS:
             agente_col = col
-        # Coluna de rechamada: deve conter "rechamada" e "%" mas NÃO "shortcall" nem "tma"
-        # Isso evita falso positivo com "(%) Shortcall Rechamada" ou "TMA Rechamadas"
-        if 'rechamada' in cl and '%' in cl and 'shortcall' not in cl and 'tma' not in cl:
+        if rechamada_col is None and cl in _RECHAMADA_EXATOS:
             rechamada_col = col
 
-    # Fallback: pega qualquer coluna com "rechamada" exceto as de shortcall/tma
-    if not rechamada_col:
+    # 2ª passagem: fallback — padrão com exclusão de colunas que NÃO são rechamada pura
+    # Exclui explicitamente: shortcall, tma, chamadas (contagem), transferência
+    _RECHAMADA_EXCLUIR = ('shortcall', 'tma', 'chamadas rechamadas', 'transf')
+    if rechamada_col is None:
         for col in df_raw.columns:
-            cl = str(col).lower()
-            if 'rechamada' in cl and 'shortcall' not in cl and 'tma' not in cl:
+            cl = str(col).lower().strip()
+            if ('rechamada' in cl and '%' in cl
+                    and not any(ex in cl for ex in _RECHAMADA_EXCLUIR)):
+                rechamada_col = col
+                break
+
+    # 3ª passagem: fallback final — qualquer coluna com "rechamada" exceto as excluídas
+    if rechamada_col is None:
+        for col in df_raw.columns:
+            cl = str(col).lower().strip()
+            if ('rechamada' in cl
+                    and not any(ex in cl for ex in _RECHAMADA_EXCLUIR)):
                 rechamada_col = col
                 break
 
     if not agente_col or not rechamada_col:
         st.error(
-            "Colunas obrigatórias não encontradas no arquivo de Rechamada. "
-            "Verifique se contém 'Agente' e '(%) Rechamada'."
+            f"Colunas obrigatórias não encontradas no arquivo de Rechamada. "
+            f"Colunas detectadas: {list(df_raw.columns)}. "
+            f"Verifique se contém 'Agente' e '(%) Rechamada'."
         )
         return False
+
+    st.info(f"📋 Colunas detectadas → Agente: **{agente_col}** | Rechamada: **{rechamada_col}**")
 
     # Busca mapa Nome → Matrícula já salvo no Supabase
     res = (
