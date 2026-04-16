@@ -2360,9 +2360,19 @@ else:
                 st.rerun()
 
         if not st.session_state.get('op_supervisor'):
+            # Botão de voltar sempre visível na página
+            col_back, _ = st.columns([1, 5])
+            with col_back:
+                if st.button("← Voltar ao Menu", use_container_width=True, key="op_voltar_topo"):
+                    st.session_state.servico = None
+                    st.session_state.pop('op_supervisor', None)
+                    st.session_state.pop('op_servico', None)
+                    st.session_state.pop('op_nome', None)
+                    st.rerun()
+
             st.markdown("""
             <p style="font-size:11px; font-weight:700; color:#1a6fc4;
-                      letter-spacing:3px; text-transform:uppercase; margin:0 0 6px 0;">
+                      letter-spacing:3px; text-transform:uppercase; margin:16px 0 6px 0;">
                 ACESSO DO OPERADOR
             </p>
             <p style="font-size:22px; font-weight:900; color:#0b2a6f; margin:0 0 20px 0;">
@@ -2406,8 +2416,15 @@ else:
             </div>
             """, unsafe_allow_html=True)
 
-            col_trocar, _ = st.columns([1, 5])
+            col_trocar, col_voltar_menu, _ = st.columns([1, 1, 4])
             if col_trocar.button("🔄 Trocar operador", use_container_width=True):
+                st.session_state.pop('op_supervisor', None)
+                st.session_state.pop('op_servico', None)
+                st.session_state.pop('op_nome', None)
+                st.session_state.pop('op_matricula', None)
+                st.rerun()
+            if col_voltar_menu.button("← Voltar ao Menu", use_container_width=True, key="op_voltar_menu"):
+                st.session_state.servico = None
                 st.session_state.pop('op_supervisor', None)
                 st.session_state.pop('op_servico', None)
                 st.session_state.pop('op_nome', None)
