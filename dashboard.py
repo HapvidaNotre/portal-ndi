@@ -212,6 +212,8 @@ METAS_BASE = {
     'Produtividade': {'valor': 80.0,  'margem': 5.0, 'menor_melhor': False, 'unidade': '%'},
     'Transf':        {'valor': 85.0,  'margem': 5.0, 'menor_melhor': False, 'unidade': '%'},
     'ShortCall':     {'valor': 5.0,   'margem': 1.0, 'menor_melhor': True,  'unidade': '%'},
+    'FCR':           {'valor': 80.0,  'margem': 5.0, 'menor_melhor': False, 'unidade': '%'},
+    'Direcionado':   {'valor': 20.0,  'margem': 5.0, 'menor_melhor': True,  'unidade': '%'},
 }
 
 MATRICULAS_BACKOFFICE = ['1211819','1210820','1210724','1211110','1211213','1214016','10115858','1212492','1028483']
@@ -248,6 +250,16 @@ _MAP_COLUNAS_BI = {
     # Resolutividade
     'resolutividade':      'resolutividade',
     '(%) resolutividade':  'resolutividade',
+    # FCR
+    'fcr':                 'fcr',
+    '% fcr (1° contato)':  'fcr',
+    '% fcr (1 contato)':   'fcr',
+    '% fcr':               'fcr',
+    # Direcionado
+    'direcionado':         'direcionado',
+    '% direcionado':       'direcionado',
+    '% direcionadas':      'direcionado',
+    'direcionadas':        'direcionado',
     # Pausas — colunas de % têm prioridade sobre colunas de tempo (HH:MM:SS)
     '% pausa produtiva':   'pausa_produtiva',
     'pausa produtiva':     'pausa_produtiva',
@@ -410,6 +422,8 @@ _COLUNAS_FRACAO = {
     'shortcall', '(%) shortcall',
     'silencio', 'silêncio', 'silencio (%)', 'silêncio (%)',
     'resolutividade', '(%) resolutividade',
+    'fcr', '% fcr (1° contato)', '% fcr (1 contato)', '% fcr',
+    'direcionado', '% direcionado', '% direcionadas', 'direcionadas',
 }
 
 def upsert_supabase(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool:
@@ -515,7 +529,8 @@ def upsert_supabase(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool
         _COLS_HIST = ['supervisor','servico','matricula','operador',
                       'aderencia','resolutividade','tma_voz','pesquisa','silencio',
                       'absenteismo','produtividade','transf','shortcall',
-                      'pausa_produtiva','pausa_improdutiva','pausa_total']
+                      'pausa_produtiva','pausa_improdutiva','pausa_total',
+                      'fcr','direcionado']
         upload_ts  = pd.Timestamp.now(tz='UTC').isoformat()
         hist_recs  = []
         for rec in registros_limpos:
@@ -532,7 +547,88 @@ def upsert_supabase(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool
 
     return True
 
-# ---------- LEITURA DO SUPABASE ----------
+# ---------- UPSERT FCR/DIRECIONADO ----------
+def upsert_supabase_fcr(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool:
+    """Lê arquivo de FCR e atualiza colunas fcr e direcionado no Supabase."""
+    supabase = conectar_supabase()
+
+    df_raw = df_raw.copy()
+    df_raw.columns = df_raw.columns.str.strip()
+
+    # Detecção flexível de colunas
+    mat_col = fcr_col = dir_col = None
+    for col in df_raw.columns:
+        cl = col.lower().strip()
+        if 'login' in cl or 'matric' in cl:
+            mat_col = col
+        if cl.startswith('% fcr') or '% fcr' in cl:
+            fcr_col = col
+        if '% direcionad' in cl:
+            dir_col = col
+
+    if not mat_col or not fcr_col:
+        st.error(
+            "Colunas obrigatórias não encontradas no arquivo FCR. "
+            "Verifique se contém 'Login Operador' e '% FCR (1° Contato)'."
+        )
+        return False
+
+    registros = []
+    import math as _math
+
+    for _, row in df_raw.iterrows():
+        mat = _limpar_matricula(row.get(mat_col, ''))
+        if not mat or mat in ('', 'nan', 'None'):
+            continue
+
+        fcr_val = _limpar_num(row.get(fcr_col))
+        if fcr_val is not None:
+            if not (_math.isnan(fcr_val) or _math.isinf(fcr_val)):
+                if fcr_val <= 1.0:
+                    fcr_val = round(fcr_val * 100, 2)
+            else:
+                fcr_val = None
+
+        rec = {
+            'matricula':    mat,
+            'supervisor':   supervisor,
+            'servico':      servico,
+            'fcr':          fcr_val,
+            'atualizado_em': pd.Timestamp.now(tz='UTC').isoformat(),
+        }
+
+        if dir_col:
+            dir_val = _limpar_num(row.get(dir_col))
+            if dir_val is not None:
+                if not (_math.isnan(dir_val) or _math.isinf(dir_val)):
+                    if dir_val <= 1.0:
+                        dir_val = round(dir_val * 100, 2)
+                else:
+                    dir_val = None
+            rec['direcionado'] = dir_val
+
+        registros.append(rec)
+
+    if not registros:
+        st.warning("Nenhum registro válido encontrado no arquivo FCR.")
+        return False
+
+    # Deduplica
+    seen = {}
+    for rec in registros:
+        key = (rec.get('matricula'), rec.get('supervisor'), rec.get('servico'))
+        seen[key] = rec
+    registros = list(seen.values())
+
+    supabase.table("performance_operadores").upsert(
+        registros,
+        on_conflict="matricula,supervisor,servico"
+    ).execute()
+
+    carregar_dados_supervisor.clear()
+    return True
+
+
 @st.cache_data(ttl=60)
 def carregar_dados_supervisor(supervisor: str, servico: str):
     """Lê dados do Supabase para o supervisor/serviço e retorna df no padrão do sistema."""
@@ -567,6 +663,8 @@ def carregar_dados_supervisor(supervisor: str, servico: str):
         'pausa_produtiva':   'Pausa Produtiva_num',
         'pausa_improdutiva': 'Pausa Improdutiva_num',
         'pausa_total':       'Pausa Total_num',
+        'fcr':               'FCR_num',
+        'direcionado':       'Direcionado_num',
     })
 
     # Garante colunas de display formatadas para cada métrica
@@ -636,6 +734,8 @@ def buscar_tendencias(matricula: str, supervisor: str, servico: str) -> dict:
             'Transf':         'transf',
             'ShortCall':      'shortcall',
             'Pausa Total':    'pausa_total',
+            'FCR':            'fcr',
+            'Direcionado':    'direcionado',
         }
 
         tendencias = {}
@@ -891,6 +991,18 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
                 for idx, (label, key) in enumerate(metricas_l2):
                     with cols2[idx]:
                         exibir_card(label, r[key], definir_cor_kpi(r.get(f'{key}_num'), key, metas), tend.get(key))
+
+                st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+
+                # Linha 3 — FCR e Direcionado
+                metricas_l3 = [
+                    ("FCR (1° Contato)", 'FCR'),
+                    ("Direcionado",      'Direcionado'),
+                ]
+                cols3 = st.columns(5)
+                for idx, (label, key) in enumerate(metricas_l3):
+                    with cols3[idx]:
+                        exibir_card(label, r[key], definir_cor_kpi(r.get(f'{key}_num'), key, metas), tend.get(key))
             else:
                 st.warning("⚠️ Matrícula não encontrada.")
 
@@ -923,7 +1035,8 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
 
             metricas_todos = list(metas.keys())
             row1 = metricas_todos[:5]
-            row2 = metricas_todos[5:]
+            row2 = metricas_todos[5:10]
+            row3 = metricas_todos[10:]
 
             def _fmt_equipe(metrica, val):
                 if val is None or pd.isna(val):
@@ -952,6 +1065,15 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
                 display = _fmt_equipe(metrica, val)
                 with cols2[i]:
                     exibir_card(metrica, display, definir_cor_kpi(val, metrica, metas))
+
+            if row3:
+                st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+                cols3 = st.columns(5)
+                for i, metrica in enumerate(row3):
+                    val   = _get_valor_equipe(metrica)
+                    display = _fmt_equipe(metrica, val)
+                    with cols3[i]:
+                        exibir_card(metrica, display, definir_cor_kpi(val, metrica, metas))
 
             st.markdown("""
             <div style="display:flex; gap:18px; margin-top:14px; justify-content:center;">
@@ -1834,23 +1956,73 @@ else:
 
             st.divider()
 
-            arquivo = st.file_uploader(
-                "📂 Enviar planilha do BI (.xlsx)  —  um novo upload substitui os dados atuais",
-                type=["xlsx"],
-                key=f"upload_{nome_sup}_{servico_sup}"
-            )
+            # ── Dois uploaders rotulados ────────────────────────────
+            col_up1, col_up2 = st.columns(2)
 
-            if arquivo is not None:
-                with st.spinner("Processando e enviando para o banco..."):
+            with col_up1:
+                st.markdown("""
+                <div style="background:#f0f4ff; border-radius:12px; padding:12px 16px 6px 16px;
+                            border-left:4px solid #1a6fc4; margin-bottom:10px;">
+                    <p style="margin:0; font-size:12px; font-weight:800; color:#0b2a6f;
+                              letter-spacing:1.5px; text-transform:uppercase;">
+                        📊 Métricas em Geral
+                    </p>
+                    <p style="margin:4px 0 0 0; font-size:12px; color:#666;">
+                        Planilha do BI com Aderência, TMA, Pausas, etc.
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+                arquivo_bi = st.file_uploader(
+                    "Enviar planilha de Métricas Gerais (.xlsx)",
+                    type=["xlsx"],
+                    key=f"upload_bi_{nome_sup}_{servico_sup}",
+                    label_visibility="collapsed"
+                )
+
+            with col_up2:
+                st.markdown("""
+                <div style="background:#f0fff4; border-radius:12px; padding:12px 16px 6px 16px;
+                            border-left:4px solid #28a745; margin-bottom:10px;">
+                    <p style="margin:0; font-size:12px; font-weight:800; color:#0b2a6f;
+                              letter-spacing:1.5px; text-transform:uppercase;">
+                        🎯 FCR e Direcionadas
+                    </p>
+                    <p style="margin:4px 0 0 0; font-size:12px; color:#666;">
+                        Planilha com % FCR (1° Contato) e % Direcionado.
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+                arquivo_fcr = st.file_uploader(
+                    "Enviar planilha de FCR (.xlsx)",
+                    type=["xlsx"],
+                    key=f"upload_fcr_{nome_sup}_{servico_sup}",
+                    label_visibility="collapsed"
+                )
+
+            # ── Processar arquivo de Métricas Gerais ──────────────
+            if arquivo_bi is not None:
+                with st.spinner("Processando métricas gerais..."):
                     try:
-                        df_bi_raw = pd.read_excel(arquivo, dtype=str)
+                        df_bi_raw = pd.read_excel(arquivo_bi, dtype=str)
                         sucesso = upsert_supabase(df_bi_raw, nome_sup, servico_sup)
                         if sucesso:
                             carregar_dados_supervisor.clear()
-                            st.success(f"✅ **{arquivo.name}** enviado com sucesso! Dados disponíveis para os operadores.")
+                            st.success(f"✅ **{arquivo_bi.name}** — Métricas gerais enviadas com sucesso!")
                     except Exception as e:
-                        st.error(f"Erro ao processar o arquivo: {e}")
-            else:
+                        st.error(f"Erro ao processar o arquivo de métricas: {e}")
+
+            # ── Processar arquivo de FCR ───────────────────────────
+            if arquivo_fcr is not None:
+                with st.spinner("Processando FCR e Direcionadas..."):
+                    try:
+                        df_fcr_raw = pd.read_excel(arquivo_fcr, dtype=str)
+                        sucesso_fcr = upsert_supabase_fcr(df_fcr_raw, nome_sup, servico_sup)
+                        if sucesso_fcr:
+                            st.success(f"✅ **{arquivo_fcr.name}** — FCR e Direcionadas enviados com sucesso!")
+                    except Exception as e:
+                        st.error(f"Erro ao processar o arquivo FCR: {e}")
+
+            if arquivo_bi is None and arquivo_fcr is None:
                 st.markdown("""
                 <div style='text-align:center; padding: 50px 0; color:#aaa;'>
                     <p style='font-size:44px;'>📤</p>
