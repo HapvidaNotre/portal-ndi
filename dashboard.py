@@ -553,12 +553,12 @@ def upsert_supabase_fcr(df_raw: pd.DataFrame, supervisor: str, servico: str) -> 
     supabase = conectar_supabase()
 
     df_raw = df_raw.copy()
-    df_raw.columns = df_raw.columns.str.strip()
+    df_raw.columns = [str(c).strip() for c in df_raw.columns]
 
     # Detecção flexível de colunas
     mat_col = fcr_col = dir_col = None
     for col in df_raw.columns:
-        cl = col.lower().strip()
+        cl = str(col).lower().strip()
         if 'login' in cl or 'matric' in cl:
             mat_col = col
         if cl.startswith('% fcr') or '% fcr' in cl:
