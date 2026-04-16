@@ -2315,18 +2315,19 @@ else:
                 st.rerun()
 
         if not st.session_state.get('op_supervisor'):
-            st.markdown("""
-            <p style="font-size:11px; font-weight:700; color:#1a6fc4;
-                      letter-spacing:3px; text-transform:uppercase; margin:0 0 6px 0;">
-                ACESSO DO OPERADOR
-            </p>
-            <p style="font-size:22px; font-weight:900; color:#0b2a6f; margin:0 0 20px 0;">
-                Digite sua matrícula
-            </p>
-            """, unsafe_allow_html=True)
-
-            col_inp, _ = st.columns([2, 4])
-            with col_inp:
+            _, _col_login, _ = st.columns([1, 2, 1])
+            with _col_login:
+                st.markdown("""
+                <div style="text-align:center; padding:30px 0 20px 0;">
+                    <p style="font-size:11px; font-weight:700; color:#1a6fc4;
+                              letter-spacing:3px; text-transform:uppercase; margin:0 0 8px 0;">
+                        ACESSO DO OPERADOR
+                    </p>
+                    <p style="font-size:24px; font-weight:900; color:#0b2a6f; margin:0 0 24px 0;">
+                        Digite sua matrícula
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
                 mat_input = st.text_input("Matrícula", placeholder="Ex: 1035323", label_visibility="collapsed")
                 buscar = st.button("🔍 Buscar", use_container_width=True)
 
