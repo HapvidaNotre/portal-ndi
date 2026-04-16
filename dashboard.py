@@ -2146,7 +2146,7 @@ else:
             with col_up1:
                 st.markdown("""
                 <div style="background:#f0f4ff; border-radius:12px; padding:12px 16px 6px 16px;
-                            border-left:4px solid #1a6fc4; margin-bottom:10px;">
+                            border-left:4px solid #1a6fc4; margin-bottom:10px; min-height:80px;">
                     <p style="margin:0; font-size:12px; font-weight:800; color:#0b2a6f;
                               letter-spacing:1.5px; text-transform:uppercase;">
                         📊 Métricas em Geral
@@ -2166,7 +2166,7 @@ else:
             with col_up2:
                 st.markdown("""
                 <div style="background:#f0fff4; border-radius:12px; padding:12px 16px 6px 16px;
-                            border-left:4px solid #28a745; margin-bottom:10px;">
+                            border-left:4px solid #28a745; margin-bottom:10px; min-height:80px;">
                     <p style="margin:0; font-size:12px; font-weight:800; color:#0b2a6f;
                               letter-spacing:1.5px; text-transform:uppercase;">
                         🎯 FCR e Direcionadas
@@ -2186,7 +2186,7 @@ else:
             with col_up3:
                 st.markdown("""
                 <div style="background:#fff8f0; border-radius:12px; padding:12px 16px 6px 16px;
-                            border-left:4px solid #fd7e14; margin-bottom:10px;">
+                            border-left:4px solid #fd7e14; margin-bottom:10px; min-height:80px;">
                     <p style="margin:0; font-size:12px; font-weight:800; color:#0b2a6f;
                               letter-spacing:1.5px; text-transform:uppercase;">
                         🔁 Rechamada
