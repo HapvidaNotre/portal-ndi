@@ -1118,71 +1118,116 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
 
     aba = st.session_state[chave_aba]
 
-    # Mapeamento aba → índice do botão (0-based) para o CSS seletor nth-of-type
-    _ABA_IDX = {"Individual": 0, "Equipe": 1, "Ranking": 2, "Saúde": 3}
-    aba_idx = _ABA_IDX.get(aba, 0)
-
-    # Cores LED por aba
+    # Cores LED por aba (borda discreta)
     _LED_CORES = {
-        "Individual": ("#1a6fc4", "#56aeff"),   # azul
-        "Equipe":     ("#0b8a3e", "#2ecc71"),   # verde
-        "Ranking":    ("#c47a00", "#ffc107"),   # dourado
-        "Saúde":      ("#9b2fc4", "#d47aff"),   # roxo
+        "Individual": "#1a6fc4",
+        "Equipe":     "#2ecc71",
+        "Ranking":    "#ffc107",
+        "Saúde":      "#c47aff",
     }
-    led_dark, led_light = _LED_CORES.get(aba, ("#1a6fc4", "#56aeff"))
 
-    st.markdown(f"""
-    <style>
-    /* ── Botões de aba — base ── */
-    div[data-testid="stButton"] > button[kind="secondary"] {{
-        background: white !important;
-        color: #0b2a6f !important;
-        border: 2px solid #dce6f7 !important;
-        border-radius: 12px !important;
-        font-weight: 700 !important;
-        font-size: 14px !important;
-        transition: all 0.25s ease !important;
-        box-shadow: none !important;
-    }}
-    div[data-testid="stButton"] > button[kind="secondary"]:hover {{
-        background: #f0f5ff !important;
-        border-color: #1a6fc4 !important;
-        color: #0b2a6f !important;
-        transform: translateY(-1px) !important;
-    }}
-
-    /* ── Botão ATIVO — efeito LED pulsante ── */
-    div[data-testid="stHorizontalBlock"]
-        > div[data-testid="stColumn"]:nth-child({aba_idx + 1})
-        div[data-testid="stButton"] > button[kind="secondary"] {{
-        background: linear-gradient(135deg, {led_dark}, {led_light}) !important;
-        color: white !important;
-        border: 2px solid {led_light} !important;
-        border-radius: 12px !important;
-        box-shadow:
-            0 0 6px 1px {led_light}99,
-            0 0 14px 3px {led_light}66,
-            0 0 28px 6px {led_dark}44,
-            inset 0 1px 0 rgba(255,255,255,0.25) !important;
-        animation: ledPulse_{aba_idx} 2s ease-in-out infinite !important;
-        transform: translateY(-1px) !important;
-    }}
-
-    @keyframes ledPulse_{aba_idx} {{
-        0%   {{ box-shadow: 0 0 6px 1px {led_light}99, 0 0 14px 3px {led_light}66, 0 0 28px 6px {led_dark}44, inset 0 1px 0 rgba(255,255,255,0.25); }}
-        50%  {{ box-shadow: 0 0 10px 3px {led_light}cc, 0 0 22px 6px {led_light}88, 0 0 40px 10px {led_dark}66, inset 0 1px 0 rgba(255,255,255,0.25); }}
-        100% {{ box-shadow: 0 0 6px 1px {led_light}99, 0 0 14px 3px {led_light}66, 0 0 28px 6px {led_dark}44, inset 0 1px 0 rgba(255,255,255,0.25); }}
-    }}
-    </style>
-    """, unsafe_allow_html=True)
-
-    # Cabeçalho com abas
+    # Cabeçalho
     st.markdown(f"""
     <div style="display:flex; align-items:center; justify-content:space-between;
-                margin-bottom: 8px;">
+                margin-bottom: 10px;">
         <p style="margin:0; font-size:18px; font-weight:800; color:#0b2a6f;">📊 Painel de Análise</p>
         <p style="margin:0; font-size:12px; color:#aaa;">{len(df_eq)} operadores carregados</p>
     </div>
+    """, unsafe_allow_html=True)
+
+    # Renderiza os 4 botões de aba como HTML puro (evita conflito com outros botões Streamlit)
+    abas_def = [
+        ("Individual", "👤 Individual"),
+        ("Equipe",     "👥 Equipe"),
+        ("Ranking",    "🏆 Ranking"),
+        ("Saúde",      "🩺 Saúde"),
+    ]
+    btns_html = ""
+    for key_aba, label in abas_def:
+        cor = _LED_CORES[key_aba]
+        ativo = (aba == key_aba)
+        if ativo:
+            estilo = f"""
+                background: white;
+                color: #0b2a6f;
+                border: 2px solid {cor};
+                border-radius: 12px;
+                box-shadow: 0 0 0 2px {cor}55, 0 0 8px 2px {cor}44;
+                animation: ledGlow 2s ease-in-out infinite;
+                font-weight: 800;
+                cursor: default;
+            """
+        else:
+            estilo = """
+                background: white;
+                color: #0b2a6f;
+                border: 2px solid #dce6f7;
+                border-radius: 12px;
+                box-shadow: none;
+                font-weight: 700;
+                cursor: pointer;
+            """
+        btns_html += f"""
+        <button
+            onclick="window.parent.postMessage({{type:'streamlit:setComponentValue', value:'{key_aba}', key:'{chave_aba}'}}, '*')"
+            data-aba="{key_aba}"
+            data-chave="{chave_aba}"
+            style="flex:1; height:52px; font-size:14px; font-family:inherit;
+                   transition: border-color 0.2s, box-shadow 0.2s;
+                   {estilo}">
+            {label}
+        </button>
+        """
+
+    # Usa um id único baseado no chave_aba para não vazar CSS
+    uid = chave_aba.replace("_", "-")
+    st.markdown(f"""
+    <style>
+    @keyframes ledGlow {{
+        0%   {{ box-shadow: 0 0 0 2px var(--led,#1a6fc4)55, 0 0 6px 1px var(--led,#1a6fc4)33; }}
+        50%  {{ box-shadow: 0 0 0 3px var(--led,#1a6fc4)88, 0 0 12px 4px var(--led,#1a6fc4)55; }}
+        100% {{ box-shadow: 0 0 0 2px var(--led,#1a6fc4)55, 0 0 6px 1px var(--led,#1a6fc4)33; }}
+    }}
+    #abas-{uid} button:not([style*="cursor: default"]):hover {{
+        border-color: #1a6fc4 !important;
+        background: #f5f8ff !important;
+    }}
+    </style>
+    <div id="abas-{uid}" style="display:flex; gap:10px; margin-bottom:10px;">
+        {btns_html}
+    </div>
+    <script>
+    (function() {{
+        var container = window.parent.document.querySelector('#{uid}-listener') ||
+                        window.parent.document;
+        document.querySelectorAll('#abas-{uid} button[data-aba]').forEach(function(btn) {{
+            btn.addEventListener('click', function() {{
+                var aba  = this.getAttribute('data-aba');
+                var chave = this.getAttribute('data-chave');
+                // Encontra e clica no botão Streamlit oculto correspondente
+                var streamlitBtns = window.parent.document.querySelectorAll('button[kind="secondary"]');
+                streamlitBtns.forEach(function(sb) {{
+                    if (sb.innerText.trim().includes(aba)) {{ sb.click(); }}
+                }});
+            }});
+        }});
+    }})();
+    </script>
+    """, unsafe_allow_html=True)
+
+    # Botões Streamlit reais (ocultos visualmente, usados apenas para acionar o rerun)
+    st.markdown("""
+    <style>
+    div[data-testid="stButton"] > button[kind="secondary"] {
+        position: absolute !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        height: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        overflow: hidden !important;
+    }
+    </style>
     """, unsafe_allow_html=True)
 
     c1, c2, c3, c4 = st.columns(4)
@@ -1195,7 +1240,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
     if c4.button("🩺 Saúde",      use_container_width=True, key=f"btn_sa_{chave_aba}"):
         st.session_state[chave_aba] = "Saúde";      st.rerun()
 
-    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
     # ── INDIVIDUAL ──────────────────────────────────────
     if aba == "Individual":
