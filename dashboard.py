@@ -58,6 +58,12 @@ header[data-testid="stHeader"] {
     min-height: 0 !important;
 }
 
+/* Oculta a sidebar e o botão de recolher/expandir — navegação feita no conteúdo principal */
+[data-testid="stSidebar"],
+[data-testid="collapsedControl"] {
+    display: none !important;
+}
+
 /* Remove espaço reservado pelo header mesmo quando oculto */
 .stApp > header { display: none !important; height: 0 !important; }
 [data-testid="stAppViewContainer"] { padding-top: 0 !important; margin-top: 0 !important; }
@@ -1251,14 +1257,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
                 col_num = f'{metrica}_num'
                 if usar_total:
                     val = df_total.iloc[0].get(col_num)
-                    if pd.notna(val):
-                        return val
-                    # Fallback para média dos operadores quando a linha __TOTAL__ não possui
-                    # o valor da métrica (ex: FCR, Direcionado e Rechamada vêm de planilhas
-                    # separadas e não são gravados na linha __TOTAL__ pelo BI principal)
-                    if col_num in df_eq.columns and df_eq[col_num].notna().any():
-                        return df_eq[col_num].mean()
-                    return None
+                    return val if pd.notna(val) else None
                 else:
                     return df_eq[col_num].mean() if col_num in df_eq.columns else None
 
@@ -1615,24 +1614,35 @@ else:
             if _k not in st.session_state:
                 st.session_state[_k] = _v
 
-        # ── Sidebar ────────────────────────────────────────────
-        with st.sidebar:
-            st.markdown("### 🗂️ Área do Gestor")
-            if st.session_state.gestor_logado:
-                st.markdown(f"**{st.session_state.gestor_nome}**")
-                st.caption(f"{st.session_state.gestor_servico}")
-                st.divider()
-                if st.button("🔒 Sair da conta"):
+        # ── Barra de navegação do Gestor (substituiu a sidebar) ───────────
+        if st.session_state.gestor_logado:
+            _col_info, _col_sair, _col_voltar = st.columns([4, 1, 1])
+            with _col_info:
+                st.markdown(
+                    f"<p style='margin:0; font-size:13px; color:#0b2a6f; font-weight:700;'>"
+                    f"🗂️ {st.session_state.gestor_nome} &nbsp;·&nbsp; "
+                    f"<span style='color:#666; font-weight:400;'>{st.session_state.gestor_servico}</span></p>",
+                    unsafe_allow_html=True
+                )
+            with _col_sair:
+                if st.button("🔒 Sair", use_container_width=True):
                     for _k in ('gestor_logado','gestor_matricula','gestor_nome','gestor_servico'):
                         st.session_state[_k] = '' if _k != 'gestor_logado' else False
                     st.session_state.gestor_tela = 'login'
                     st.rerun()
-            if st.button("← Voltar ao início"):
-                for _k in ('gestor_logado','gestor_matricula','gestor_nome','gestor_servico'):
-                    st.session_state[_k] = '' if _k != 'gestor_logado' else False
-                st.session_state.gestor_tela = 'login'
-                st.session_state.servico = None
-                st.rerun()
+            with _col_voltar:
+                if st.button("← Início", use_container_width=True):
+                    for _k in ('gestor_logado','gestor_matricula','gestor_nome','gestor_servico'):
+                        st.session_state[_k] = '' if _k != 'gestor_logado' else False
+                    st.session_state.gestor_tela = 'login'
+                    st.session_state.servico = None
+                    st.rerun()
+        else:
+            _col_v, _ = st.columns([1, 5])
+            with _col_v:
+                if st.button("← Início"):
+                    st.session_state.servico = None
+                    st.rerun()
 
         # ══════════════════════════════════════════════════
         # NÃO LOGADO — telas de login / cadastro
@@ -2295,9 +2305,9 @@ else:
     # ══════════════════════════════════════════════════
     elif st.session_state.servico == "Operador":
 
-        with st.sidebar:
-            st.markdown("### 👤 Área do Operador")
-            if st.button("← Voltar"):
+        _col_v2, _ = st.columns([1, 5])
+        with _col_v2:
+            if st.button("← Voltar", use_container_width=True):
                 st.session_state.servico = None
                 st.session_state.pop('op_supervisor', None)
                 st.session_state.pop('op_servico', None)
