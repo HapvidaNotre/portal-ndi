@@ -1113,34 +1113,73 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
     ].copy()
 
     # ── CSS das abas ───────────────────────────────────
-    st.markdown("""
-    <style>
-    div[data-testid="stButton"] > button[kind="secondary"] {
-        background: white !important;
-        color: #0b2a6f !important;
-        border: 2px solid #dce6f7 !important;
-        border-radius: 10px !important;
-        font-weight: 700 !important;
-        font-size: 14px !important;
-        transition: all 0.2s !important;
-    }
-    div[data-testid="stButton"] > button[kind="secondary"]:hover {
-        background: #0b2a6f !important;
-        color: white !important;
-        border-color: #0b2a6f !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
     if chave_aba not in st.session_state:
         st.session_state[chave_aba] = "Individual"
 
     aba = st.session_state[chave_aba]
 
+    # Mapeamento aba → índice do botão (0-based) para o CSS seletor nth-of-type
+    _ABA_IDX = {"Individual": 0, "Equipe": 1, "Ranking": 2, "Saúde": 3}
+    aba_idx = _ABA_IDX.get(aba, 0)
+
+    # Cores LED por aba
+    _LED_CORES = {
+        "Individual": ("#1a6fc4", "#56aeff"),   # azul
+        "Equipe":     ("#0b8a3e", "#2ecc71"),   # verde
+        "Ranking":    ("#c47a00", "#ffc107"),   # dourado
+        "Saúde":      ("#9b2fc4", "#d47aff"),   # roxo
+    }
+    led_dark, led_light = _LED_CORES.get(aba, ("#1a6fc4", "#56aeff"))
+
+    st.markdown(f"""
+    <style>
+    /* ── Botões de aba — base ── */
+    div[data-testid="stButton"] > button[kind="secondary"] {{
+        background: white !important;
+        color: #0b2a6f !important;
+        border: 2px solid #dce6f7 !important;
+        border-radius: 12px !important;
+        font-weight: 700 !important;
+        font-size: 14px !important;
+        transition: all 0.25s ease !important;
+        box-shadow: none !important;
+    }}
+    div[data-testid="stButton"] > button[kind="secondary"]:hover {{
+        background: #f0f5ff !important;
+        border-color: #1a6fc4 !important;
+        color: #0b2a6f !important;
+        transform: translateY(-1px) !important;
+    }}
+
+    /* ── Botão ATIVO — efeito LED pulsante ── */
+    div[data-testid="stHorizontalBlock"]
+        > div[data-testid="stColumn"]:nth-child({aba_idx + 1})
+        div[data-testid="stButton"] > button[kind="secondary"] {{
+        background: linear-gradient(135deg, {led_dark}, {led_light}) !important;
+        color: white !important;
+        border: 2px solid {led_light} !important;
+        border-radius: 12px !important;
+        box-shadow:
+            0 0 6px 1px {led_light}99,
+            0 0 14px 3px {led_light}66,
+            0 0 28px 6px {led_dark}44,
+            inset 0 1px 0 rgba(255,255,255,0.25) !important;
+        animation: ledPulse_{aba_idx} 2s ease-in-out infinite !important;
+        transform: translateY(-1px) !important;
+    }}
+
+    @keyframes ledPulse_{aba_idx} {{
+        0%   {{ box-shadow: 0 0 6px 1px {led_light}99, 0 0 14px 3px {led_light}66, 0 0 28px 6px {led_dark}44, inset 0 1px 0 rgba(255,255,255,0.25); }}
+        50%  {{ box-shadow: 0 0 10px 3px {led_light}cc, 0 0 22px 6px {led_light}88, 0 0 40px 10px {led_dark}66, inset 0 1px 0 rgba(255,255,255,0.25); }}
+        100% {{ box-shadow: 0 0 6px 1px {led_light}99, 0 0 14px 3px {led_light}66, 0 0 28px 6px {led_dark}44, inset 0 1px 0 rgba(255,255,255,0.25); }}
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
     # Cabeçalho com abas
     st.markdown(f"""
     <div style="display:flex; align-items:center; justify-content:space-between;
-                margin-bottom: 4px;">
+                margin-bottom: 8px;">
         <p style="margin:0; font-size:18px; font-weight:800; color:#0b2a6f;">📊 Painel de Análise</p>
         <p style="margin:0; font-size:12px; color:#aaa;">{len(df_eq)} operadores carregados</p>
     </div>
