@@ -1330,7 +1330,14 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
                 col_num = f'{metrica}_num'
                 if usar_total:
                     val = df_total.iloc[0].get(col_num)
-                    return val if pd.notna(val) else None
+                    if pd.notna(val):
+                        return val
+                    # Fallback: __TOTAL__ não possui valor para esta métrica
+                    # (ex.: FCR, Direcionado e Rechamada vêm de planilhas separadas),
+                    # então calcula a média dos operadores individuais.
+                    if col_num in df_eq.columns and df_eq[col_num].notna().any():
+                        return df_eq[col_num].mean()
+                    return None
                 else:
                     return df_eq[col_num].mean() if col_num in df_eq.columns else None
 
