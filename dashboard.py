@@ -125,6 +125,29 @@ div.stButton > button:hover {
     border-radius: 10px;
 }
 
+/* BOTÕES UTILITÁRIOS — Voltar e Trocar operador: estilo neutro, sem fundo LED */
+.btn-util div.stButton > button,
+.btn-util div.stButton > button:focus,
+.btn-util div.stButton > button:active {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #1a6fc4 !important;
+    border: 1.5px solid #c5d8f0 !important;
+    border-radius: 10px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    height: 40px !important;
+    box-shadow: none !important;
+    transition: border-color 0.2s, color 0.2s !important;
+}
+.btn-util div.stButton > button:hover {
+    background: #f0f6ff !important;
+    border-color: #1a6fc4 !important;
+    color: #0b2a6f !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
 /* CARDS */
 .metric-card {
     background-color: white;
@@ -1113,73 +1136,48 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
     ].copy()
 
     # ── CSS das abas ───────────────────────────────────
+    st.markdown("""
+    <style>
+    /* Botões de aba — estado padrão: fundo branco, borda sutil */
+    div[data-testid="stButton"] > button[kind="secondary"] {
+        background: white !important;
+        color: #4a5568 !important;
+        border: 2px solid #e2e8f0 !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        box-shadow: none !important;
+        transition: border-color 0.2s, color 0.2s !important;
+    }
+    /* Hover suave */
+    div[data-testid="stButton"] > button[kind="secondary"]:hover {
+        background: #f7faff !important;
+        color: #0b2a6f !important;
+        border-color: #a8c4e8 !important;
+        box-shadow: none !important;
+    }
+    /* Aba ativa — apenas borda colorida, sem fundo LED */
+    div[data-testid="stButton"] > button[kind="secondary"]:focus,
+    div[data-testid="stButton"] > button[kind="secondary"]:active {
+        background: white !important;
+        color: #0b2a6f !important;
+        border: 2px solid #1a6fc4 !important;
+        border-bottom: 3px solid #1a6fc4 !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     if chave_aba not in st.session_state:
         st.session_state[chave_aba] = "Individual"
 
     aba = st.session_state[chave_aba]
 
-    # Mapeamento aba → índice do botão (0-based) para o CSS seletor nth-of-type
-    _ABA_IDX = {"Individual": 0, "Equipe": 1, "Ranking": 2, "Saúde": 3}
-    aba_idx = _ABA_IDX.get(aba, 0)
-
-    # Cores LED por aba
-    _LED_CORES = {
-        "Individual": ("#1a6fc4", "#56aeff"),   # azul
-        "Equipe":     ("#0b8a3e", "#2ecc71"),   # verde
-        "Ranking":    ("#c47a00", "#ffc107"),   # dourado
-        "Saúde":      ("#9b2fc4", "#d47aff"),   # roxo
-    }
-    led_dark, led_light = _LED_CORES.get(aba, ("#1a6fc4", "#56aeff"))
-
-    st.markdown(f"""
-    <style>
-    /* ── Botões de aba — base ── */
-    div[data-testid="stButton"] > button[kind="secondary"] {{
-        background: white !important;
-        color: #0b2a6f !important;
-        border: 2px solid #dce6f7 !important;
-        border-radius: 12px !important;
-        font-weight: 700 !important;
-        font-size: 14px !important;
-        transition: all 0.25s ease !important;
-        box-shadow: none !important;
-    }}
-    div[data-testid="stButton"] > button[kind="secondary"]:hover {{
-        background: #f0f5ff !important;
-        border-color: #1a6fc4 !important;
-        color: #0b2a6f !important;
-        transform: translateY(-1px) !important;
-    }}
-
-    /* ── Botão ATIVO — efeito LED pulsante ── */
-    div[data-testid="stHorizontalBlock"]
-        > div[data-testid="stColumn"]:nth-child({aba_idx + 1})
-        div[data-testid="stButton"] > button[kind="secondary"] {{
-        background: linear-gradient(135deg, {led_dark}, {led_light}) !important;
-        color: white !important;
-        border: 2px solid {led_light} !important;
-        border-radius: 12px !important;
-        box-shadow:
-            0 0 6px 1px {led_light}99,
-            0 0 14px 3px {led_light}66,
-            0 0 28px 6px {led_dark}44,
-            inset 0 1px 0 rgba(255,255,255,0.25) !important;
-        animation: ledPulse_{aba_idx} 2s ease-in-out infinite !important;
-        transform: translateY(-1px) !important;
-    }}
-
-    @keyframes ledPulse_{aba_idx} {{
-        0%   {{ box-shadow: 0 0 6px 1px {led_light}99, 0 0 14px 3px {led_light}66, 0 0 28px 6px {led_dark}44, inset 0 1px 0 rgba(255,255,255,0.25); }}
-        50%  {{ box-shadow: 0 0 10px 3px {led_light}cc, 0 0 22px 6px {led_light}88, 0 0 40px 10px {led_dark}66, inset 0 1px 0 rgba(255,255,255,0.25); }}
-        100% {{ box-shadow: 0 0 6px 1px {led_light}99, 0 0 14px 3px {led_light}66, 0 0 28px 6px {led_dark}44, inset 0 1px 0 rgba(255,255,255,0.25); }}
-    }}
-    </style>
-    """, unsafe_allow_html=True)
-
     # Cabeçalho com abas
     st.markdown(f"""
     <div style="display:flex; align-items:center; justify-content:space-between;
-                margin-bottom: 8px;">
+                margin-bottom: 4px;">
         <p style="margin:0; font-size:18px; font-weight:800; color:#0b2a6f;">📊 Painel de Análise</p>
         <p style="margin:0; font-size:12px; color:#aaa;">{len(df_eq)} operadores carregados</p>
     </div>
@@ -1194,6 +1192,42 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
         st.session_state[chave_aba] = "Ranking";    st.rerun()
     if c4.button("🩺 Saúde",      use_container_width=True, key=f"btn_sa_{chave_aba}"):
         st.session_state[chave_aba] = "Saúde";      st.rerun()
+
+    # JS: destaca a borda do botão ativo sem efeito LED no fundo
+    _aba_ativa_js = aba
+    st.components.v1.html(f"""
+    <script>
+    (function() {{
+        function markActive() {{
+            var frames = window.parent.document.querySelectorAll('iframe');
+            var btns = window.parent.document.querySelectorAll('button[kind="secondary"]');
+            var abaAtiva = "{_aba_ativa_js}";
+            var mapa = {{"Individual": "👤 Individual", "Equipe": "👥 Equipe",
+                         "Ranking": "🏆 Ranking", "Saúde": "🩺 Saúde"}};
+            var labelAtivo = mapa[abaAtiva] || "";
+            btns.forEach(function(b) {{
+                var txt = b.innerText.trim();
+                if (txt === labelAtivo) {{
+                    b.style.setProperty("border", "2px solid #1a6fc4", "important");
+                    b.style.setProperty("border-bottom", "3px solid #1a6fc4", "important");
+                    b.style.setProperty("color", "#0b2a6f", "important");
+                    b.style.setProperty("font-weight", "700", "important");
+                    b.style.setProperty("background", "white", "important");
+                    b.style.setProperty("box-shadow", "none", "important");
+                }} else {{
+                    b.style.setProperty("border", "2px solid #e2e8f0", "important");
+                    b.style.setProperty("color", "#4a5568", "important");
+                    b.style.setProperty("background", "white", "important");
+                    b.style.setProperty("box-shadow", "none", "important");
+                }}
+            }});
+        }}
+        setTimeout(markActive, 80);
+        setTimeout(markActive, 300);
+        setTimeout(markActive, 700);
+    }})();
+    </script>
+    """, height=0)
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
@@ -1296,11 +1330,7 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
                 col_num = f'{metrica}_num'
                 if usar_total:
                     val = df_total.iloc[0].get(col_num)
-                    # Se __TOTAL__ não tiver o valor (ex: FCR, Direcionado, Rechamada
-                    # que vêm de planilhas separadas), calcula a média dos operadores
-                    if val is not None and pd.notna(val):
-                        return val
-                    return df_eq[col_num].mean() if col_num in df_eq.columns else None
+                    return val if pd.notna(val) else None
                 else:
                     return df_eq[col_num].mean() if col_num in df_eq.columns else None
 
@@ -1668,24 +1698,30 @@ else:
                     unsafe_allow_html=True
                 )
             with _col_sair:
+                st.markdown('<div class="btn-util">', unsafe_allow_html=True)
                 if st.button("🔒 Sair", use_container_width=True):
                     for _k in ('gestor_logado','gestor_matricula','gestor_nome','gestor_servico'):
                         st.session_state[_k] = '' if _k != 'gestor_logado' else False
                     st.session_state.gestor_tela = 'login'
                     st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
             with _col_voltar:
+                st.markdown('<div class="btn-util">', unsafe_allow_html=True)
                 if st.button("← Início", use_container_width=True):
                     for _k in ('gestor_logado','gestor_matricula','gestor_nome','gestor_servico'):
                         st.session_state[_k] = '' if _k != 'gestor_logado' else False
                     st.session_state.gestor_tela = 'login'
                     st.session_state.servico = None
                     st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
         else:
             _col_v, _ = st.columns([1, 5])
             with _col_v:
+                st.markdown('<div class="btn-util">', unsafe_allow_html=True)
                 if st.button("← Início"):
                     st.session_state.servico = None
                     st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
 
         # ══════════════════════════════════════════════════
         # NÃO LOGADO — telas de login / cadastro
@@ -1900,7 +1936,9 @@ else:
 
                     col_c, col_d = st.columns(2)
                     salvar  = col_c.button("✅ Criar conta",  use_container_width=True)
+                    st.markdown('<div class="btn-util">', unsafe_allow_html=True)
                     voltar  = col_d.button("← Voltar",        use_container_width=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
 
                     if voltar:
                         st.session_state.gestor_tela = 'login'
@@ -1943,7 +1981,9 @@ else:
 
                     col_env, col_vol = st.columns(2)
                     enviar_cod = col_env.button("📨 Enviar código", use_container_width=True)
+                    st.markdown('<div class="btn-util">', unsafe_allow_html=True)
                     vol_esq    = col_vol.button("← Voltar",         use_container_width=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
 
                     if vol_esq:
                         st.session_state.gestor_tela = 'login'
@@ -2350,12 +2390,14 @@ else:
 
         _col_v2, _ = st.columns([1, 5])
         with _col_v2:
+            st.markdown('<div class="btn-util">', unsafe_allow_html=True)
             if st.button("← Voltar", use_container_width=True):
                 st.session_state.servico = None
                 st.session_state.pop('op_supervisor', None)
                 st.session_state.pop('op_servico', None)
                 st.session_state.pop('op_nome', None)
                 st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
         if not st.session_state.get('op_supervisor'):
             _, _col_login, _ = st.columns([1, 2, 1])
@@ -2406,12 +2448,14 @@ else:
             """, unsafe_allow_html=True)
 
             col_trocar, _ = st.columns([1, 5])
+            st.markdown('<div class="btn-util">', unsafe_allow_html=True)
             if col_trocar.button("🔄 Trocar operador", use_container_width=True):
                 st.session_state.pop('op_supervisor', None)
                 st.session_state.pop('op_servico', None)
                 st.session_state.pop('op_nome', None)
                 st.session_state.pop('op_matricula', None)
                 st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
             mat_input = st.session_state.get('op_matricula', sup)
             df, col_op, col_mat = carregar_dados_supervisor(sup, svc)
