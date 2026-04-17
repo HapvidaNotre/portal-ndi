@@ -418,29 +418,18 @@ def exibir_card(label, valor_display, cor, tendencia=None, valor_num=None, conf_
     except Exception:
         pass
 
-    st.markdown(f"""
-    <div style="
-        background: white;
-        border-radius: 14px;
-        padding: 16px 14px 14px 14px;
-        margin-bottom: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.07);
-        border-top: 4px solid {cor};
-        text-align: center;
-        min-height: 90px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 4px;
-    ">
-        <p style="margin:0; font-size:10px; color:#888; font-weight:700;
-                  text-transform:uppercase; letter-spacing:0.8px; line-height:1.3;">{label}</p>
-        <p style="margin:0; font-size:22px; font-weight:900; color:#0b2a6f; line-height:1.1;">{valor_display}</p>
-        {delta_html}
-        {tend_html}
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="background:white;border-radius:14px;padding:16px 14px 14px 14px;'
+        f'margin-bottom:10px;box-shadow:0 2px 10px rgba(0,0,0,0.07);'
+        f'border-top:4px solid {cor};text-align:center;min-height:90px;'
+        f'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;">'
+        f'<p style="margin:0;font-size:10px;color:#888;font-weight:700;'
+        f'text-transform:uppercase;letter-spacing:0.8px;line-height:1.3;">{label}</p>'
+        f'<p style="margin:0;font-size:22px;font-weight:900;color:#0b2a6f;line-height:1.1;">{valor_display}</p>'
+        f'<div style="display:flex;flex-direction:column;align-items:center;gap:3px;">{delta_html}{tend_html}</div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
 
 def exibir_card_ranking(pos, nome, valor, cor):
     icone = ["🥇","🥈","🥉","4º","5º"][pos] if pos < 3 else f"{pos+1}º"
