@@ -354,7 +354,7 @@ def definir_cor_kpi(valor_num, metrica, metas=None):
         return "#28a745" if valor_num <= m else ("#ffc107" if valor_num <= m + tol else "#dc3545")
     return "#28a745" if valor_num >= m else ("#ffc107" if valor_num >= m - tol else "#dc3545")
 
-def exibir_card(label, valor_display, cor, tendencia=None):
+def exibir_card(label, valor_display, cor, tendencia=None, valor_num=None, conf_meta=None):
     cor_bg = {
         "#28a745": "rgba(40,167,69,0.08)",
         "#ffc107": "rgba(255,193,7,0.10)",
@@ -370,6 +370,53 @@ def exibir_card(label, valor_display, cor, tendencia=None):
         tend_html = '<span style="font-size:11px; color:#aaa; font-weight:600;">● estável</span>'
     else:
         tend_html = ''
+
+    # ── Badge de distância à meta ─────────────────────────────────────────────
+    delta_html = ''
+    try:
+        if (valor_num is not None and conf_meta is not None
+                and pd.notna(float(valor_num)) and cor in ("#ffc107", "#dc3545")):
+            meta_val      = conf_meta['valor']
+            menor_melhor  = conf_meta['menor_melhor']
+            unidade       = conf_meta.get('unidade', '%')
+            v             = float(valor_num)
+            is_tma        = (unidade == ' min')
+            is_red        = (cor == "#dc3545")
+            icone         = "✗" if is_red else "△"
+            bg_badge      = "rgba(220,53,69,0.10)" if is_red else "rgba(255,193,7,0.13)"
+
+            if menor_melhor:
+                # Métrica em que MENOR é melhor (ex.: Absenteísmo, TMA Voz)
+                # → mostra quanto está ACIMA da meta
+                diff = v - meta_val
+                if diff > 0:
+                    if is_tma:
+                        mins = int(diff); secs = round((diff - mins) * 60)
+                        txt = f"{mins:02d}:{secs:02d} min acima"
+                    else:
+                        txt = f"{diff:.2f}{unidade} acima da meta"
+                    delta_html = (
+                        f'<span style="font-size:10px; color:{cor}; font-weight:700; '
+                        f'background:{bg_badge}; border-radius:20px; padding:2px 9px; '
+                        f'letter-spacing:0.3px;">{icone} {txt}</span>'
+                    )
+            else:
+                # Métrica em que MAIOR é melhor (ex.: Aderência, FCR)
+                # → mostra quanto FALTA para atingir a meta
+                diff = meta_val - v
+                if diff > 0:
+                    if is_tma:
+                        mins = int(diff); secs = round((diff - mins) * 60)
+                        txt = f"faltam {mins:02d}:{secs:02d} min"
+                    else:
+                        txt = f"faltam {diff:.2f}{unidade}"
+                    delta_html = (
+                        f'<span style="font-size:10px; color:{cor}; font-weight:700; '
+                        f'background:{bg_badge}; border-radius:20px; padding:2px 9px; '
+                        f'letter-spacing:0.3px;">{icone} {txt}</span>'
+                    )
+    except Exception:
+        pass
 
     st.markdown(f"""
     <div style="
@@ -390,6 +437,7 @@ def exibir_card(label, valor_display, cor, tendencia=None):
         <p style="margin:0; font-size:10px; color:#888; font-weight:700;
                   text-transform:uppercase; letter-spacing:0.8px; line-height:1.3;">{label}</p>
         <p style="margin:0; font-size:22px; font-weight:900; color:#0b2a6f; line-height:1.1;">{valor_display}</p>
+        {delta_html}
         {tend_html}
     </div>
     """, unsafe_allow_html=True)
@@ -1275,7 +1323,9 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
                 cols = st.columns(5)
                 for idx, (label, key) in enumerate(metricas_l1):
                     with cols[idx]:
-                        exibir_card(label, r[key], definir_cor_kpi(r[f'{key}_num'], key.replace(' ','') if key != 'TMA Voz' else 'TMA Voz', metas), tend.get(key))
+                        _meta_key = key if key == 'TMA Voz' else key.replace(' ', '')
+                        exibir_card(label, r[key], definir_cor_kpi(r[f'{key}_num'], _meta_key, metas), tend.get(key),
+                                    valor_num=r.get(f'{key}_num'), conf_meta=metas.get(key))
 
                 st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
@@ -1290,7 +1340,8 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
                 cols2 = st.columns(5)
                 for idx, (label, key) in enumerate(metricas_l2):
                     with cols2[idx]:
-                        exibir_card(label, r[key], definir_cor_kpi(r.get(f'{key}_num'), key, metas), tend.get(key))
+                        exibir_card(label, r[key], definir_cor_kpi(r.get(f'{key}_num'), key, metas), tend.get(key),
+                                    valor_num=r.get(f'{key}_num'), conf_meta=metas.get(key))
 
                 st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
@@ -1303,7 +1354,8 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
                 cols3 = st.columns(5)
                 for idx, (label, key) in enumerate(metricas_l3):
                     with cols3[idx]:
-                        exibir_card(label, r[key], definir_cor_kpi(r.get(f'{key}_num'), key, metas), tend.get(key))
+                        exibir_card(label, r[key], definir_cor_kpi(r.get(f'{key}_num'), key, metas), tend.get(key),
+                                    valor_num=r.get(f'{key}_num'), conf_meta=metas.get(key))
             else:
                 st.warning("⚠️ Matrícula não encontrada.")
 
@@ -1363,7 +1415,8 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
                 val   = _get_valor_equipe(metrica)
                 display = _fmt_equipe(metrica, val)
                 with cols1[i]:
-                    exibir_card(metrica, display, definir_cor_kpi(val, metrica, metas))
+                    exibir_card(metrica, display, definir_cor_kpi(val, metrica, metas),
+                                valor_num=val, conf_meta=metas.get(metrica))
 
             st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
@@ -1372,7 +1425,8 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
                 val   = _get_valor_equipe(metrica)
                 display = _fmt_equipe(metrica, val)
                 with cols2[i]:
-                    exibir_card(metrica, display, definir_cor_kpi(val, metrica, metas))
+                    exibir_card(metrica, display, definir_cor_kpi(val, metrica, metas),
+                                valor_num=val, conf_meta=metas.get(metrica))
 
             if row3:
                 st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
@@ -1381,7 +1435,8 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
                     val   = _get_valor_equipe(metrica)
                     display = _fmt_equipe(metrica, val)
                     with cols3[i]:
-                        exibir_card(metrica, display, definir_cor_kpi(val, metrica, metas))
+                        exibir_card(metrica, display, definir_cor_kpi(val, metrica, metas),
+                                    valor_num=val, conf_meta=metas.get(metrica))
 
             st.markdown("""
             <div style="display:flex; gap:18px; margin-top:14px; justify-content:center;">
