@@ -2298,6 +2298,418 @@ else:
             nome_sup    = st.session_state.gestor_nome
             servico_sup = st.session_state.gestor_servico
 
+            # ══════════════════════════════════════════════════
+            # TELA DE ANÁLISE DA EQUIPE
+            # ══════════════════════════════════════════════════
+            if st.session_state.get('gestor_tela') == 'analitico':
+
+                # ── Botão Voltar ──────────────────────────────
+                col_back_an, _ = st.columns([1, 5])
+                with col_back_an:
+                    st.markdown('<div class="btn-util">', unsafe_allow_html=True)
+                    if st.button("← Voltar", use_container_width=True, key="btn_voltar_analitico"):
+                        st.session_state.gestor_tela = 'logado'
+                        st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+                # ── Carrega dados ────────────────────────────
+                metas_an = carregar_metas_gestor(nome_sup, servico_sup)
+                df_an, col_op_an, col_mat_an = carregar_dados_supervisor(nome_sup, servico_sup)
+
+                # ── Header ───────────────────────────────────
+                n_ops_an = 0
+                if not df_an.empty:
+                    df_eq_an = df_an[
+                        (~df_an[col_op_an].astype(str).str.upper().str.contains(
+                            'EQUIPE|TOTAL|MÉDIA|MEDIA|SUPERVISOR', na=False)) &
+                        (~df_an[col_mat_an].astype(str).isin(MATRICULAS_BACKOFFICE))
+                    ].copy()
+                    n_ops_an = len(df_eq_an)
+
+                # Última atualização
+                ultima_an = ''
+                if not df_an.empty and 'atualizado_em' in df_an.columns:
+                    try:
+                        ts_an = pd.to_datetime(df_an['atualizado_em']).max()
+                        ts_an = ts_an.tz_convert('America/Fortaleza')
+                        ultima_an = ts_an.strftime('%d/%m/%Y às %H:%M')
+                    except Exception:
+                        pass
+
+                st.markdown(f"""
+                <div style="background:linear-gradient(135deg,#0b2a6f,#1a6fc4);
+                            border-radius:14px; padding:18px 24px; margin-bottom:20px;
+                            display:flex; align-items:center; justify-content:space-between;">
+                    <div style="display:flex; align-items:center; gap:14px;">
+                        <span style="font-size:32px;">📊</span>
+                        <div>
+                            <p style="margin:0; color:rgba(255,255,255,0.6); font-size:11px;
+                                      letter-spacing:2px; text-transform:uppercase;">Análise da Equipe</p>
+                            <p style="margin:0; color:white; font-size:18px; font-weight:900;">{nome_sup}</p>
+                            <p style="margin:0; color:rgba(255,255,255,0.65); font-size:12px;">
+                                {servico_sup} &nbsp;·&nbsp; {n_ops_an} operadores
+                            </p>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <p style="margin:0; color:rgba(255,255,255,0.45); font-size:10px;
+                                  letter-spacing:1px; text-transform:uppercase;">Última atualização</p>
+                        <p style="margin:0; color:rgba(255,255,255,0.75); font-size:12px; font-weight:700;">
+                            {ultima_an or '—'}
+                        </p>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if df_an.empty or n_ops_an == 0:
+                    st.warning("⚠️ Nenhum dado disponível. Envie as planilhas primeiro.")
+                else:
+
+                    # ── Resumo rápido ─────────────────────────
+                    METRICAS_AN = [
+                        ("Aderência",      'Aderencia',     'Aderencia'),
+                        ("Resolutividade", 'Resolutividade','Resolutividade'),
+                        ("TMA Voz",        'TMA Voz',       'TMA Voz'),
+                        ("Pesquisa",       'Pesquisa',      'Pesquisa'),
+                        ("Silêncio",       'Silencio',      'Silencio'),
+                        ("Absenteísmo",    'Absenteismo',   'Absenteismo'),
+                        ("Produtividade",  'Produtividade', 'Produtividade'),
+                        ("Transf",         'Transf',        'Transf'),
+                        ("ShortCall",      'ShortCall',     'ShortCall'),
+                        ("Pausa Total",    'Pausa Total',   'Pausa Total'),
+                        ("FCR",            'FCR',           'FCR'),
+                        ("Direcionado",    'Direcionado',   'Direcionado'),
+                        ("Rechamada",      'Rechamada',     'Rechamada'),
+                    ]
+
+                    def _cor_op_an(row):
+                        """Retorna cor predominante de um operador (pior status encontrado)."""
+                        cores = [
+                            definir_cor_kpi(row.get(f'{col}_num'), meta, metas_an)
+                            for _, col, meta in METRICAS_AN
+                        ]
+                        if "#dc3545" in cores: return "#dc3545"
+                        if "#ffc107" in cores: return "#ffc107"
+                        return "#28a745"
+
+                    n_ok  = sum(1 for _, r in df_eq_an.iterrows() if _cor_op_an(r) == "#28a745")
+                    n_atc = sum(1 for _, r in df_eq_an.iterrows() if _cor_op_an(r) == "#ffc107")
+                    n_out = sum(1 for _, r in df_eq_an.iterrows() if _cor_op_an(r) == "#dc3545")
+
+                    rs1, rs2, rs3, rs4 = st.columns(4)
+                    with rs1:
+                        exibir_card("👥 Operadores", str(n_ops_an), "#1a6fc4")
+                    with rs2:
+                        exibir_card("✅ Na Meta", f"{n_ok}/{n_ops_an}", "#28a745")
+                    with rs3:
+                        exibir_card("⚠️ Atenção", f"{n_atc}/{n_ops_an}", "#ffc107")
+                    with rs4:
+                        exibir_card("❌ Fora da Meta", f"{n_out}/{n_ops_an}", "#dc3545")
+
+                    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+
+                    # ── Abas ─────────────────────────────────
+                    if 'analitico_aba' not in st.session_state:
+                        st.session_state.analitico_aba = 'Ranking'
+
+                    ca1, ca2 = st.columns(2)
+                    if ca1.button("🏆 Ranking por Métrica", use_container_width=True, key="btn_an_rank"):
+                        st.session_state.analitico_aba = 'Ranking'; st.rerun()
+                    if ca2.button("👤 Cards por Operador",   use_container_width=True, key="btn_an_cards"):
+                        st.session_state.analitico_aba = 'Cards';   st.rerun()
+
+                    # JS destaca aba ativa (reutiliza padrão do sistema)
+                    _aba_an_js = st.session_state.analitico_aba
+                    st.components.v1.html(f"""
+                    <script>
+                    (function() {{
+                        function markActive() {{
+                            var btns = window.parent.document.querySelectorAll('button[kind="secondary"]');
+                            var mapa = {{"Ranking": "🏆 Ranking por Métrica", "Cards": "👤 Cards por Operador"}};
+                            var labelAtivo = mapa["{_aba_an_js}"] || "";
+                            btns.forEach(function(b) {{
+                                var txt = b.innerText.trim();
+                                if (txt === labelAtivo) {{
+                                    b.style.setProperty("border","2px solid #1a6fc4","important");
+                                    b.style.setProperty("border-bottom","3px solid #1a6fc4","important");
+                                    b.style.setProperty("color","#0b2a6f","important");
+                                    b.style.setProperty("font-weight","700","important");
+                                    b.style.setProperty("background","white","important");
+                                    b.style.setProperty("box-shadow","none","important");
+                                }} else {{
+                                    b.style.setProperty("border","2px solid #e2e8f0","important");
+                                    b.style.setProperty("color","#4a5568","important");
+                                    b.style.setProperty("background","white","important");
+                                    b.style.setProperty("box-shadow","none","important");
+                                }}
+                            }});
+                        }}
+                        setTimeout(markActive, 80);
+                        setTimeout(markActive, 350);
+                        setTimeout(markActive, 800);
+                    }})();
+                    </script>
+                    """, height=0)
+
+                    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
+                    # ════════════════════════════════
+                    # ABA: RANKING
+                    # ════════════════════════════════
+                    if st.session_state.analitico_aba == 'Ranking':
+
+                        col_sel_an, _ = st.columns([2, 3])
+                        with col_sel_an:
+                            metrica_an = st.selectbox(
+                                "Selecionar métrica:",
+                                [m for _, _, m in METRICAS_AN],
+                                format_func=lambda m: next(
+                                    (lbl for lbl, _, mk in METRICAS_AN if mk == m), m
+                                ),
+                                key="sel_metrica_an"
+                            )
+
+                        col_num_an  = f'{metrica_an}_num'
+                        conf_an     = metas_an.get(metrica_an, METAS_BASE.get(metrica_an, {}))
+                        menor_an    = conf_an.get('menor_melhor', False)
+
+                        df_rank_an = df_eq_an.dropna(subset=[col_num_an]).sort_values(
+                            by=col_num_an, ascending=menor_an
+                        ).reset_index(drop=True)
+
+                        # Label do display para a métrica selecionada
+                        label_metrica_an = next(
+                            (lbl for lbl, col, mk in METRICAS_AN if mk == metrica_an), metrica_an
+                        )
+                        col_display_an = next(
+                            (col for _, col, mk in METRICAS_AN if mk == metrica_an), metrica_an
+                        )
+
+                        if df_rank_an.empty:
+                            st.info("Sem dados suficientes para esta métrica.")
+                        else:
+                            # ── PÓDIO TOP 3 ────────────────────────────
+                            top3_an = list(df_rank_an.head(3).iterrows())
+                            medalhas_an = [
+                                {"emoji": "🥇", "label": "1º lugar", "cor": "#FFD700", "bg": "#fffbe6", "h": "170px", "fs": "28px"},
+                                {"emoji": "🥈", "label": "2º lugar", "cor": "#C0C0C0", "bg": "#f7f7f7", "h": "138px", "fs": "22px"},
+                                {"emoji": "🥉", "label": "3º lugar", "cor": "#CD7F32", "bg": "#fff5ee", "h": "118px", "fs": "20px"},
+                            ]
+                            ordem_an = [1, 0, 2] if len(top3_an) >= 3 else list(range(len(top3_an)))
+
+                            st.markdown(f"""
+                            <p style="color:#888; font-size:13px; font-weight:600;
+                                      margin:4px 0 18px 0; text-align:center;">
+                                🏆 Melhores performers — <b>{label_metrica_an}</b>
+                            </p>
+                            """, unsafe_allow_html=True)
+
+                            cols_top_an = st.columns(3)
+                            for ci, ri in enumerate(ordem_an):
+                                if ri >= len(top3_an):
+                                    continue
+                                _, row_r = top3_an[ri]
+                                m_an = medalhas_an[ri]
+                                cor_kpi_r = definir_cor_kpi(row_r.get(col_num_an), metrica_an, metas_an)
+                                nome_r    = str(row_r.get(col_op_an, ''))
+                                mat_r     = str(row_r.get(col_mat_an, ''))
+                                val_r     = row_r.get(col_display_an, '---')
+                                primeiro_nome = nome_r.split()[0] if nome_r.strip() else f'Mat.{mat_r}'
+
+                                with cols_top_an[ci]:
+                                    st.markdown(f"""
+                                    <div style="background:{m_an['bg']}; border-radius:18px;
+                                                border:2px solid {m_an['cor']}; padding:20px 12px;
+                                                text-align:center; min-height:{m_an['h']};
+                                                display:flex; flex-direction:column;
+                                                align-items:center; justify-content:center; gap:6px;
+                                                box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+                                        <p style="margin:0; font-size:38px; line-height:1;">{m_an['emoji']}</p>
+                                        <p style="margin:0; font-size:10px; color:#999; font-weight:700;
+                                                  text-transform:uppercase; letter-spacing:1.5px;">{m_an['label']}</p>
+                                        <p style="margin:0; font-size:15px; font-weight:900; color:#1f3a5f;">{primeiro_nome}</p>
+                                        <p style="margin:0; font-size:10px; color:#bbb;">Mat. {mat_r}</p>
+                                        <p style="margin:0; font-size:{m_an['fs']}; font-weight:900; color:{cor_kpi_r};">{val_r}</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+
+                            # ── ZONA DE ATENÇÃO ─────────────────────────
+                            if len(df_rank_an) > 3:
+                                st.markdown("<div style='height:22px'></div>", unsafe_allow_html=True)
+                                st.markdown("""
+                                <p style="color:#dc3545; font-size:13px; font-weight:700;
+                                          margin:0 0 14px 0; text-align:center;">
+                                    ⚠️ Zona de Atenção — Precisam de feedback
+                                </p>
+                                """, unsafe_allow_html=True)
+
+                                bottom3_an = list(df_rank_an.tail(3).iloc[::-1].iterrows())
+                                icones_b   = ["🔴", "🟡", "🟠"]
+                                posicoes_b = [
+                                    f"{len(df_rank_an)}º",
+                                    f"{len(df_rank_an)-1}º",
+                                    f"{len(df_rank_an)-2}º",
+                                ]
+                                cols_bot_an = st.columns(3)
+                                for bi, (_, row_b) in enumerate(bottom3_an):
+                                    cor_b     = definir_cor_kpi(row_b.get(col_num_an), metrica_an, metas_an)
+                                    nome_b    = str(row_b.get(col_op_an, ''))
+                                    mat_b     = str(row_b.get(col_mat_an, ''))
+                                    val_b     = row_b.get(col_display_an, '---')
+                                    pnome_b   = nome_b.split()[0] if nome_b.strip() else f'Mat.{mat_b}'
+
+                                    with cols_bot_an[bi]:
+                                        st.markdown(f"""
+                                        <div style="background:rgba(220,53,69,0.05); border-radius:14px;
+                                                    border:2px dashed rgba(220,53,69,0.35); padding:16px 12px;
+                                                    text-align:center; min-height:120px;
+                                                    display:flex; flex-direction:column;
+                                                    align-items:center; justify-content:center; gap:5px;">
+                                            <p style="margin:0; font-size:10px; color:#dc3545; font-weight:700;
+                                                      text-transform:uppercase; letter-spacing:1.5px;">{posicoes_b[bi]} lugar</p>
+                                            <p style="margin:0; font-size:14px; font-weight:900; color:#1f3a5f;">{pnome_b}</p>
+                                            <p style="margin:0; font-size:10px; color:#bbb;">Mat. {mat_b}</p>
+                                            <p style="margin:0; font-size:24px; font-weight:900; color:{cor_b};">{val_b}</p>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+
+                            # ── TABELA COMPLETA ─────────────────────────
+                            st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+                            st.markdown(f"""
+                            <p style="font-size:13px; color:#666; font-weight:600; margin-bottom:8px;">
+                                📋 Ranking completo — {label_metrica_an}
+                                ({len(df_rank_an)} operadores)
+                            </p>
+                            """, unsafe_allow_html=True)
+
+                            tabela_rank_an = []
+                            for pos_r, (_, row_t) in enumerate(df_rank_an.iterrows(), 1):
+                                cor_t    = definir_cor_kpi(row_t.get(col_num_an), metrica_an, metas_an)
+                                status_t = "🟢 Meta" if cor_t == "#28a745" else (
+                                           "🟡 Atenção" if cor_t == "#ffc107" else "🔴 Fora")
+                                tabela_rank_an.append({
+                                    "#":         pos_r,
+                                    "Nome":      str(row_t.get(col_op_an, '')),
+                                    "Matrícula": str(row_t.get(col_mat_an, '')),
+                                    label_metrica_an: str(row_t.get(col_display_an, '---')),
+                                    "Status":    status_t,
+                                })
+
+                            if tabela_rank_an:
+                                st.dataframe(
+                                    pd.DataFrame(tabela_rank_an),
+                                    use_container_width=True,
+                                    hide_index=True
+                                )
+
+                    # ════════════════════════════════
+                    # ABA: CARDS POR OPERADOR
+                    # ════════════════════════════════
+                    elif st.session_state.analitico_aba == 'Cards':
+
+                        # Filtro de status
+                        col_filtro, _ = st.columns([2, 3])
+                        with col_filtro:
+                            filtro_an = st.selectbox(
+                                "Filtrar por status:",
+                                ["Todos os operadores", "❌ Fora da Meta", "⚠️ Em Atenção", "✅ Na Meta"],
+                                key="filtro_status_an"
+                            )
+
+                        # Aplica filtro
+                        def _status_op(row):
+                            c = _cor_op_an(row)
+                            if c == "#dc3545": return "❌ Fora da Meta"
+                            if c == "#ffc107": return "⚠️ Em Atenção"
+                            return "✅ Na Meta"
+
+                        df_filtrado_an = df_eq_an.copy()
+                        if filtro_an != "Todos os operadores":
+                            df_filtrado_an = df_filtrado_an[
+                                df_filtrado_an.apply(_status_op, axis=1) == filtro_an
+                            ]
+
+                        st.markdown(f"""
+                        <p style="color:#888; font-size:13px; margin:4px 0 14px 0;">
+                            Exibindo <b>{len(df_filtrado_an)}</b> de {n_ops_an} operadores
+                        </p>
+                        """, unsafe_allow_html=True)
+
+                        if df_filtrado_an.empty:
+                            st.info("Nenhum operador neste filtro.")
+                        else:
+                            for _, row_card in df_filtrado_an.iterrows():
+                                nome_card = str(row_card.get(col_op_an, ''))
+                                mat_card  = str(row_card.get(col_mat_an, ''))
+
+                                # Badge de status
+                                alertas_c = sum(
+                                    1 for _, col_d, meta_k in METRICAS_AN
+                                    if definir_cor_kpi(row_card.get(f'{col_d}_num'), meta_k, metas_an) == "#dc3545"
+                                )
+                                atcoes_c = sum(
+                                    1 for _, col_d, meta_k in METRICAS_AN
+                                    if definir_cor_kpi(row_card.get(f'{col_d}_num'), meta_k, metas_an) == "#ffc107"
+                                )
+
+                                if alertas_c > 0:
+                                    badge_c = f'<span style="background:#dc3545;color:white;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">❌ {alertas_c} fora da meta</span>'
+                                    icon_exp = "🔴"
+                                elif atcoes_c > 0:
+                                    badge_c = f'<span style="background:#ffc107;color:#7a4f00;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">⚠️ {atcoes_c} em atenção</span>'
+                                    icon_exp = "🟡"
+                                else:
+                                    badge_c = '<span style="background:#28a745;color:white;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">✅ Tudo OK</span>'
+                                    icon_exp = "🟢"
+
+                                primeiro_nome_c = nome_card.split()[0] if nome_card.strip() else nome_card
+                                label_exp = f"{icon_exp}  {nome_card}  ·  Mat. {mat_card}"
+
+                                with st.expander(label_exp, expanded=(alertas_c > 0)):
+                                    st.markdown(f"""
+                                    <div style="margin-bottom:12px;">{badge_c}</div>
+                                    """, unsafe_allow_html=True)
+
+                                    # Linha 1 — 5 métricas
+                                    row1_an = METRICAS_AN[:5]
+                                    row2_an = METRICAS_AN[5:10]
+                                    row3_an = METRICAS_AN[10:]
+
+                                    cols_c1 = st.columns(5)
+                                    for idx_c, (lbl_c, col_d_c, meta_k_c) in enumerate(row1_an):
+                                        with cols_c1[idx_c]:
+                                            val_c  = row_card.get(col_d_c, '---')
+                                            num_c  = row_card.get(f'{col_d_c}_num')
+                                            cor_c  = definir_cor_kpi(num_c, meta_k_c, metas_an)
+                                            exibir_card(lbl_c, val_c, cor_c,
+                                                        valor_num=num_c,
+                                                        conf_meta=metas_an.get(meta_k_c))
+
+                                    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+                                    cols_c2 = st.columns(5)
+                                    for idx_c, (lbl_c, col_d_c, meta_k_c) in enumerate(row2_an):
+                                        with cols_c2[idx_c]:
+                                            val_c  = row_card.get(col_d_c, '---')
+                                            num_c  = row_card.get(f'{col_d_c}_num')
+                                            cor_c  = definir_cor_kpi(num_c, meta_k_c, metas_an)
+                                            exibir_card(lbl_c, val_c, cor_c,
+                                                        valor_num=num_c,
+                                                        conf_meta=metas_an.get(meta_k_c))
+
+                                    if row3_an:
+                                        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+                                        cols_c3 = st.columns(5)
+                                        for idx_c, (lbl_c, col_d_c, meta_k_c) in enumerate(row3_an):
+                                            with cols_c3[idx_c]:
+                                                val_c  = row_card.get(col_d_c, '---')
+                                                num_c  = row_card.get(f'{col_d_c}_num')
+                                                cor_c  = definir_cor_kpi(num_c, meta_k_c, metas_an)
+                                                exibir_card(lbl_c, val_c, cor_c,
+                                                            valor_num=num_c,
+                                                            conf_meta=metas_an.get(meta_k_c))
+
+                st.stop()
+
             # Banner do gestor logado
             st.markdown(f"""
             <div style="background:linear-gradient(135deg,#0b2a6f,#1a6fc4);
@@ -2316,15 +2728,19 @@ else:
             </div>
             """, unsafe_allow_html=True)
 
-            # Botões alterar senha + configurar metas
-            col_alt, col_metas_btn, _ = st.columns([1, 1, 3])
-            if col_alt.button("🔑 Alterar senha"):
+            # Botões alterar senha + configurar metas + análise
+            col_alt, col_metas_btn, col_analitico, _ = st.columns([1, 1, 1, 2])
+            if col_alt.button("🔑 Alterar senha", use_container_width=True):
                 st.session_state.gestor_tela = 'alterar_senha'
                 st.session_state.gestor_logado = False
                 st.rerun()
-            if col_metas_btn.button("🎯 Configurar Metas"):
+            if col_metas_btn.button("🎯 Configurar Metas", use_container_width=True):
                 st.session_state.gestor_tela = 'configurar_metas'
                 st.session_state.gestor_logado = False
+                st.rerun()
+            if col_analitico.button("📊 Análise da Equipe", use_container_width=True):
+                st.session_state.gestor_tela = 'analitico'
+                st.session_state.analitico_aba = 'Ranking'
                 st.rerun()
 
             st.divider()
