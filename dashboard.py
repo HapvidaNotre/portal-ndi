@@ -354,6 +354,23 @@ def definir_cor_kpi(valor_num, metrica, metas=None):
         return "#28a745" if valor_num <= m else ("#ffc107" if valor_num <= m + tol else "#dc3545")
     return "#28a745" if valor_num >= m else ("#ffc107" if valor_num >= m - tol else "#dc3545")
 
+def _formatar_meta(conf_meta):
+    """Retorna a string formatada do valor-meta para exibição no card."""
+    if conf_meta is None:
+        return None
+    val     = conf_meta['valor']
+    unidade = conf_meta.get('unidade', '%')
+    if unidade == ' min':          # TMA Voz — converte minutos em HH:MM:SS
+        total_sec = round(float(val) * 60)
+        h = total_sec // 3600
+        m = (total_sec % 3600) // 60
+        s = total_sec % 60
+        return f"{h:02d}:{m:02d}:{s:02d}"
+    elif unidade == '':            # Pesquisa (sem unidade)
+        return f"{val:.2f}"
+    else:
+        return f"{val:.2f}{unidade}"
+
 def exibir_card(label, valor_display, cor, tendencia=None, valor_num=None, conf_meta=None):
     cor_bg = {
         "#28a745": "rgba(40,167,69,0.08)",
@@ -362,14 +379,18 @@ def exibir_card(label, valor_display, cor, tendencia=None, valor_num=None, conf_
         "#999":    "rgba(150,150,150,0.07)",
     }.get(cor, "rgba(150,150,150,0.07)")
 
-    if tendencia == 'good':
-        tend_html = '<span style="font-size:11px; color:#28a745; font-weight:700;">▲ subindo</span>'
-    elif tendencia == 'bad':
-        tend_html = '<span style="font-size:11px; color:#dc3545; font-weight:700;">▼ caindo</span>'
-    elif tendencia == 'stable':
-        tend_html = '<span style="font-size:11px; color:#aaa; font-weight:600;">● estável</span>'
-    else:
-        tend_html = ''
+    # ── Tendência: direção real + cor baseada em bom/ruim ────────────────────
+    _TEND_MAP = {
+        'good_up':   '<span style="font-size:11px; color:#28a745; font-weight:700;">▲ subindo</span>',
+        'good_down': '<span style="font-size:11px; color:#28a745; font-weight:700;">▼ caindo</span>',
+        'bad_up':    '<span style="font-size:11px; color:#dc3545; font-weight:700;">▲ subindo</span>',
+        'bad_down':  '<span style="font-size:11px; color:#dc3545; font-weight:700;">▼ caindo</span>',
+        # compatibilidade com valores legados
+        'good':   '<span style="font-size:11px; color:#28a745; font-weight:700;">▲ subindo</span>',
+        'bad':    '<span style="font-size:11px; color:#dc3545; font-weight:700;">▼ caindo</span>',
+        'stable': '<span style="font-size:11px; color:#aaa; font-weight:600;">● estável</span>',
+    }
+    tend_html = _TEND_MAP.get(tendencia, '')
 
     # ── Badge de distância à meta ─────────────────────────────────────────────
     delta_html = ''
@@ -418,6 +439,13 @@ def exibir_card(label, valor_display, cor, tendencia=None, valor_num=None, conf_
     except Exception:
         pass
 
+    # ── Badge da meta ─────────────────────────────────────────────────────────
+    meta_str  = _formatar_meta(conf_meta)
+    meta_html = (
+        f'<p style="margin:2px 0 0 0;font-size:10px;color:#aaa;font-weight:600;">'
+        f'🎯 Meta: {meta_str}</p>'
+    ) if meta_str else ''
+
     st.markdown(
         f'<div style="background:white;border-radius:14px;padding:16px 14px 14px 14px;'
         f'margin-bottom:10px;box-shadow:0 2px 10px rgba(0,0,0,0.07);'
@@ -426,6 +454,7 @@ def exibir_card(label, valor_display, cor, tendencia=None, valor_num=None, conf_
         f'<p style="margin:0;font-size:10px;color:#888;font-weight:700;'
         f'text-transform:uppercase;letter-spacing:0.8px;line-height:1.3;">{label}</p>'
         f'<p style="margin:0;font-size:22px;font-weight:900;color:#0b2a6f;line-height:1.1;">{valor_display}</p>'
+        f'{meta_html}'
         f'<div style="display:flex;flex-direction:column;align-items:center;gap:3px;">{delta_html}{tend_html}</div>'
         f'</div>',
         unsafe_allow_html=True
@@ -1039,8 +1068,10 @@ def buscar_tendencias(matricula: str, supervisor: str, servico: str) -> dict:
                     tendencias[metrica] = 'stable'
                 else:
                     menor_melhor = METAS_BASE[metrica]['menor_melhor']
-                    subiu = diff > 0
-                    tendencias[metrica] = 'good' if (subiu != menor_melhor) else 'bad'
+                    subiu   = diff > 0
+                    is_good = (subiu != menor_melhor)
+                    direcao = 'up' if subiu else 'down'
+                    tendencias[metrica] = f"{'good' if is_good else 'bad'}_{direcao}"
             except Exception:
                 pass
 
