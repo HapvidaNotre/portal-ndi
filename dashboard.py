@@ -644,6 +644,48 @@ def upsert_supabase(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool
     return True
 
 # ---------- UPSERT FCR/DIRECIONADO ----------
+def zerar_hierarquia_gestor(supervisor: str, servico: str) -> tuple[bool, int]:
+    """
+    Remove todos os registros de performance_operadores para o supervisor/serviço
+    informado. Retorna (sucesso, qtd_removida).
+    Também limpa o histórico correspondente.
+    """
+    try:
+        supabase = conectar_supabase()
+
+        # Conta antes de deletar para informar o gestor
+        res_count = (
+            supabase.table("performance_operadores")
+            .select("matricula", count="exact")
+            .eq("supervisor", supervisor)
+            .eq("servico", servico)
+            .execute()
+        )
+        qtd = res_count.count if res_count.count is not None else 0
+
+        # Deleta da tabela principal
+        supabase.table("performance_operadores") \
+            .delete() \
+            .eq("supervisor", supervisor) \
+            .eq("servico", servico) \
+            .execute()
+
+        # Deleta do histórico também
+        supabase.table("performance_historico") \
+            .delete() \
+            .eq("supervisor", supervisor) \
+            .eq("servico", servico) \
+            .execute()
+
+        # Limpa o cache de dados do supervisor
+        carregar_dados_supervisor.clear()
+
+        return True, qtd
+    except Exception as e:
+        st.error(f"Erro ao zerar hierarquia: {e}")
+        return False, 0
+
+
 def upsert_supabase_fcr(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool:
     """Lê arquivo de FCR e atualiza colunas fcr e direcionado no Supabase.
     
@@ -2759,8 +2801,8 @@ else:
             </div>
             """, unsafe_allow_html=True)
 
-            # Botões alterar senha + configurar metas + análise
-            col_alt, col_metas_btn, col_analitico, _ = st.columns([1, 1, 1, 2])
+            # Botões alterar senha + configurar metas + análise + atualizar equipe
+            col_alt, col_metas_btn, col_analitico, col_atualizar = st.columns([1, 1, 1, 1])
             if col_alt.button("🔑 Alterar senha", use_container_width=True):
                 st.session_state.gestor_tela = 'alterar_senha'
                 st.session_state.gestor_logado = False
@@ -2773,6 +2815,38 @@ else:
                 st.session_state.gestor_tela = 'analitico'
                 st.session_state.analitico_aba = 'Ranking'
                 st.rerun()
+            if col_atualizar.button("🔄 Atualizar Equipe", use_container_width=True):
+                st.session_state['confirmar_zerar_equipe'] = True
+                st.rerun()
+
+            # ── Confirmação: zerar hierarquia ─────────────────────
+            if st.session_state.get('confirmar_zerar_equipe'):
+                st.markdown("""
+                <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:12px;
+                            padding:16px 20px; margin:12px 0;">
+                    <p style="margin:0 0 6px 0; font-size:14px; font-weight:800; color:#856404;">
+                        ⚠️ Atenção: esta ação irá apagar toda a hierarquia atual
+                    </p>
+                    <p style="margin:0; font-size:13px; color:#664d03;">
+                        Todos os operadores e métricas vinculados à sua equipe serão removidos do sistema.
+                        Após confirmar, envie a nova planilha de <b>Métricas Gerais</b> para recarregar a equipe atualizada.
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+                col_conf, col_canc, _ = st.columns([1, 1, 3])
+                if col_conf.button("✅ Confirmar e Zerar", use_container_width=True, type="primary"):
+                    with st.spinner("Zerando hierarquia..."):
+                        ok, qtd = zerar_hierarquia_gestor(nome_sup, servico_sup)
+                    st.session_state.pop('confirmar_zerar_equipe', None)
+                    if ok:
+                        st.success(
+                            f"✅ Hierarquia zerada! **{qtd} registro(s)** removido(s). "
+                            f"Agora envie a nova planilha de Métricas Gerais abaixo."
+                        )
+                        st.rerun()
+                if col_canc.button("❌ Cancelar", use_container_width=True):
+                    st.session_state.pop('confirmar_zerar_equipe', None)
+                    st.rerun()
 
             st.divider()
 
