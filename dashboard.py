@@ -290,14 +290,16 @@ _MAP_COLUNAS_BI = {
     '% direcionado':       'direcionado',
     '% direcionadas':      'direcionado',
     'direcionadas':        'direcionado',
-    # Pausas — colunas de % têm prioridade sobre colunas de tempo (HH:MM:SS)
-    '% pausa produtiva':   'pausa_produtiva',
-    'pausa produtiva':     'pausa_produtiva',
-    'pausas produtivas':   'pausa_produtiva',
-    '% pausa improdutiva': 'pausa_improdutiva',
-    'pausa improdutiva':   'pausa_improdutiva',
-    'pausas improdutivas': 'pausa_improdutiva',
-    'pausa total':         'pausa_total',
+    # Pausas — colunas de % têm prioridade sobre colunas de quantidade
+    '(%) pausa produtiva':   'pausa_produtiva',
+    '% pausa produtiva':     'pausa_produtiva',
+    'pausa produtiva':       'pausa_produtiva',
+    'pausas produtivas':     'pausa_produtiva',
+    '(%) pausa improdutiva': 'pausa_improdutiva',
+    '% pausa improdutiva':   'pausa_improdutiva',
+    'pausa improdutiva':     'pausa_improdutiva',
+    'pausas improdutivas':   'pausa_improdutiva',
+    'pausa total':           'pausa_total',
 }
 
 # ---------- METAS — Supabase CRUD ----------
@@ -508,10 +510,11 @@ def _converter_tma(val):
 
 # ---------- UPSERT SUPABASE ----------
 # Colunas do BI que vêm como frações decimais (0.0–1.0) e precisam virar %
+# Apenas colunas de PERCENTUAL — colunas de quantidade (Pausas Produtivas/Improdutivas) ficam de fora
 _COLUNAS_FRACAO = {
     'aderencia (%)', '(%) aderencia',
-    '% pausa improdutiva', '(%) pausa improdutiva', 'pausas improdutivas',
-    '% pausa produtiva', '(%) pausa produtiva', 'pausas produtivas',
+    '(%) pausa improdutiva', '% pausa improdutiva',
+    '(%) pausa produtiva',   '% pausa produtiva',
     'absenteismo', '(%) absenteismo',
     'produtividade', '(%) produtividade',
     'transf', '(%) transf',
