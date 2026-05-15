@@ -1086,10 +1086,18 @@ def upsert_supabase_iq(df_raw: pd.DataFrame, supervisor: str, servico: str) -> b
         seen[key] = rec
     registros = list(seen.values())
 
-    supabase.table("performance_operadores").upsert(
-        registros,
-        on_conflict="matricula,supervisor,servico"
-    ).execute()
+    # Usa UPDATE individual para não sobrescrever outras colunas (aderencia, tma, etc.)
+    erros = 0
+    for rec in registros:
+        try:
+            supabase.table("performance_operadores").update(
+                {'iq': rec['iq'], 'atualizado_em': rec['atualizado_em']}
+            ).eq("matricula", rec['matricula'])              .eq("supervisor", rec['supervisor'])              .eq("servico",    rec['servico'])              .execute()
+        except Exception:
+            erros += 1
+
+    if erros:
+        st.warning(f"⚠️ {erros} registro(s) de IQ não puderam ser atualizados.")
 
     carregar_dados_supervisor.clear()
     return True
@@ -2396,6 +2404,7 @@ else:
                         'Produtividade':  ('⚡ Produtividade',   False, '%'),
                         'Transf':         ('🔁 Transferência',   False, '%'),
                         'ShortCall':      ('📵 ShortCall',       True,  '%'),
+                        'IQ':             ('🎓 IQ (Monitoria)',  False, ''),
                     }
 
                     novos_valores = {}
