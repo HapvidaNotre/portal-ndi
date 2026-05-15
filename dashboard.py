@@ -244,6 +244,7 @@ METAS_BASE = {
     'FCR':           {'valor': 80.0,  'margem': 5.0, 'menor_melhor': False, 'unidade': '%'},
     'Direcionado':   {'valor': 20.0,  'margem': 5.0, 'menor_melhor': True,  'unidade': '%'},
     'Rechamada':     {'valor': 15.0,  'margem': 3.0, 'menor_melhor': True,  'unidade': '%'},
+    'IQ':            {'valor': 80.0,  'margem': 5.0, 'menor_melhor': False, 'unidade': ''},
 }
 
 MATRICULAS_BACKOFFICE = ['1211819','1210820','1210724','1211110','1211213','1214016','10115858','1212492','1028483']
@@ -982,6 +983,117 @@ def upsert_supabase_rechamada(df_raw: pd.DataFrame, supervisor: str, servico: st
     carregar_dados_supervisor.clear()
     return True
 
+
+# ---------- UPSERT IQ (MONITORIA) ----------
+def upsert_supabase_iq(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool:
+    """Lê planilha de Detalhamento Operacional e atualiza coluna iq no Supabase.
+    
+    O cruzamento é feito pelo NOME do operador (coluna OPERADOR),
+    usando o mesmo padrão do FCR: busca matrícula no banco pelo nome normalizado.
+    """
+    supabase = conectar_supabase()
+
+    df_raw = df_raw.copy()
+    df_raw.columns = [str(c).strip() for c in df_raw.columns]
+
+    # Detecta colunas OPERADOR e IQ de forma flexível
+    operador_col = iq_col = None
+    for col in df_raw.columns:
+        cl = col.lower().strip()
+        if cl == 'operador':
+            operador_col = col
+        if cl == 'iq':
+            iq_col = col
+
+    if not operador_col or not iq_col:
+        st.error(
+            "Colunas obrigatórias não encontradas no arquivo de IQ. "
+            f"Esperado: 'OPERADOR' e 'IQ'. Encontrado: {list(df_raw.columns)}"
+        )
+        return False
+
+    # Busca mapa Nome → Matrícula dos registros já no Supabase
+    res = (
+        supabase.table("performance_operadores")
+        .select("matricula,operador")
+        .eq("supervisor", supervisor)
+        .eq("servico", servico)
+        .execute()
+    )
+
+    def _norm_nome(s):
+        return str(s).upper().strip()
+
+    nome_to_mat = {}
+    if res.data:
+        for r in res.data:
+            if r.get('operador') and r.get('matricula'):
+                nome_to_mat[_norm_nome(r['operador'])] = r['matricula']
+
+    if not nome_to_mat:
+        st.error(
+            "⚠️ Nenhum dado do BI encontrado para esta equipe. "
+            "Envie a planilha de **Métricas Gerais** antes de enviar o IQ."
+        )
+        return False
+
+    import math as _math
+
+    registros = []
+    nao_encontrados = []
+
+    for _, row in df_raw.iterrows():
+        nome = _norm_nome(row.get(operador_col, ''))
+        # Ignora linhas de totais/subtotais
+        if not nome or nome in ('', 'NAN', 'NONE') or any(t in nome for t in ('TOTAL', 'EQUIPE', 'MÉDIA', 'MEDIA')):
+            continue
+
+        mat = nome_to_mat.get(nome)
+        if not mat:
+            nao_encontrados.append(nome)
+            continue
+
+        iq_val = _limpar_num(row.get(iq_col))
+        if iq_val is not None:
+            if _math.isnan(iq_val) or _math.isinf(iq_val):
+                iq_val = None
+            else:
+                iq_val = round(iq_val, 2)
+
+        rec = {
+            'matricula':     mat,
+            'supervisor':    supervisor,
+            'servico':       servico,
+            'iq':            iq_val,
+            'atualizado_em': pd.Timestamp.now(tz='UTC').isoformat(),
+        }
+        registros.append(rec)
+
+    if nao_encontrados:
+        st.warning(
+            f"⚠️ {len(nao_encontrados)} operador(es) do IQ não encontrado(s) na planilha do BI: "
+            f"{', '.join(nao_encontrados[:5])}{'...' if len(nao_encontrados) > 5 else ''}"
+        )
+
+    if not registros:
+        st.warning("Nenhum registro de IQ pôde ser vinculado. Verifique se a planilha do BI foi enviada primeiro.")
+        return False
+
+    # Deduplica
+    seen = {}
+    for rec in registros:
+        key = (rec.get('matricula'), rec.get('supervisor'), rec.get('servico'))
+        seen[key] = rec
+    registros = list(seen.values())
+
+    supabase.table("performance_operadores").upsert(
+        registros,
+        on_conflict="matricula,supervisor,servico"
+    ).execute()
+
+    carregar_dados_supervisor.clear()
+    return True
+
 @st.cache_data(ttl=60)
 def carregar_dados_supervisor(supervisor: str, servico: str):
     """Lê dados do Supabase para o supervisor/serviço e retorna df no padrão do sistema."""
@@ -1019,6 +1131,7 @@ def carregar_dados_supervisor(supervisor: str, servico: str):
         'fcr':               'FCR_num',
         'direcionado':       'Direcionado_num',
         'rechamada':         'Rechamada_num',
+        'iq':               'IQ_num',
     })
 
     # Coerce todas as colunas _num para float (Supabase pode retornar como object/string)
@@ -1061,7 +1174,7 @@ def buscar_tendencias(matricula: str, supervisor: str, servico: str) -> dict:
         res = (
             supabase.table("performance_historico")
             .select("upload_date,aderencia,resolutividade,tma_voz,pesquisa,silencio,"
-                    "absenteismo,produtividade,transf,shortcall,pausa_total")
+                    "absenteismo,produtividade,transf,shortcall,pausa_total,iq")
             .eq("matricula", mat_clean)
             .eq("supervisor", supervisor)
             .eq("servico", servico)
@@ -1097,6 +1210,7 @@ def buscar_tendencias(matricula: str, supervisor: str, servico: str) -> dict:
             'FCR':            'fcr',
             'Direcionado':    'direcionado',
             'Rechamada':      'rechamada',
+            'IQ':             'iq',
         }
 
         tendencias = {}
@@ -1410,11 +1524,12 @@ def exibir_painel(df, col_op, col_mat, chave_aba="aba_ativa", mat_operador=None,
 
                 st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
-                # Linha 3 — FCR, Direcionado e Rechamada
+                # Linha 3 — FCR, Direcionado, Rechamada e IQ
                 metricas_l3 = [
                     ("FCR (1° Contato)", 'FCR'),
                     ("Direcionado",      'Direcionado'),
                     ("Rechamada",        'Rechamada'),
+                    ("IQ (Monitoria)",   'IQ'),
                 ]
                 cols3 = st.columns(5)
                 for idx, (label, key) in enumerate(metricas_l3):
@@ -2853,8 +2968,8 @@ else:
 
             st.divider()
 
-            # ── Três uploaders rotulados ────────────────────────────
-            col_up1, col_up2, col_up3 = st.columns(3)
+            # ── Quatro uploaders rotulados ────────────────────────────
+            col_up1, col_up2, col_up3, col_up4 = st.columns(4)
 
             with col_up1:
                 st.markdown("""
@@ -2916,6 +3031,26 @@ else:
                     label_visibility="collapsed"
                 )
 
+            with col_up4:
+                st.markdown("""
+                <div style="background:#f5f0ff; border-radius:12px; padding:12px 16px 6px 16px;
+                            border-left:4px solid #7c3aed; margin-bottom:10px; min-height:80px;">
+                    <p style="margin:0; font-size:12px; font-weight:800; color:#0b2a6f;
+                              letter-spacing:1.5px; text-transform:uppercase;">
+                        🎓 IQ — Monitoria
+                    </p>
+                    <p style="margin:4px 0 0 0; font-size:12px; color:#666;">
+                        Planilha de Detalhamento Operacional com nota IQ.
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+                arquivo_iq = st.file_uploader(
+                    "Enviar planilha de IQ (.xlsx)",
+                    type=["xlsx"],
+                    key=f"upload_iq_{nome_sup}_{servico_sup}",
+                    label_visibility="collapsed"
+                )
+
             # ── Processar arquivo de Métricas Gerais ──────────────
             if arquivo_bi is not None:
                 with st.spinner("Processando métricas gerais..."):
@@ -2950,7 +3085,18 @@ else:
                     except Exception as e:
                         st.error(f"Erro ao processar o arquivo de Rechamada: {e}")
 
-            if arquivo_bi is None and arquivo_fcr is None and arquivo_rechamada is None:
+            # ── Processar arquivo de IQ ───────────────────────────
+            if arquivo_iq is not None:
+                with st.spinner("Processando IQ — Monitoria..."):
+                    try:
+                        df_iq_raw = pd.read_excel(arquivo_iq, dtype=str)
+                        sucesso_iq = upsert_supabase_iq(df_iq_raw, nome_sup, servico_sup)
+                        if sucesso_iq:
+                            st.success(f"✅ **{arquivo_iq.name}** — IQ de Monitoria enviado com sucesso!")
+                    except Exception as e:
+                        st.error(f"Erro ao processar o arquivo de IQ: {e}")
+
+            if arquivo_bi is None and arquivo_fcr is None and arquivo_rechamada is None and arquivo_iq is None:
                 st.markdown("""
                 <div style='text-align:center; padding: 50px 0; color:#aaa;'>
                     <p style='font-size:44px;'>📤</p>
