@@ -281,11 +281,15 @@ _MAP_COLUNAS_BI = {
     'silêncio':            'silencio',
     'silencio (%)':        'silencio',
     'silêncio (%)':        'silencio',
+    '(%) silencio':        'silencio',
+    '(%) silêncio':        'silencio',
     # Pesquisa
     'pesquisa':            'pesquisa',
+    'pesquisa voz':        'pesquisa',
     # Resolutividade
     'resolutividade':      'resolutividade',
     '(%) resolutividade':  'resolutividade',
+    '(%) resolutividade voz': 'resolutividade',
     # FCR
     'fcr':                 'fcr',
     '% fcr (1° contato)':  'fcr',
@@ -525,7 +529,8 @@ _COLUNAS_FRACAO = {
     'produtividade', '(%) produtividade',
     'transf', '(%) transf',
     'shortcall', '(%) shortcall',
-    'silencio', 'silêncio', 'silencio (%)', 'silêncio (%)',
+    'silencio', 'silêncio', 'silencio (%)', 'silêncio (%)', '(%) silencio', '(%) silêncio',
+    '(%) resolutividade voz',
     'resolutividade', '(%) resolutividade',
     'fcr', '% fcr (1° contato)', '% fcr (1 contato)', '% fcr',
     'direcionado', '% direcionado', '% direcionadas', 'direcionadas',
