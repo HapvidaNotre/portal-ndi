@@ -203,19 +203,18 @@ if 'splash_done' not in st.session_state:
     st.session_state.splash_done = False
 
 if not st.session_state.splash_done:
-    st.markdown(f"""
-    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;
-                padding: 80px 0 20px 0; text-align:center;">
-        <img src="{LOGO_URL}"
-             width="160" style="margin-bottom:20px;" />
-        <p style="background: linear-gradient(135deg, #0b2a6f, #1a6fc4);
-                  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-                  font-size:28px; font-weight:900; letter-spacing:1px; margin:0;">
-            Portal de Performance NDI
-        </p>
-        <p style="color:#888; font-size:14px; margin-top:8px;">Carregando...</p>
-    </div>
-    """, unsafe_allow_html=True)
+    _splash_html = (
+        '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;'
+        'padding:80px 0 20px 0;text-align:center;">'
+        '<img src="' + LOGO_URL + '" width="160" style="margin-bottom:20px;" />'
+        '<p style="background:linear-gradient(135deg,#0b2a6f,#1a6fc4);'
+        '-webkit-background-clip:text;-webkit-text-fill-color:transparent;'
+        'font-size:28px;font-weight:900;letter-spacing:1px;margin:0;">'
+        'Portal de Performance NDI</p>'
+        '<p style="color:#888;font-size:14px;margin-top:8px;">Carregando...</p>'
+        '</div>'
+    )
+    st.markdown(_splash_html, unsafe_allow_html=True)
 
     col_left, col_center, col_right = st.columns([1, 2, 1])
     with col_center:
@@ -1886,40 +1885,24 @@ if st.session_state.servico is None:
     # ── LADO DIREITO: fundo azul + logo ───────────────────────
     with col_right:
         _hub_html = (
-            """<style>
-            @keyframes heartbeat {
-                0%   { transform: scale(1);    }
-                14%  { transform: scale(1.08); }
-                28%  { transform: scale(1);    }
-                42%  { transform: scale(1.05); }
-                70%  { transform: scale(1);    }
-                100% { transform: scale(1);    }
-            }
-            .logo-pulse {
-                animation: heartbeat 2.2s ease-in-out infinite;
-                transform-origin: center center;
-            }
-            </style>
-            <div style="display:flex; flex-direction:column; align-items:center;
-                        justify-content:center; min-height:85vh; gap:24px;">
-                <img src="""" + LOGO_URL + """"
-                     class="logo-pulse"
-                     style="width:210px; filter:drop-shadow(0 6px 24px rgba(0,0,0,0.35));" />
-                <p style="color:rgba(255,255,255,0.65); font-size:12px;
-                          letter-spacing:3px; text-transform:uppercase; margin:0;">
-                    Portal de Performance
-                </p>
-                <div style="text-align:center; margin-top:-10px;">
-                    <p style="color:rgba(255,255,255,0.35); font-size:10px;
-                              letter-spacing:2px; text-transform:uppercase; margin:0 0 4px 0;">
-                        Desenvolvido por
-                    </p>
-                    <p style="color:rgba(255,255,255,0.75); font-size:13px;
-                              font-weight:700; letter-spacing:1px; margin:0;">
-                        Sup. Erik Coelho
-                    </p>
-                </div>
-            </div>"""
+            '<style>'
+            '@keyframes heartbeat {'
+            '0%{transform:scale(1);}14%{transform:scale(1.08);}28%{transform:scale(1);}'
+            '42%{transform:scale(1.05);}70%{transform:scale(1);}100%{transform:scale(1);}'
+            '}.logo-pulse{animation:heartbeat 2.2s ease-in-out infinite;transform-origin:center center;}'
+            '</style>'
+            '<div style="display:flex;flex-direction:column;align-items:center;'
+            'justify-content:center;min-height:85vh;gap:24px;">'
+            '<img src="' + LOGO_URL + '" class="logo-pulse"'
+            ' style="width:210px;filter:drop-shadow(0 6px 24px rgba(0,0,0,0.35));" />'
+            '<p style="color:rgba(255,255,255,0.65);font-size:12px;'
+            'letter-spacing:3px;text-transform:uppercase;margin:0;">Portal de Performance</p>'
+            '<div style="text-align:center;margin-top:-10px;">'
+            '<p style="color:rgba(255,255,255,0.35);font-size:10px;'
+            'letter-spacing:2px;text-transform:uppercase;margin:0 0 4px 0;">Desenvolvido por</p>'
+            '<p style="color:rgba(255,255,255,0.75);font-size:13px;'
+            'font-weight:700;letter-spacing:1px;margin:0;">Sup. Erik Coelho</p>'
+            '</div></div>'
         )
         st.markdown(_hub_html, unsafe_allow_html=True)
 
