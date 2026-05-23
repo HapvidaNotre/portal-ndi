@@ -1885,8 +1885,8 @@ if st.session_state.servico is None:
 
     # ── LADO DIREITO: fundo azul + logo ───────────────────────
     with col_right:
-        st.markdown("""
-            <style>
+        _hub_html = (
+            """<style>
             @keyframes heartbeat {
                 0%   { transform: scale(1);    }
                 14%  { transform: scale(1.08); }
@@ -1919,8 +1919,9 @@ if st.session_state.servico is None:
                         Sup. Erik Coelho
                     </p>
                 </div>
-            </div>
-        """, unsafe_allow_html=True)
+            </div>"""
+        )
+        st.markdown(_hub_html, unsafe_allow_html=True)
 
 # ---------- DASHBOARD ----------
 else:
