@@ -265,7 +265,11 @@ _MAP_COLUNAS_BI = {
     # Absenteísmo
     'absenteismo':         'absenteismo',
     '(%) absenteismo':     'absenteismo',
-    # Produtividade
+    # Produtividade — SEM equivalente no novo BI.
+    # A antiga coluna "Produtividade" não existe no novo formato e nenhuma
+    # coluna atual ((%) Ocupação, (%) Logado, (%) Alcance) equivale a ela.
+    # Deixada fora por decisão do gestor: o card exibirá "---" até definição.
+    # (Para reativar: mapeie aqui a coluna correta -> 'produtividade'.)
     'produtividade':       'produtividade',
     '(%) produtividade':   'produtividade',
     # Transf
@@ -273,7 +277,7 @@ _MAP_COLUNAS_BI = {
     '(%) transf':          'transf',
     # TMA Voz
     'tma voz':             'tma_voz',
-    # ShortCall
+    # ShortCall  (novo BI: "(%) ShortCall")
     'shortcall':           'shortcall',
     '(%) shortcall':       'shortcall',
     # Silêncio
@@ -290,26 +294,36 @@ _MAP_COLUNAS_BI = {
     'resolutividade':      'resolutividade',
     '(%) resolutividade':  'resolutividade',
     '(%) resolutividade voz': 'resolutividade',
-    # FCR
+    # FCR  (novo BI: "(%) FCR")
     'fcr':                 'fcr',
     '% fcr (1° contato)':  'fcr',
     '% fcr (1 contato)':   'fcr',
     '% fcr':               'fcr',
-    # Direcionado
+    '(%) fcr':             'fcr',
+    # Direcionado  (novo BI: "(%) SACS / Chamadas Atendidas")
     'direcionado':         'direcionado',
     '% direcionado':       'direcionado',
     '% direcionadas':      'direcionado',
     'direcionadas':        'direcionado',
+    '(%) sacs / chamadas atendidas': 'direcionado',
+    '(%) sacs/chamadas atendidas':   'direcionado',
     # Pausas — colunas de % têm prioridade sobre colunas de quantidade
-    '(%) pausa produtiva':   'pausa_produtiva',
-    '% pausa produtiva':     'pausa_produtiva',
-    'pausa produtiva':       'pausa_produtiva',
-    'pausas produtivas':     'pausa_produtiva',
-    '(%) pausa improdutiva': 'pausa_improdutiva',
-    '% pausa improdutiva':   'pausa_improdutiva',
-    'pausa improdutiva':     'pausa_improdutiva',
-    'pausas improdutivas':   'pausa_improdutiva',
-    'pausa total':           'pausa_total',
+    # (novo BI: "(%) Pausa Produtiva (WDE)" / "(%) Pausa Improdutiva (WDE)")
+    # Pausas — a coluna de PERCENTUAL tem prioridade sobre a de quantidade
+    # (a primeira chave que casa vence, pois o loop usa `if col_db not in rec`).
+    # Chaves do formato ANTIGO mantidas para compatibilidade retroativa.
+    # Novo BI: "(%) Pausa Produtiva (WDE)" / "(%) Pausa Improdutiva (WDE)".
+    '(%) pausa produtiva':         'pausa_produtiva',
+    '% pausa produtiva':           'pausa_produtiva',
+    '(%) pausa produtiva (wde)':   'pausa_produtiva',
+    'pausa produtiva':             'pausa_produtiva',
+    'pausas produtivas':           'pausa_produtiva',
+    '(%) pausa improdutiva':       'pausa_improdutiva',
+    '% pausa improdutiva':         'pausa_improdutiva',
+    '(%) pausa improdutiva (wde)': 'pausa_improdutiva',
+    'pausa improdutiva':           'pausa_improdutiva',
+    'pausas improdutivas':         'pausa_improdutiva',
+    'pausa total':                 'pausa_total',
 }
 
 # ---------- METAS — Supabase CRUD ----------
@@ -523,8 +537,8 @@ def _converter_tma(val):
 # Apenas colunas de PERCENTUAL — colunas de quantidade (Pausas Produtivas/Improdutivas) ficam de fora
 _COLUNAS_FRACAO = {
     'aderencia (%)', '(%) aderencia',
-    '(%) pausa improdutiva', '% pausa improdutiva',
-    '(%) pausa produtiva',   '% pausa produtiva',
+    '(%) pausa improdutiva', '% pausa improdutiva', '(%) pausa improdutiva (wde)',
+    '(%) pausa produtiva',   '% pausa produtiva',   '(%) pausa produtiva (wde)',
     'absenteismo', '(%) absenteismo',
     'produtividade', '(%) produtividade',
     'transf', '(%) transf',
@@ -532,8 +546,9 @@ _COLUNAS_FRACAO = {
     'silencio', 'silêncio', 'silencio (%)', 'silêncio (%)', '(%) silencio', '(%) silêncio',
     '(%) resolutividade voz',
     'resolutividade', '(%) resolutividade',
-    'fcr', '% fcr (1° contato)', '% fcr (1 contato)', '% fcr',
+    'fcr', '% fcr (1° contato)', '% fcr (1 contato)', '% fcr', '(%) fcr',
     'direcionado', '% direcionado', '% direcionadas', 'direcionadas',
+    '(%) sacs / chamadas atendidas', '(%) sacs/chamadas atendidas',
 }
 
 def upsert_supabase(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool:
@@ -542,6 +557,14 @@ def upsert_supabase(df_raw: pd.DataFrame, supervisor: str, servico: str) -> bool
 
     df_raw = df_raw.copy()
     df_raw.columns = df_raw.columns.str.strip()
+
+    # Remove APENAS a linha de rodapé do novo BI ("Filtros aplicados: ...").
+    # As demais validações de linha (matrícula válida / linha de Total) seguem
+    # inalteradas mais abaixo, preservando 100% o comportamento do formato antigo.
+    col_operador = next((c for c in df_raw.columns if c.strip().lower() == 'operador'), None)
+    if col_operador is not None:
+        _op = df_raw[col_operador].astype(str).str.strip().str.lower()
+        df_raw = df_raw[~_op.str.startswith('filtros aplicados')].copy()
 
     # Converte colunas de fração decimal → porcentagem
     df_num = df_raw.copy()
